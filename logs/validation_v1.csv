@@ -1,0 +1,36 @@
+﻿level,check,target,detail
+FATAL,duplicate,乱歩_灰色の巨人.txt ↔ 乱歩_魔法博士.txt,8-gram 包含率 45.3%
+FATAL,gaiji_lost,啄木_鳥影.txt,※/〓 が 10 箇所
+WARN,gaiji_lost,坂口安吾_復員殺人.txt,※/〓 が 1 箇所
+FATAL,gaiji_lost,多喜二_不在地主.txt,※/〓 が 27 箇所
+WARN,gaiji_lost,多喜二_工場細胞.txt,※/〓 が 1 箇所
+WARN,gaiji_lost,夢野久作_DOGRA.txt,※/〓 が 2 箇所
+WARN,gaiji_lost,室生犀星_蜜のあわれ.txt,※/〓 が 1 箇所
+WARN,gaiji_lost,宮本百合子_伸子.txt,※/〓 が 1 箇所
+FATAL,gaiji_lost,宮本百合子_道標.txt,※/〓 が 86 箇所
+FATAL,gaiji_lost,小栗虫太郎_黒死館.txt,※/〓 が 19 箇所
+WARN,gaiji_lost,岡本かの子_仏教人生読本.txt,※/〓 が 4 箇所
+WARN,gaiji_lost,岡本かの子_母子叙情.txt,※/〓 が 3 箇所
+FATAL,gaiji_lost,岡本かの子_生々流転.txt,※/〓 が 20 箇所
+FATAL,gaiji_lost,徳冨蘆花_不如帰.txt,※/〓 が 47 箇所
+WARN,gaiji_lost,林芙美子_放浪記初出.txt,※/〓 が 5 箇所
+FATAL,gaiji_lost,海野十三_敗戦日記.txt,※/〓 が 110 箇所
+FATAL,gaiji_lost,福翁_自伝.txt,※/〓 が 7 箇所
+FATAL,gaiji_lost,藤村_夜明け前.txt,※/〓 が 52 箇所
+FATAL,gaiji_lost,藤村_家.txt,※/〓 が 11 箇所
+FATAL,gaiji_lost,鴎外_伊沢蘭軒.txt,※/〓 が 166 箇所
+FATAL,gaiji_lost,鴎外_渋江抽斎.txt,※/〓 が 17 箇所
+WARN,gaiji_lost,鴎外_青年.txt,※/〓 が 2 箇所
+WARN,annotation_leak,林芙美子_放浪記初出.txt,注記記号の残存: ］
+FATAL,colophon,海野十三_敗戦日記.txt,検出: 入力： / 校正： / 底本： / 青空文庫作成ファイル / ファイル作成：
+WARN,odoriji,啄木_鳥影.txt,仮名踊り字/くの字点が 75 箇所（正規化漏れ）
+WARN,odoriji,坂口安吾_金銭無情.txt,仮名踊り字/くの字点が 1 箇所（正規化漏れ）
+WARN,odoriji,多喜二_工場細胞.txt,仮名踊り字/くの字点が 23 箇所（正規化漏れ）
+WARN,odoriji,岡本かの子_生々流転.txt,仮名踊り字/くの字点が 191 箇所（正規化漏れ）
+WARN,odoriji,林芙美子_放浪記初出.txt,仮名踊り字/くの字点が 34 箇所（正規化漏れ）
+WARN,odoriji,福翁_自伝.txt,仮名踊り字/くの字点が 4 箇所（正規化漏れ）
+WARN,odoriji,藤村_破戒.txt,仮名踊り字/くの字点が 218 箇所（正規化漏れ）
+FATAL,completeness,JLIT004,DUPLICATE: 【重大】当該ファイルの本文は『魔法博士』と同一。『灰色の巨人』は未収録。要再取得
+FATAL,completeness,JLIT057,PARTIAL: 【重大】下巻のみ収録。上巻（card1509）が欠落。作品全体としては不完全
+INFO,meta_year_source,-,初出年が編者補記のもの 19 件。典拠の確認が望ましい
+WARN,length_skew,-,"最短 30,555 / 最長 502,937 = 16.5倍（最長 藤村_夜明け前.txt）"

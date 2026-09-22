@@ -1,0 +1,98 @@
+# JLit コーパス構築・分析パイプライン  必須パッケージ
+# インストール:  pip install -r requirements.txt
+#
+# Python 3.10 以上（3.12 を推奨）。必ず仮想環境で実行すること。
+
+# --- 基盤 -------------------------------------------------------------------
+numpy>=1.24,<3
+pandas>=2.0
+scipy>=1.10
+scikit-learn>=1.3
+
+# --- 作図 -------------------------------------------------------------------
+matplotlib>=3.7
+seaborn>=0.13
+
+# --- 形態素解析 -------------------------------------------------------------
+fugashi>=1.3
+#
+# 辞書は pip では入らない。**本番の辞書は
+#   近現代口語小説UniDic  unidic-novel-v202512
+# である**（2026-09-22 決定。docs/dictionary_comparison.md §10）。
+# 4 辞書を 111 点で比べ，未知語率 0.17%（cwj の 3.9 分の 1）で，
+# かつ平均語長が cwj より長い（＝細かく刻んで稼いだのではない）ことを
+# 確かめて選んだ。
+#
+#   https://clrd.ninjal.ac.jp/unidic_archive/2512/unidic-novel-v202512.zip
+#
+# macOS では scripts/00_bootstrap_mac.sh が取得・展開する（約 1 GB）
+#   共用 iMac : /Users/Shared/jlit/unidic-novel-v202512
+#   自分の Mac: ~/.jlit/unidic-novel-v202512
+# 展開したら必ず読み込み試験をする（途中で切れた展開は見た目で分からない）
+#   python3 scripts/check_unidic_dir.py /Users/Shared/jlit/unidic-novel-v202512
+#
+# 検算用（任意。A_文語体の助動詞率の確認にのみ使う。--with-bungo で入る）
+#   https://clrd.ninjal.ac.jp/unidic_archive/2512/unidic-kindai-bungo-v202512.zip
+#
+# ⚠ `pip install unidic && python -m unidic download` で入るのは
+#    **現代書き言葉（cwj）であって本番の辞書ではない**。未知語率が 4 倍
+#    近くになり，本番の結果と比べられない。**だからここには書かない。**
+#    入れてあると 05 の自動検出がこれを拾いうる（拾ったときは [warn] が出る）。
+# ⚠ unidic-lite も本番ではない。辞書がどうしても用意できないときの代替で，
+#    使った場合は報告に明記すること。
+#      pip install unidic-lite
+
+# --- 埋め込み・トピックモデル ------------------------------------------------
+gensim>=4.3
+# 語彙のギャラクシー（Step 5 §4）の射影に使う。
+# ノートブックの既定は GAL_PROJ='umap'。**使えないときは黙って t-SNE に
+# 落ちず，理由を出して止まる**（方法だけが替わった図がいちばん危ない）。
+# t-SNE で進めたいときは GAL_PROJ='tsne' と明示し，報告にもそう書く。
+#
+# ⚠ パッケージ名は **umap-learn**。PyPI には `umap` という別物があり，
+#    `pip install umap` を入れると `import umap` はそちらを拾って
+#    `umap.UMAP` が無いと言われる。
+# ⚠ numba を伴うので，numpy の版と噛み合わないと import 自体が落ちる。
+# ⚠ **Intel Mac（x86_64）は版を固定すること。**
+#    llvmlite の macOS x86_64 wheel は **0.45.1 が最後**で，0.46 以降は
+#    arm64 のみ。固定せずに入れると llvmlite をソースからビルドしに行き，
+#    Homebrew の LLVM と版が合わずに失敗する（llvmlite 0.49 は LLVM 22 を
+#    要求。llvm@20 では通らない）。使える最新の組み合わせは
+#      numba 0.62.1 ＋ llvmlite 0.45.1（numpy<2.4）
+#    で，入れ方は
+#      uv pip install --python "<sys.executable の値>" \
+#          --only-binary :all: \
+#          "numba==0.62.1" "llvmlite==0.45.1" "numpy<2.4" umap-learn
+#    numpy が 2.3 系に下がるが，pandas 3 / scipy 1.18 / scikit-learn 1.9 /
+#    matplotlib 3.11 はいずれも numpy 2.3 で動く（2026-09-22 に確認）。
+#    Apple Silicon では版の固定は要らない。
+# ⚠ **uv add はプロジェクト（pyproject.toml のある場所）単位である。**
+#    本プロジェクトには pyproject.toml を置いていないので，作業コピーで
+#    `uv add umap-learn` を走らせると uv は**親へ遡って別のプロジェクト**に
+#    入れる（成功と表示されるが，カーネルの .venv には入らない）。
+#    ノートブックのカーネルに確実に入れるには**インタプリタを名指しする**:
+#      uv pip install --python "<sys.executable の値>" umap-learn
+#    sys.executable は  import sys; print(sys.executable)  で確かめる。
+#    入れたら**カーネルを再起動**すること。
+# ⚠ カーネル自体が別の Python（anaconda3 など）のときは登録し直す:
+#      uv add ipykernel
+#      uv run python -m ipykernel install --user \
+#          --name jlit-uv --display-name "JLit (uv)"
+#    切り分けは  python3 scripts/check_umap.py （ノートブックと同じ
+#    カーネルで走らせること）。
+umap-learn>=0.5
+numba>=0.60          # umap-learn が使う JIT。numpy 2.x では 0.60 以上が要る
+# MALLET は Java 製の外部ツール。pip では入らない。docs/00_setup_students.md 参照
+# Java がどうしても入らない環境では tomotopy で代替できる（レポートに明記すること）
+#   pip install tomotopy
+
+# --- 文書処理 ---------------------------------------------------------------
+lxml>=5.0
+# cssselect は不要になった（03_aozora2xml.py は XPath だけを使う）
+openpyxl>=3.1
+pyyaml>=6.0
+
+# --- ノートブック -----------------------------------------------------------
+jupyterlab>=4.0
+ipykernel>=6.25
+tqdm>=4.66

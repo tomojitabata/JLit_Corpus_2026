@@ -1,0 +1,138 @@
+# =============================================================================
+# JLit コーパス パイプライン設定
+# -----------------------------------------------------------------------------
+# この 1 ファイルが「何をどう数えたか」の記録になる。設定を変えたら
+# logs/ に日付つきでコピーを残すこと。v1 コーパスの再現性の欠如
+# （同一作品の 2 ファイルで分割が違う）は，この記録がなかったことに由来する。
+# =============================================================================
+
+project:
+  name: JLit
+  version: "2.0"
+  created: "2026-09-20"
+  description: 近代日本文学コーパス（青空文庫由来・1872–1959）
+
+# --- 02_fetch_aozora.py ------------------------------------------------------
+fetch:
+  index_url: https://www.aozora.gr.jp/index_pages/list_person_all_extended_utf8.zip
+  manifest: config/corpus_manifest.tsv
+  out: data/aozora
+  prefer_orthography: 新字新仮名   # 同一作品に複数版があるときの既定
+  sleep_seconds: 1.0              # サーバ負荷への配慮。下げないこと
+
+# --- 03_aozora2xml.py --------------------------------------------------------
+xml:
+  mark_speech: true               # 第一階層の会話符を <said> で囲む
+  mark_quote: true                # 第二階層の会話符を <quote> で囲む
+  keep_notes: true                # 入力者注を <note> として保持（本文からは除外）
+  gaiji_strategy: menkuten_then_unicode
+  detect_speech_mark: true        # 作品ごとに「」と『』のどちらが第一階層か判定
+  max_par: 150                    # 会話を何段落まで追跡するか
+  embed_min: 8                    # 何段落以上の引用を <quote type="embedded"> とするか
+  min_said_density: 1.5           # 1万字あたりの会話数。これ未満なら標示を partial と判定
+
+# --- 04_normalise.py ---------------------------------------------------------
+normalise:
+  streams: [full, narration, speech, embedded]
+  expand_iteration_marks: true    # ゝゞヽヾ と くの字点を展開。々 は展開しない
+  normalise_latin_digits: true    # 全角ラテン文字・数字を半角へ
+  keep_ruby_base: true            # ルビの基底文字を残し，読み(@rt)は除く
+  narration_excludes_embedded: false
+  # 真にすると，書簡・手記など <quote type="embedded"> の地の文を narration
+  # から外す。『こころ』下「先生と遺書」を語りから切り離して上・中と対照する
+  # ときに使う。既定は含める（先生の一人称の語りだから）
+
+# --- 05_tokenise_unidic.py ---------------------------------------------------
+# 辞書は 2026-09-22 の比較実験（4 辞書・111 点）にもとづいて決めた。
+# 経緯と数値は docs/dictionary_comparison.md §10。
+# **辞書を替えるときは下の 3 行を書き換え，logs/ に日付つきで写しを残し，
+# メタデータの実測値を測り直すこと**（00_extend_metadata.py --remeasure-all）。
+tokenise:
+  dictionary: unidic-novel        # 近現代口語小説UniDic。本番の辞書
+  dictionary_version: v202512     # NINJAL の日付版（3.1.x 系ではない）
+  dictionary_decided: "2026-09-22"
+  dictionary_evidence: docs/dictionary_comparison.md §10
+  # 測定値（語数重みづけ・101 点）: 未知語率 0.17%（cwj の 3.9 分の 1），
+  # 平均語長 1.575（cwj より長い。細かく刻んで未知語を減らしたのではない）
+  dicdir: /Users/Shared/jlit/unidic-novel-v202512
+  # null にすると 05 が自動検出する（探索順は 05 の resolve_dicdir を見る）。
+  # 明示しておくほうが「どの辞書で数えたか」が設定ファイルに残る。
+  #
+  # 検算用の辞書。**採否の判断には使わない**（§5）。A_文語体の作品で
+  # 助動詞率を測り直し，bungo_per10k ひいては style_class の妥当性を見る。
+  dicdir_bungo: /Users/Shared/jlit/unidic-kindai-bungo-v202512
+  lemma_policy: mixed             # mixed / lemma / orthBase / surface
+  strip_homograph_suffix: true    # 私-代名詞 → 私
+  keep_punct: false
+  content_pos: [名詞, 動詞, 形容詞, 副詞]
+
+# --- 06_build_datasets.py ----------------------------------------------------
+datasets:
+  chunk_tokens: 2000
+  min_chunk_tokens: 1000          # 既定は chunk_tokens の半分。満たない作品は落ちる
+  max_chunks_per_work: 40         # 長篇の支配を防ぐ。0 で無制限
+  sampling: stratified            # head / random / spread / stratified
+  # 上限を超える作品は 40 の区画に等分し，各区画から1つ無作為に抜く
+  # （層化無作為）。単純無作為だと連続区間がまるごと抜けることがある。
+  # 種は
+  # f'{seed}:{作品の語幹}' で作品ごとに作るので，
+  #   * 同じ seed なら何度走らせても同じチャンクが選ばれる
+  #   * コーパスに作品を足しても既存作品の標本は変わらない
+  # 論文にはこの3行（chunk_tokens / max_chunks_per_work / seed）を必ず書く。
+  min_df: 3
+  max_df_ratio: 0.80
+  seed: 20260920
+
+# --- 07_descriptive_stats.py -------------------------------------------------
+descriptive:
+  mfw: 300
+  min_log_likelihood: 15.13       # p < 0.0001
+
+# --- 08_word2vec_diachronic.py -----------------------------------------------
+# 既定値は 2026-09-22 に確定した。dim 300／window 3。
+# **window を狭くしてある**のは，語の統語的な振る舞い（品詞・共起の型）を
+# 拾いたいからである。窓を広げると主題の近さが優勢になる。
+# ギャラクシー（Step 5 §4）で「文法的な関係」と「意味的な関係」の両方を
+# 見せるには，この狭い窓のほうが向く。
+word2vec:
+  slice_field: period
+  dim: 300
+  window: 3
+  min_count: 20
+  epochs: 20
+  sg: 1                           # 1=skip-gram
+  balance_slices: true
+  max_chunks_per_author: 0
+  runs: 10                        # 乱数を変えて安定性を確認する（10 試行）
+  seed: 11                        # 単発のときの種
+  # 安定性の検査に使う10個の種。**報告にはこの並びをそのまま書く。**
+  seeds: [11, 22, 33, 44, 55, 66, 77, 88, 99, 111]
+
+# --- 09_doc2vec.py -----------------------------------------------------------
+# word2vec と同じ水準に揃えた（dim 300／window 3／種は同じ並び）。
+# ⚠ PV-DBOW（dm=0）では window は語ベクトルの学習にしか効かない。
+# 揃えてあるのは設定の一貫性のためで，作品ベクトルへの影響は小さい。
+doc2vec:
+  dim: 300
+  window: 3
+  min_count: 10
+  epochs: 40
+  dm: 0                           # 0=PV-DBOW
+  seed: 11
+  seeds: [11, 22, 33, 44, 55, 66, 77, 88, 99, 111]
+
+# --- 10_mallet.py ------------------------------------------------------------
+mallet:
+  topics: 50
+  iterations: 2000
+  optimize_interval: 20
+  threads: 4
+  seed: 20260920
+  stoplist: config/stopwords_ja.txt
+  sweep_topic_list: [20, 30, 40, 50, 60, 80]
+
+# --- 11_visualise.py ---------------------------------------------------------
+figures:
+  out: results/figures
+  font: null                      # null なら自動検出（macOS: Hiragino Sans）
+  dpi: 180

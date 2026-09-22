@@ -1,0 +1,56 @@
+﻿person_id,work_id,author_ja,title,narration,register_level,audience,form,genre_main,genre_sub,author_sex,completeness,first_medium,year_first,year_source,year_first_end,note,editorial_note
+000158,001504,島崎藤村,夜明け前,third,canonical,general,novel,Fiction,Historical,M,complete,,,,,第一部上〜第二部下の4カード（001504〜001507）を結合した1ファイル,分冊をまとめた後の作品行。作品単位の分析はこの行を使う。巻別の XML は data/xml/_volumes/ にある
+000158,001505,島崎藤村,夜明け前,third,canonical,general,novel,Fiction,Historical,M,merged,,,,,第一部下。本文は 000158_001504 に統合済み,03b_merge_volumes.py で結合。この行は書誌のみで本文を持たない
+000158,001506,島崎藤村,夜明け前,third,canonical,general,novel,Fiction,Historical,M,merged,,,,,第二部上。本文は 000158_001504 に統合済み,03b_merge_volumes.py で結合。この行は書誌のみで本文を持たない
+000158,001507,島崎藤村,夜明け前,third,canonical,general,novel,Fiction,Historical,M,merged,,,,,第二部下。本文は 000158_001504 に統合済み,03b_merge_volumes.py で結合。この行は書誌のみで本文を持たない
+000158,001509,島崎藤村,家,third,canonical,general,novel,Fiction,Naturalist,M,complete,,,,,上巻（001509）・下巻（001510）を結合した1ファイル,分冊をまとめた後の作品行。作品単位の分析はこの行を使う。巻別の XML は data/xml/_volumes/ にある
+000005,000005,ツルゲーネフ イワン,あいびき,first,canonical,general,short-story,Fiction,Translation,M,complete,magazine,,editor,1888,,二葉亭四迷訳。『猟人日記』の一人称。訳文が言文一致の実験 ／ 初出媒体は編者の判断（青空文庫の索引に初出欄なし）: 「国民之友」1888（明治21）年。二葉亭四迷訳
+000006,001869,二葉亭四迷,浮雲,third,canonical,general,novel,Fiction,Modern,M,incomplete,book,,editor,1889,,未完。言文一致体小説の出発点 ／ 初出媒体は編者の判断（青空文庫の索引に初出欄なし）: 第一篇1887・第二篇1888は金港堂の単行本。第三篇のみ「都の花」
+000091,000522,尾崎紅葉,金色夜叉,third,canonical,general,novel,Fiction,Melodrama,M,incomplete,,,,,,未完。読売新聞連載
+000843,042349,山田美妙,武蔵野,third,canonical,general,short-story,Fiction,Historical,M,complete,,,,,,「です・ます」体による言文一致の別系統
+000051,050351,幸田露伴,五重塔,third,canonical,general,novella,Fiction,Modern,M,complete,,,,,,雅俗折衷体。会話符を使わないので会話文比率は欠測
+000280,046536,徳冨蘆花,良夜,first,canonical,general,essay,Nonfiction,Sketch-Essay,M,too_short,book,,editor,1900,,"『自然と人生』所収の写生文 ／ 初出媒体は編者の判断（青空文庫の索引に初出欄なし）: 『自然と人生』（民友社, 1900）所収。篇ごとの新聞初出は未確認 ／ 短すぎるため分析から除外: 651字・418語。--chunk 2000 の1チャンクにも満たないのでチャンク単位の分析に乗らない。底本『日本の名随筆58 月』は詞華集で，青空文庫にあるのはこの1篇のみ。蘆花は『みみずのたはこと』『不如帰』で代表される"
+000280,046537,徳冨蘆花,花月の夜,first,canonical,general,essay,Nonfiction,Sketch-Essay,M,too_short,book,,editor,1900,,同上。264字と極端に短く作品単位の統計には使えない ／ 初出媒体は編者の判断（青空文庫の索引に初出欄なし）: 同上 ／ 短すぎるため分析から除外: 259字・163語。同上。コーパス中で最短
+000129,058126,森鴎外,舞姫,first,canonical,general,short-story,Fiction,Modern,M,complete,,,,,,雅文体の一人称回想
+000305,046534,正岡子規,歌よみに与ふる書,first,canonical,general,treatise,Nonfiction,Criticism,M,complete,,,,,,書簡体の歌論。一人称で論を立てる
+000296,047054,福沢諭吉,学者安心論,none,canonical,general,treatise,Nonfiction,Enlightenment-Didactic,M,complete,,,,,,明治9年の論説。非物語
+000296,045664,福沢諭吉,旧藩情,none,canonical,general,treatise,Nonfiction,Historical-Essay,M,complete,book,,editor,1877,,明治10年の論説。廃藩置県後の士族社会 ／ 初出媒体は編者の判断（青空文庫の索引に初出欄なし）: 明治10年の私家版
+000885,003325,与謝野晶子,「女らしさ」とは何か,first,canonical,general,essay,Nonfiction,Criticism,F,complete,,,,,,大正期女性評論
+000885,003319,与謝野晶子,私の貞操観,first,canonical,general,essay,Nonfiction,Criticism,F,complete,,,,,,同上
+000416,003577,伊藤野枝,ある男の堕落,third,canonical,general,short-story,Fiction,Modern,F,complete,,,,,,『青鞜』系の女性作家
+000416,056232,伊藤野枝,新らしき女の道,first,canonical,general,essay,Nonfiction,Criticism,F,too_short,,,,,,"1,207字と短い評論 ／ 短すぎるため分析から除外: 1,207字・743語。同上。伊藤野枝は『ある男の堕落』(003577) で残る"
+000064,056041,樋口一葉,たけくらべ,third,canonical,general,novella,Fiction,Modern,F,complete,,,,,,雅俗折衷体。会話符を使わないので会話文比率は欠測
+000064,056042,樋口一葉,にごりえ,third,canonical,general,novella,Fiction,Modern,F,complete,,,,,,同上
+000064,000386,樋口一葉,十三夜,third,canonical,general,short-story,Fiction,Modern,F,complete,,,,,,同上。会話文比率は partial
+000112,000601,水野仙子,四十余日,first,middlebrow,general,short-story,Fiction,Modern,F,complete,magazine,1910,editor,1910,,花袋門下・『青鞜』同人。自伝的 ／ 初出は「趣味」1910（明治43）年5月。底本が『明治文學全集82 明治女流文學集（二）』であることとも整合する。増補候補表の 1913 は誤りだったので訂正
+000112,004263,水野仙子,脱殻,third,middlebrow,general,short-story,Fiction,Modern,F,complete,,,,,,同上
+000655,005006,田村俊子,木乃伊の口紅,third,canonical,general,novella,Fiction,Modern,F,complete,,,,,,旧字旧仮名。正書法の統制に注意
+000235,002259,上田敏,海潮音,none,canonical,general,collection,Nonfiction,Translation-Verse,M,complete,book,,editor,1905,,"訳詩集。韻文なので散文の文体指標は適用外 ／ 初出媒体は編者の判断（青空文庫の索引に初出欄なし）: 本郷書院, 1905。個々の訳詩は「明星」等に既出"
+000157,043443,北村透谷,内部生命論,none,canonical,general,treatise,Nonfiction,Criticism,M,complete,,,,,,明治期批評文
+000042,001684,寺田寅彦,柿の種,first,canonical,general,collection,Nonfiction,Science-Essay,M,complete,book,,editor,1933,,"科学随筆の断章集 ／ 初出媒体は編者の判断（青空文庫の索引に初出欄なし）: 小山書店, 1933。断章は「渋柿」に連載"
+000082,001312,岡本綺堂,修禅寺物語,dialogue,canonical,general,play,Fiction,Drama,M,complete,,,,,,戯曲。会話は話者名と字下げで示すので会話文比率は欠測
+001154,052082,岸田国士,紙風船（一幕）,dialogue,canonical,general,play,Fiction,Drama,M,complete,,,,,,大正期の口語戯曲。一幕物
+001566,052504,柳田国男,遠野物語,third,documentary,general,collection,Nonfiction,Ethnography,M,complete,book,,,1910,,"民俗誌。119話の集成。文語の記述 ／ 初出媒体は編者の判断（青空文庫の索引に初出欄なし）: 私家版, 1910年6月14日"
+000129,004376,森鴎外,即興詩人,first,canonical,general,novel,Fiction,Translation,M,complete,magazine,,editor,1901,,アンデルセン。雅文体翻訳の一人称 ／ 初出媒体は編者の判断（青空文庫の索引に初出欄なし）: 「しがらみ草紙」「めさまし草」1892〜1901連載
+001341,049658,永井荷風,日和下駄,first,canonical,general,essay,Nonfiction,Sketch-Essay,M,complete,magazine,,editor,1915,,副題「一名 東京散策記」。大正期随筆の代表 ／ 初出媒体は編者の判断（青空文庫の索引に初出欄なし）: 「三田文学」1914〜1915連載
+000153,000814,石川啄木,時代閉塞の現状,none,canonical,general,treatise,Nonfiction,Criticism,M,complete,book,,editor,1913,,"評論 ／ 初出媒体は編者の判断（青空文庫の索引に初出欄なし）: 1910年執筆・生前未発表。『啄木遺稿』(東雲堂,1913)が初出"
+000083,000502,菊池寛,父帰る,dialogue,canonical,general,play,Fiction,Drama,M,complete,magazine,,editor,1917,,一幕物。会話文比率の極値として参照点になる ／ 初出媒体は編者の判断（青空文庫の索引に初出欄なし）: 「新思潮」1917（大正6）年1月
+000119,000624,中島敦,山月記,third,canonical,general,short-story,Fiction,Historical,M,complete,magazine,,editor,1942,,漢文脈の濃い短篇 ／ 初出媒体は編者の判断（青空文庫の索引に初出欄なし）: 「文學界」1942（昭和17）年2月
+000119,001737,中島敦,李陵,third,canonical,general,novella,Fiction,Historical,M,complete,magazine,,editor,1943,,同上 ／ 初出媒体は編者の判断（青空文庫の索引に初出欄なし）: 「文學界」1943（昭和18）年7月。没後発表
+000035,002282,太宰治,津軽,first,canonical,general,travelogue,Nonfiction,Travel,M,complete,,,,,,紀行。NDC は 913 だが小説ではなく紀行として扱う
+001579,053013,室生犀星,幼年時代,first,canonical,general,novella,Fiction,Bildungsroman,M,complete,magazine,,editor,1919,,自伝的三部作の一 ／ 初出媒体は編者の判断（青空文庫の索引に初出欄なし）: 「中央公論」1919（大正8）年8月
+001579,053012,室生犀星,性に眼覚める頃,first,canonical,general,novella,Fiction,Bildungsroman,M,complete,magazine,,editor,1919,,同上 ／ 初出媒体は編者の判断（青空文庫の索引に初出欄なし）: 「中央公論」1919（大正8）年10月
+000280,001704,徳冨蘆花,みみずのたはこと,first,canonical,general,collection,Nonfiction,Sketch-Essay,M,complete,book,,editor,1913,,"随筆集。『不如帰』(1898)との文体差が測れる ／ 初出媒体は編者の判断（青空文庫の索引に初出欄なし）: 新橋堂, 1913"
+000153,045462,石川啄木,雲は天才である,third,canonical,general,novella,Fiction,Modern,M,incomplete,,,,,,未完。会話符は『』が第一階層
+000879,000069,芥川竜之介,河童,first,canonical,general,novella,Fiction,Satire,M,complete,,,,,,枠物語。「第二十三号」の手記という一人称
+000879,000127,芥川竜之介,羅生門,third,canonical,general,short-story,Fiction,Historical,M,complete,,,,,,今昔物語に取材した歴史小説
+000158,001510,島崎藤村,家（下）,,,,,,,,merged,,,,,下巻。本文は 000158_001509 に統合済み,03b_merge_volumes.py で結合。この行は書誌のみで本文を持たない
+000158,1504-1507,島崎藤村,夜明け前（第一部上〜第二部下）,,,,,,,,superseded,,,,,,v1 の合本。増補で 001504〜001507 を分冊ごとに取り直したので，この行の実測値を corpus 集計に足すと『夜明け前』を二重に数える。本文ファイルは持たない書誌専用の行として残す
+001779,056676,江戸川乱歩,灰色の巨人,,,,,,,,complete,,,,,「少年クラブ」大日本雄辯會講談社、1955（昭和30）年1〜12月号。底本『灰色の巨人／魔法博士』（江戸川乱歩推理文庫、講談社、1988）,v1 の 乱歩_灰色の巨人.txt は『魔法博士』の本文が入っていたが，増補でカード 56676 から取り直したので解消。全29章（「志摩の女王」〜「怪人のさいご」），56679『魔法博士』との文字12-gram 一致率 0.0009 で別作品であることを確認
+000989,002577,三遊亭円朝,怪談牡丹灯籠,third,canonical,general,oral-transcript,Fiction,Ghost-Story,M,complete,book,1884,editor,1884,若林玵蔵の速記による口演筆記。言文一致体の直接の源流として採録,2026-09 リバランスで追加。明治前期の Fiction が皆無。口演速記は言文一致の直接の源流で，二葉亭『浮雲』の前史として要る
+000989,000350,三遊亭円朝,真景累ヶ淵,third,canonical,general,oral-transcript,Fiction,Ghost-Story,M,complete,book,1888,editor,1888,同上。速記口演体,2026-09 リバランスで追加。同上。速記口演体の最長篇。『浮雲』(1887)とほぼ同時期で直接比較できる
+000050,001087,泉鏡花,婦系図,third,canonical,general,novel,Fiction,Aesthetic,M,complete,newspaper,1907,editor,1907,「やまと新聞」1907年1〜4月連載,2026-09 リバランスで追加。反自然主義・雅俗折衷体。明治後期が自然主義に偏るのを是正する。鏡花は未収録
+000214,001668,田山花袋,田舎教師,third,canonical,general,novel,Fiction,Naturalist,M,complete,book,1909,editor,1909,佐久良書房、1909年10月,2026-09 リバランスで追加。自然主義の代表作。花袋は未収録
+000118,001745,長塚節,土,third,canonical,general,novel,Fiction,Naturalist,M,complete,newspaper,1910,editor,1910,「東京朝日新聞」1910年6〜11月連載。常陸方言を多く含む,2026-09 リバランスで追加。農民の方言を写した写実。語彙の層が他と大きく違う。長塚節は未収録
+000023,000199,徳田秋声,あらくれ,third,canonical,general,novel,Fiction,Naturalist,M,complete,newspaper,1915,editor,1915,「読売新聞」1915年連載,2026-09 リバランスで追加。大正の長篇が薄い。秋声は未収録。女性主人公の長篇
+000025,000201,有島武郎,或る女,third,canonical,general,novel,Fiction,Modern,M,complete,book,1919,editor,1919,叢文閣、1919年。初出は「白樺」1911〜13『或る女のグリンプス』,2026-09 リバランスで追加。白樺派。大正の長篇を補う。有島は未収録。女性主人公の長篇

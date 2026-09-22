@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JLit KWIC コンコーダンサ</title>
+<!--
+  画面。中身（索引と検索）は scripts/kwic_core.py，サーバは 16_kwic_server.py。
+  ● 外部の資源（CDN・フォント・JS 枠組み）は使わない。塞がれた機体でも開く。
+  ● 本文はコーパス由来の任意の文字列なので，**必ず textContent で入れる**。
+    文字列連結で HTML に差し込まない。
+  ● 由来（辞書・版・索引の作成時刻）を画面の下に常に出す。
+-->
+<style>
+:root{
+  --ink:#1f1e1b; --ink2:#5a5a55; --ink3:#8a8a82; --line:#d8d7d0;
+  --surface:#ffffff; --wash:#f7f7f4; --key:#0d366b; --keybg:#eef4fb;
+  --accent:#0072B2; --warn:#8a3b12; --warnbg:#fdf1ea;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--wash);color:var(--ink);line-height:1.6;
+  font-family:"Hiragino Sans","Noto Sans JP","Yu Gothic",system-ui,sans-serif;
+  font-size:14px}
+a{color:var(--accent)}
+.bar{position:sticky;top:0;z-index:20;background:var(--surface);
+  border-bottom:1px solid var(--line);padding:10px 16px}
+.wrap{max-width:1500px;margin:0 auto}
+h1{font-size:1rem;margin:0 0 .35em;font-weight:650}
+h1 small{font-weight:400;color:var(--ink2);font-size:.78rem;margin-left:.6em}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+input[type=text]{flex:1 1 280px;min-width:220px;padding:7px 10px;font-size:15px;
+  border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--ink)}
+input[type=text]:focus{outline:2px solid #bcd7f2;border-color:var(--accent)}
+select,input[type=number]{padding:6px 8px;border:1px solid var(--line);
+  border-radius:7px;background:#fff;color:var(--ink);font-size:13px}
+button{padding:7px 14px;border:1px solid var(--accent);background:var(--accent);
+  color:#fff;border-radius:7px;font-size:14px;cursor:pointer}
+button.ghost{background:#fff;color:var(--accent)}
+button:disabled{opacity:.5;cursor:default}
+label.f{font-size:12px;color:var(--ink2);display:flex;gap:4px;align-items:center}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;
+  overflow:hidden}
+.seg button{border:0;border-radius:0;background:#fff;color:var(--ink2);
+  padding:6px 12px;font-size:13px}
+.seg button.on{background:var(--accent);color:#fff}
+.cols{display:grid;grid-template-columns:minmax(0,1fr) 352px;gap:14px;
+  padding:14px 16px}
+@media (max-width:1040px){.cols{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;
+  padding:12px 14px;margin-bottom:14px}
+.card h2{font-size:.86rem;margin:0 0 .5em;color:var(--ink2);font-weight:650}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:4px 7px;border-bottom:1px solid #eceae3;vertical-align:top}
+th{text-align:left;color:var(--ink2);font-weight:600;white-space:nowrap}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+#kwic thead th{position:sticky;top:0;background:var(--surface);z-index:2}
+#kwic td{white-space:nowrap}
+#kwic tr.hit{cursor:pointer}
+#kwic tr.hit:hover{background:#fbfaf6}
+#kwic tr.on{background:#eef4fb}
+td.l{text-align:right}
+td.k{text-align:center;font-weight:700;color:var(--key);background:var(--keybg)}
+td.src{font-size:12px;color:#3d3c37;max-width:190px;overflow:hidden;
+  text-overflow:ellipsis}
+td.nometa{color:var(--warn)}
+.scroll{overflow:auto;max-height:64vh}
+.sub{color:var(--ink2);font-size:12px}
+.err{background:var(--warnbg);border:1px solid #e6bfa6;color:var(--warn);
+  border-radius:8px;padding:10px 12px;margin:0 16px 14px;font-size:13px;
+  white-space:pre-wrap}
+.prov{color:var(--ink3);font-size:11px;padding:0 16px 28px;line-height:1.7}
+.badge{display:inline-block;background:#f0efe9;border-radius:5px;padding:1px 6px;
+  font-size:11px;color:var(--ink2);margin-right:4px}
+.bar2{height:7px;background:var(--accent);border-radius:3px;display:inline-block;
+  vertical-align:middle}
+details.help{margin-top:6px}
+details.help summary{cursor:pointer;font-size:12px;color:var(--accent)}
+details.help table{font-size:12px;margin-top:6px}
+details.help code{background:#f3f2ec;padding:1px 5px;border-radius:4px}
+#pane{position:fixed;inset:auto 0 0 0;max-height:52vh;background:var(--surface);
+  border-top:2px solid var(--accent);box-shadow:0 -6px 18px rgba(0,0,0,.08);
+  padding:12px 16px 18px;overflow:auto;display:none;z-index:30}
+#pane .cite{font-size:13px;color:var(--ink2);margin-bottom:8px}
+#pane .body{font-size:15px;line-height:2.0}
+#pane .body span.t{cursor:help}
+#pane .body span.key{background:#ffe9a8;font-weight:700;border-radius:3px;
+  padding:0 2px}
+#pane .close{position:absolute;right:14px;top:10px}
+.multi{min-width:150px;max-width:220px;height:86px}
+.mono{font-variant-numeric:tabular-nums}
+#bandtab td:first-child{white-space:nowrap;font-size:12px}
+#pane .widen{margin-left:8px}
+</style>
+</head>
+<body>
+
+<div class="bar"><div class="wrap">
+  <h1>JLit KWIC コンコーダンサ
+    <small id="head-sub">索引を読み込んでいる…</small></h1>
+
+  <div class="row">
+    <div class="seg" id="stream-seg">
+      <button data-v="lemma" class="on">語彙素で検索</button>
+      <button data-v="surface">表層形で検索</button>
+    </div>
+    <input id="q" type="text" placeholder="例: 汽車 ／ 汽車|電車 ／ 乗* ／ /動詞 ／ 言う/動詞 ／ L:言う S:云ふ ／ 汽車 に 乗る">
+    <button id="go">検索</button>
+    <button class="ghost" id="csv">CSV</button>
+    <button class="ghost" id="save">HTML で保存</button>
+  </div>
+
+  <div class="row" style="margin-top:8px">
+    <label class="f">文脈 <select id="context">
+      <option>3</option><option>5</option><option selected>7</option>
+      <option>10</option><option>15</option><option>20</option></select> 語</label>
+    <label class="f">並べ替え <select id="sort">
+      <option value="position">本文の順</option>
+      <option value="left1">左1語</option>
+      <option value="left2">左1→2語</option>
+      <option value="right1">右1語</option>
+      <option value="right2">右1→2語</option>
+      <option value="year">初出年</option>
+      <option value="author">著者</option>
+      <option value="title">作品</option>
+      <option value="random">無作為</option></select></label>
+    <label class="f">表示 <select id="limit">
+      <option>50</option><option selected>200</option><option>500</option>
+      <option>1000</option></select> 件</label>
+    <label class="f">間引き <input id="sample" type="number" min="0" step="50"
+      value="0" style="width:82px"> 件（0で全件）</label>
+    <label class="f"><input id="nopunct" type="checkbox"> 句読点を外す</label>
+    <label class="f"><input id="coll" type="checkbox" checked> 共起語も出す</label>
+    <label class="f">窓 <select id="collwin">
+      <option>2</option><option>3</option><option selected>4</option>
+      <option>5</option><option>8</option></select></label>
+  </div>
+
+  <div class="row" style="margin-top:8px">
+    <label class="f">時代区分<select id="bands" class="multi" multiple></select></label>
+    <label class="f">著者<select id="authors" class="multi" multiple></select></label>
+    <label class="f">文体<select id="styles" class="multi" multiple></select></label>
+    <label class="f">作品<select id="works" class="multi" multiple></select></label>
+    <button class="ghost" id="clearf">絞り込みを解除</button>
+  </div>
+
+  <details class="help"><summary>検索式の書き方（クリックで開く）</summary>
+  <table>
+    <tr><td><code>汽車</code></td><td>そのままの一致（上で選んだ列）</td></tr>
+    <tr><td><code>汽車|電車</code></td><td>どちらか</td></tr>
+    <tr><td><code>乗*</code> <code>*車</code></td><td>前方・後方一致</td></tr>
+    <tr><td><code>re:^汽.$</code></td><td>正規表現（語彙に当てる）</td></tr>
+    <tr><td><code>*</code></td><td>任意の1語</td></tr>
+    <tr><td><code>/動詞</code></td><td>品詞だけ（大分類の前方一致）</td></tr>
+    <tr><td><code>言う/動詞</code></td><td>語形と品詞の両方</td></tr>
+    <tr><td><code>L:言う</code> <code>S:云ふ</code></td>
+        <td>この項だけ語彙素／表層形で当てる（混ぜられる）</td></tr>
+    <tr><td><code>汽車 に 乗る</code></td>
+        <td><b>語の連なり</b>（空白区切り。<b>文境界は越えない</b>）</td></tr>
+  </table>
+  <p class="sub">語形が語彙に無いときは「0件」ではなく<b>理由</b>が出る
+  （列の選び違い・辞書の切り方・旧仮名の表記）。行をクリックすると
+  <b>前後の本文へ広がる</b>。本文の語にカーソルを当てると語彙素と品詞が出る。</p>
+  </details>
+</div></div>
+
+<div id="err" class="err" style="display:none"></div>
+
+<div class="cols">
+  <div>
+    <div class="card">
+      <h2 id="hits-h">用例</h2>
+      <div class="scroll"><table id="kwic">
+        <thead><tr>
+          <th>時代区分</th><th>著者</th><th>作品</th>
+          <th style="text-align:right">左文脈</th>
+          <th style="text-align:center">キーワード</th>
+          <th>右文脈</th><th class="num">位置</th>
+        </tr></thead><tbody></tbody></table></div>
+      <p class="sub" style="margin:.4em 0 0">行をクリックすると
+        <b>その用例の前後の本文が下に開く</b>（Esc で閉じる）。
+        本文の語にカーソルを当てると 語彙素／品詞／活用形／語種 が出る。</p>
+      <div class="row" style="margin-top:8px">
+        <button class="ghost" id="prev" disabled>← 前の頁</button>
+        <button class="ghost" id="next" disabled>次の頁 →</button>
+        <span class="sub" id="page"></span>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="card"><h2>時代区分ごとの分布</h2>
+      <table id="bandtab"><tbody></tbody></table>
+      <p class="sub" id="bandnote"></p></div>
+    <div class="card"><h2>一致した語形</h2>
+      <table id="typetab"><tbody></tbody></table></div>
+    <div class="card"><h2>共起語（LogDice 順）</h2>
+      <table id="colltab"><tbody></tbody></table>
+      <p class="sub">LogDice は頻度の偏りに強い。MI は低頻度語を持ち上げるので，
+      固有名詞や誤解析が上位に来やすい。</p></div>
+    <div class="card"><h2>作品ごとのヒット</h2>
+      <div class="scroll" style="max-height:30vh">
+        <table id="worktab"><tbody></tbody></table></div></div>
+  </div>
+</div>
+
+<div id="pane">
+  <span class="close"><button class="ghost" id="panewide">前後をもっと広げる</button>
+  <button class="ghost widen" id="paneclose">閉じる</button></span>
+  <p class="cite" id="panecite"></p>
+  <p class="body" id="panebody"></p>
+  <p class="sub" id="panefoot"></p>
+</div>
+
+<p class="prov" id="prov"></p>
+
+<script>
+// ---- 助手 ---------------------------------------------------------------
+// **本文は textContent で入れる。** 連結して innerHTML に渡さない。
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined && text !== null) e.textContent = String(text);
+  return e;
+}
+function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
+function num(n) { return (n === null || n === undefined) ? '' : n.toLocaleString('ja-JP'); }
+const $ = (id) => document.getElementById(id);
+
+let META = null, STREAM = 'lemma', LAST = null, OFFSET = 0;
+
+function selected(id) {
+  return Array.from($(id).selectedOptions).map(o => o.value);
+}
+function showErr(msg) {
+  const e = $('err');
+  if (!msg) { e.style.display = 'none'; return; }
+  e.textContent = msg;
+  e.style.display = '';
+}
+
+// ---- 索引の情報 ---------------------------------------------------------
+async function loadMeta() {
+  const r = await fetch('/api/meta');
+  META = await r.json();
+  const p = META.provenance || {};
+  $('head-sub').textContent =
+    `${p.dictionary || '?'} ${p.dictionary_version || ''}／`
+    + `${num(p.works)} 作品・${num(p.tokens)} 形態素`;
+  const bands = $('bands');
+  (META.bands || []).forEach(b => {
+    if (!b.works) return;
+    const o = el('option', null, `${b.label}（${b.works}）`);
+    o.value = String(b.band); bands.appendChild(o);
+  });
+  const au = $('authors');
+  (META.authors || []).forEach(a => {
+    const o = el('option', null, `${a.name}（${a.works}）`);
+    o.value = a.name; au.appendChild(o);
+  });
+  const st = $('styles');
+  (META.styles || []).forEach(a => {
+    const o = el('option', null, `${a.name}（${a.works}）`);
+    o.value = a.name; st.appendChild(o);
+  });
+  const wk = $('works');
+  (META.works || []).forEach(w => {
+    const lab = (w.author || '（メタデータ無し）') + '『' + (w.title || w.stem)
+      + '』' + (w.year ? ' ' + w.year : '');
+    const o = el('option', null, lab);
+    o.value = String(w.work); wk.appendChild(o);
+  });
+  const nometa = (META.works || []).filter(w => !w.meta).length;
+  const prov = $('prov');
+  clear(prov);
+  prov.appendChild(el('span', null,
+    `索引: ${p.tsv_dir || ''}／辞書 ${p.dictionary || '?'} `
+    + `${p.dictionary_version || ''}／作成 ${p.built_at || '?'}`
+    + `／${num(p.works)} 作品・${num(p.tokens)} 形態素`
+    + `・表層形 ${num(p.types_surface)} 種・語彙素 ${num(p.types_lemma)} 種`
+    + `・文 ${num(p.sentences)}`));
+  if (nometa) {
+    prov.appendChild(document.createElement('br'));
+    prov.appendChild(el('span', null,
+      `⚠ メタデータに突合できない作品が ${nometa} 点ある。`
+      + 'その用例は出典が「（メタデータ無し）」と出る。出典の出ない用例は'
+      + '証拠にならないので metadata を直すこと。'));
+  }
+}
+
+// ---- 検索 ---------------------------------------------------------------
+function req(offset) {
+  return {
+    query: $('q').value, stream: STREAM,
+    context: parseInt($('context').value, 10),
+    sort: $('sort').value,
+    limit: parseInt($('limit').value, 10),
+    offset: offset || 0,
+    sample: parseInt($('sample').value, 10) || 0,
+    exclude_punct: $('nopunct').checked,
+    collocates: $('coll').checked ? 40 : 0,
+    coll_window: parseInt($('collwin').value, 10),
+    bands: selected('bands').map(Number),
+    authors: selected('authors'),
+    styles: selected('styles'),
+    works: selected('works').map(Number),
+  };
+}
+
+async function search(offset) {
+  const body = req(offset);
+  if (!body.query.trim()) { showErr('検索語を入れること。'); return; }
+  $('go').disabled = true;
+  showErr('');
+  try {
+    const r = await fetch('/api/search', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body)});
+    const res = await r.json();
+    if (res.error) {
+      showErr(res.error);
+      if (res.kind === 'query') { clear($('kwic').tBodies[0]); }
+      return;
+    }
+    LAST = res; OFFSET = res.offset;
+    render(res);
+  } catch (e) {
+    showErr('サーバに届かない: ' + e);
+  } finally {
+    $('go').disabled = false;
+  }
+}
+
+function tokJoin(list) { return list.map(t => t.surf).join(''); }
+
+function render(res) {
+  // ---- 見出し
+  const bl = (META && META.band_labels) || [];
+  $('hits-h').textContent =
+    `用例  ${num(res.total)} 件`
+    + (res.sampled ? `（うち ${num(res.sample)} 件に無作為間引き・種 ${res.seed}）` : '')
+    + `／表示 ${num(res.shown)} 件・100万語あたり ${res.per_million}`
+    + `／${res.elapsed_ms} ms`;
+
+  // ---- 用例
+  const tb = $('kwic').tBodies[0];
+  clear(tb);
+  res.rows.forEach(r => {
+    const tr = el('tr', 'hit');
+    const band = (r.band >= 0 && r.band < bl.length) ? bl[r.band] : '初出年不明';
+    tr.appendChild(el('td', 'src', band));
+    tr.appendChild(el('td', r.has_meta ? 'src' : 'src nometa', r.author));
+    tr.appendChild(el('td', 'src', r.title));
+    tr.appendChild(el('td', 'l', tokJoin(r.left)));
+    tr.appendChild(el('td', 'k', tokJoin(r.key)));
+    tr.appendChild(el('td', 'r', tokJoin(r.right)));
+    tr.appendChild(el('td', 'num', r.in_work));
+    tr.addEventListener('click', () => {
+      Array.from(tb.children).forEach(x => x.classList.remove('on'));
+      tr.classList.add('on');
+      openPane(r.pos_i, r.key.length);
+    });
+    tb.appendChild(tr);
+  });
+
+  // ---- 頁送り
+  const lim = parseInt($('limit').value, 10);
+  const from = res.offset + 1, to = res.offset + res.shown;
+  $('page').textContent = res.total
+    ? `${num(from)}–${num(to)} / ${num(res.sampled ? res.sample : res.total)} 件`
+    : '';
+  $('prev').disabled = res.offset <= 0;
+  $('next').disabled = to >= (res.sampled ? res.sample : res.total);
+
+  // ---- 時代区分ごとの分布（1色の横棒＋表。棒は表の添え物である）
+  const bt = $('bandtab').tBodies[0];
+  clear(bt);
+  const mx = Math.max(...res.by_band.map(b => b.per_10k), 0.0001);
+  res.by_band.forEach(b => {
+    const tr = document.createElement('tr');
+    tr.appendChild(el('td', null, b.label));
+    tr.appendChild(el('td', 'num', num(b.hits)));
+    const td = el('td', 'num', b.per_10k.toFixed(3));
+    tr.appendChild(td);
+    const bar = document.createElement('td');
+    const d = el('span', 'bar2');
+    d.style.width = Math.round(b.per_10k / mx * 90) + 'px';
+    bar.appendChild(d);
+    tr.appendChild(bar);
+    bt.appendChild(tr);
+  });
+  $('bandnote').textContent =
+    '「1万語あたり」は時代区分ごとの形態素数で割った値。'
+    + '作品数も語数も区分で違うので，生のヒット数を時代比較に使ってはいけない。';
+
+  // ---- 一致した語形
+  const yt = $('typetab').tBodies[0];
+  clear(yt);
+  res.types.forEach(t => {
+    const tr = document.createElement('tr');
+    tr.appendChild(el('td', null, t.form));
+    tr.appendChild(el('td', 'num', num(t.hits)));
+    yt.appendChild(tr);
+  });
+  if (!res.types.length) yt.appendChild(el('tr', null, ''));
+  if (res.types_capped) {
+    // **打ち切ったことを言う。** 一部だけ数えた一覧を黙って出さない
+    const tr = document.createElement('tr');
+    const td = el('td', 'sub', '⚠ ヒットが多いので語形の集計は先頭200万件で'
+      + '打ち切った（総ヒット数と分布は全件）。');
+    td.colSpan = 2; tr.appendChild(td); yt.appendChild(tr);
+  }
+
+  // ---- 共起語
+  const ct = $('colltab').tBodies[0];
+  clear(ct);
+  if (res.collocates.length) {
+    const hd = document.createElement('tr');
+    ['語', '共起', '頻度', 'LogDice', 'MI', 't'].forEach((h, i) => {
+      const th = el('th', i ? 'num' : null, h); hd.appendChild(th);
+    });
+    ct.appendChild(hd);
+    res.collocates.forEach(c => {
+      const tr = document.createElement('tr');
+      tr.appendChild(el('td', null, c.form));
+      tr.appendChild(el('td', 'num', num(c.co)));
+      tr.appendChild(el('td', 'num', num(c.freq)));
+      tr.appendChild(el('td', 'num', c.logdice.toFixed(2)));
+      tr.appendChild(el('td', 'num', c.mi.toFixed(2)));
+      tr.appendChild(el('td', 'num', c.t.toFixed(2)));
+      ct.appendChild(tr);
+    });
+  }
+
+  // ---- 作品ごと
+  const wt = $('worktab').tBodies[0];
+  clear(wt);
+  const hd2 = document.createElement('tr');
+  ['著者', '作品', 'ヒット', '1万語'].forEach((h, i) => {
+    hd2.appendChild(el('th', i > 1 ? 'num' : null, h));
+  });
+  wt.appendChild(hd2);
+  res.by_work.forEach(w => {
+    const tr = document.createElement('tr');
+    tr.appendChild(el('td', 'src', w.author || '（メタデータ無し）'));
+    tr.appendChild(el('td', 'src', w.title || w.stem));
+    tr.appendChild(el('td', 'num', num(w.hits)));
+    tr.appendChild(el('td', 'num', w.per_10k.toFixed(2)));
+    wt.appendChild(tr);
+  });
+}
+
+// ---- テクストに戻る -----------------------------------------------------
+let PANE = {pos: 0, span: 1, width: 140};
+
+async function openPane(posi, span, width) {
+  PANE = {pos: posi, span: span, width: width || 140};
+  // 変数名は使い回さない（下で const w = p.work とするので wd にする）
+  const wd = PANE.width;
+  const r = await fetch(
+    `/api/passage?pos=${posi}&span=${span}&before=${wd}&after=${wd}`);
+  const p = await r.json();
+  if (p.error) { showErr(p.error); return; }
+  const w = p.work || {};
+  $('panecite').textContent =
+    `${w.author || '（メタデータ無し）'}『${w.title || w.stem}』`
+    + (w.year ? `（初出 ${w.year}）` : '') + `／${p.band_label}`
+    + (w.style ? `／文体 ${w.style}` : '')
+    + `／作品内 ${num(p.in_work)} 語目（全 ${num(p.work_tokens)} 語）`;
+  const body = $('panebody');
+  clear(body);
+  p.tokens.forEach(t => {
+    const s = el('span', t.key ? 't key' : 't', t.surf);
+    s.title = `${t.lem}／${t.pos}` + (t.cfm ? `／${t.cfm}` : '')
+      + (t.gos ? `／${t.gos}` : '');
+    body.appendChild(s);
+    if (t.eos) body.appendChild(document.createElement('br'));
+  });
+  $('panefoot').textContent =
+    '本文の語にカーソルを当てると 語彙素／品詞／活用形／語種 が出る。'
+    + 'これは辞書（' + ((META.provenance || {}).dictionary || '?')
+    + '）が切った単位であって，原文の表記そのものではない'
+    + '（表層形は原文どおり）。';
+  $('pane').style.display = 'block';
+  // **キーワードまで送る。** 前後を広く出すので，開いた位置には無い
+  const k = body.querySelector('span.key');
+  if (k) k.scrollIntoView({block: 'center'});
+  $('panewide').disabled = PANE.width >= 400;
+}
+
+// ---- HTML で保存（サーバを介さない）------------------------------------
+function saveHtml() {
+  if (!LAST) { showErr('先に検索すること。'); return; }
+  const bl = (META && META.band_labels) || [];
+  const p = LAST.provenance || {};
+  const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const rows = LAST.rows.map(r => {
+    const band = (r.band >= 0 && r.band < bl.length) ? bl[r.band] : '初出年不明';
+    return '<tr><td class="s">' + esc(band) + '</td><td class="s">'
+      + esc(r.author) + '</td><td class="s">' + esc(r.title)
+      + '</td><td class="l">' + esc(tokJoin(r.left)) + '</td><td class="k">'
+      + esc(tokJoin(r.key)) + '</td><td class="r">' + esc(tokJoin(r.right))
+      + '</td><td class="n">' + esc(r.in_work) + '</td></tr>';
+  }).join('');
+  const note = `検索式「${LAST.query}」／列 `
+    + (LAST.stream === 'lem' ? '語彙素' : '表層形')
+    + `／総ヒット ${LAST.total} 件のうち ${LAST.shown} 件`
+    + (LAST.sampled ? `／${LAST.sample} 件に無作為間引き（種 ${LAST.seed}）` : '')
+    + `／並べ替え ${LAST.sort}／前後 ${LAST.context} 語`
+    + `／辞書 ${p.dictionary || '?'} ${p.dictionary_version || ''}`
+    + `／索引 ${p.built_at || '?'} 作成`;
+  const doc = '<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8">'
+    + '<title>KWIC ' + esc(LAST.query) + '</title><style>'
+    + 'body{margin:0;padding:24px 16px;background:#f7f7f4;color:#1f1e1b;'
+    + 'font-family:"Hiragino Sans","Noto Sans JP",system-ui,sans-serif}'
+    + '.w{max-width:1180px;margin:0 auto}h1{font-size:1.05rem;margin:0 0 .3em}'
+    + '.sub{color:#5a5a55;font-size:.8rem;margin:0 0 1em}'
+    + '.c{background:#fff;border:1px solid #d8d7d0;border-radius:10px;padding:14px}'
+    + 'table{border-collapse:collapse;width:100%;font-size:.84rem}'
+    + 'th,td{padding:4px 7px;border-bottom:1px solid #eceae3}'
+    + 'th{text-align:left;color:#5a5a55}td{white-space:nowrap}'
+    + 'td.l{text-align:right}td.k{text-align:center;font-weight:700;'
+    + 'color:#0d366b;background:#eef4fb}td.s{font-size:.78rem;color:#3d3c37}'
+    + 'td.n{text-align:right;color:#5a5a55}</style></head><body><div class="w">'
+    + '<h1>KWIC コンコーダンス — ' + esc(LAST.query) + '</h1>'
+    + '<p class="sub">' + esc(note) + '</p><div class="c"><table><thead><tr>'
+    + '<th>時代区分</th><th>著者</th><th>作品</th><th>左文脈</th>'
+    + '<th>キーワード</th><th>右文脈</th><th>位置</th></tr></thead><tbody>'
+    + rows + '</tbody></table></div></div></body></html>';
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([doc], {type: 'text/html'}));
+  a.download = 'kwic_' + LAST.query.replace(/[^\p{L}\p{N}_-]/gu, '_') + '.html';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// ---- 結び付け -----------------------------------------------------------
+$('go').addEventListener('click', () => search(0));
+$('q').addEventListener('keydown', e => { if (e.key === 'Enter') search(0); });
+$('prev').addEventListener('click', () => search(Math.max(
+  0, OFFSET - parseInt($('limit').value, 10))));
+$('next').addEventListener('click', () => search(
+  OFFSET + parseInt($('limit').value, 10)));
+$('csv').addEventListener('click', () => {
+  const q = encodeURIComponent(JSON.stringify(Object.assign(
+    req(0), {limit: 2000, collocates: 0})));
+  window.location = '/api/export.csv?q=' + q;
+});
+$('save').addEventListener('click', saveHtml);
+$('paneclose').addEventListener('click', () => { $('pane').style.display = 'none'; });
+$('panewide').addEventListener('click', () => {
+  openPane(PANE.pos, PANE.span, Math.min(400, PANE.width * 2));
+});
+$('clearf').addEventListener('click', () => {
+  ['bands', 'authors', 'styles', 'works'].forEach(id => {
+    Array.from($(id).options).forEach(o => { o.selected = false; });
+  });
+});
+Array.from($('stream-seg').children).forEach(b => {
+  b.addEventListener('click', () => {
+    Array.from($('stream-seg').children).forEach(x => x.classList.remove('on'));
+    b.classList.add('on');
+    STREAM = b.dataset.v;
+    if ($('q').value.trim()) search(0);
+  });
+});
+['context', 'sort', 'limit', 'collwin'].forEach(id => {
+  $(id).addEventListener('change', () => { if (LAST) search(0); });
+});
+['nopunct', 'coll'].forEach(id => {
+  $(id).addEventListener('change', () => { if (LAST) search(0); });
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') $('pane').style.display = 'none';
+});
+
+loadMeta().then(() => { $('q').focus(); })
+  .catch(e => showErr('索引の情報が読めない: ' + e));
+</script>
+</body>
+</html>
