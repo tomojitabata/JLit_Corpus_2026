@@ -18,7 +18,6 @@
 | 受講生の環境構築（Step 1） | [`docs/00_setup_students.md`](docs/00_setup_students.md) |
 | 講義計画（教員用） | [`docs/syllabus_8_lectures.md`](docs/syllabus_8_lectures.md) |
 | 符号化の決定事項 | [`docs/encoding_guidelines.md`](docs/encoding_guidelines.md) |
-| 課題の模範解答（教員用） | [`solutions/README.md`](solutions/README.md) |
 
 ---
 
@@ -110,7 +109,6 @@ JLit_Corpus_2026/
 │   ├── make_notebooks.py        ノートブック生成
 │   ├── find_unclosed_quotes.py  閉じ括弧のない「の検出
 │   └── lib/aozora.py            外字復元・踊り字展開の中核
-├── solutions/                   模範解答（教員用・Zulip 投稿原稿。受講生に配らない）
 ├── data/                        生成物（git 管理外）
 ├── results/                     分析結果（受講生ごとのサブフォルダ）
 └── logs/                        実行記録
