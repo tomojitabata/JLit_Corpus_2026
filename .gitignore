@@ -1,0 +1,18 @@
+# 生成物（容量が大きいため版管理しない）
+data/aozora/
+data/xml/
+data/plain/
+data/tokens/
+data/datasets/
+results/*/
+!results/README.txt
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.DS_Store
+.venv/
+
+# 教員用・ローカル作業用（公開しない）
+solutions/
+*.bak_*
+*.bundle

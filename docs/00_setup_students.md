@@ -303,7 +303,7 @@ Expand-Archive .\unidic-novel-v202512.zip -DestinationPath .
 python scripts\check_unidic_dir.py C:\JLit\unidic-novel-v202512
 ```
 
-MALLET は <https://mimno.github.io/Mallet/> から zip を取得し，
+MALLET は <https://github.com/mimno/Mallet/releases>（v202108 の `Mallet-202108-bin.zip`）から取得し，
 **空白と日本語を含まないパス**に展開する。
 
 ```powershell

@@ -39,7 +39,8 @@ esac
 # ファイル名を固定すると版が上がったとたんに 404 になるので，
 # Adoptium の API に最新の GA 版を返させる。
 JDK_URL="https://api.adoptium.net/v3/binary/latest/21/ga/mac/${JDK_ARCH}/jdk/hotspot/normal/eclipse"
-MALLET_URL="https://mimno.github.io/Mallet/dist/Mallet-202108-bin.tar.gz"
+# 旧 mimno.github.io/Mallet/dist/ は 404。GitHub Releases の配布物を使う。
+MALLET_URL="https://github.com/mimno/Mallet/releases/download/v202108/Mallet-202108-bin.tar.gz"
 
 # -----------------------------------------------------------------------------
 # 辞書。2026-09-22 の比較実験（4 辞書・111 点）で本番を決めた。
@@ -119,11 +120,11 @@ if [ "$MODE" = check ]; then
   [ -d "$SHARED/jdk" ]     && skip "JDK      $SHARED/jdk"     || warn "JDK なし"
   [ -d "$SHARED/mallet" ]  && skip "MALLET   $SHARED/mallet"  || warn "MALLET なし"
   [ -d "$SHARED/$UNIDIC_DIR_NAME" ] \
-    && skip "UniDic   $SHARED/$UNIDIC_DIR_NAME（本番）" \
-    || warn "本番の辞書なし（$UNIDIC_DIR_NAME）"
+    && skip "UniDic   $SHARED/${UNIDIC_DIR_NAME}（本番）" \
+    || warn "本番の辞書なし（${UNIDIC_DIR_NAME}）"
   [ -d "$SHARED/$BUNGO_DIR_NAME" ] \
     && skip "検算用   $SHARED/$BUNGO_DIR_NAME" \
-    || warn "検算用の辞書なし（$BUNGO_DIR_NAME。--with-bungo で入る）"
+    || warn "検算用の辞書なし（${BUNGO_DIR_NAME}。--with-bungo で入る）"
   [ -d "$SHARED/unidic" ] \
     && warn "旧 cwj が $SHARED/unidic に残っている（本番ではない。消してよい）"
   [ -d "$ROOT/.venv" ]     && skip "仮想環境 $ROOT/.venv"     || warn "仮想環境なし"
@@ -198,7 +199,7 @@ else
     if [ -f "$SHARED/mallet/bin/mallet" ]; then
       ram_gb=$(( $(sysctl -n hw.memsize 2>/dev/null || echo 8589934592) / 1073741824 ))
       heap=$(( ram_gb / 4 )); [ "$heap" -lt 2 ] && heap=2
-      /usr/bin/sed -i '' "s/^MEMORY=1g$/MEMORY=${heap}g/" "$SHARED/mallet/bin/mallet" \
+      /usr/bin/sed -i '' -E "s/^MEMORY=.*$/MEMORY=\"\\\${MALLET_MEMORY:-${heap}g}\"/" "$SHARED/mallet/bin/mallet" \
         && ok "MALLET のヒープを ${heap} GB にした（搭載 ${ram_gb} GB の 1/4。既定 1 GB では足りない）"
       chmod +x "$SHARED/mallet/bin/mallet"
     fi
@@ -218,7 +219,7 @@ fi
 fetch_dict() {
   local name="$1" url="$2" label="$3" tmp src
   if [ -f "$SHARED/$name/dicrc" ] || [ -f "$SHARED/$name/sys.dic" ]; then
-    skip "$label は既にある（$SHARED/$name）"
+    skip "$label は既にある（$SHARED/${name}）"
     return 0
   fi
   tmp="$(mktemp -d)"
@@ -237,13 +238,13 @@ fetch_dict() {
     fi
     warn "$label の中身が想定と違う（sys.dic が見つからない）"
   else
-    warn "$label を取得できなかった（$url）"
+    warn "$label を取得できなかった（${url}）"
   fi
   rm -rf "$tmp"
   return 1
 }
 
-say "5. UniDic（共有辞書。本番は $UNIDIC_DIR_NAME・約 1 GB）"
+say "5. UniDic（共有辞書。本番は ${UNIDIC_DIR_NAME}・約 1 GB）"
 echo "  本番の辞書は 2026-09-22 の比較実験で決めた"
 echo "  （近現代口語小説UniDic。未知語率 0.17%。docs/dictionary_comparison.md §10）"
 if ! fetch_dict "$UNIDIC_DIR_NAME" "$UNIDIC_URL" "近現代口語小説UniDic v202512"; then
