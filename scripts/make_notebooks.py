@@ -2842,17 +2842,141 @@ if need(p, 'この分析のスクリプトを走らせるセルを先に実行�
         ax.spines[['top','right']].set_visible(False)
     fig.tight_layout(); save_fig(fig, 'Step4_lexical_richness'); plt.show()
     print('→ 相関の絶対値が小さい指標ほど，長さに頑健である。')'''),
- ('md', r'''## 2. Burrows's Delta を手で実装する
+ ('md', r'''## 2. Burrows's Delta を手で計算する
 
-1. 最頻語 N 語の相対頻度行列を作る
-2. 語ごとに **z 標準化**する（頻度の大小によらず各語を等しく扱う）
-3. 文書ペアの z 値の**絶対差の平均**を距離とする
+Delta の手順は三つしかない。
 
-これだけである。単純さが強みで，少ない訓練データでもよく効く。'''),
+1. 最頻語 N 語の**相対頻度**を求める（ここでは 1 万語あたり）
+2. 語ごとに **z スコア**にする（頻度の大小によらず各語を等しく扱う）
+3. 2 つのテクストの z の**差の絶対値を，語について平均**する——これが距離
+
+単純さが強みで，少ない訓練データでもよく効く。ただしノートブックでは
+`np.abs(Z[:,None]-Z[None]).mean(2)` の1行になってしまい，**何をしているかが
+見えない**。そこで二段で進める。
+
+| | どこで | 規模 | 目的 |
+|---|---|---|---|
+| **2.1** | Excel | 最頻語 50 語 × 7 作品 | 1 手順＝1 シート。セルと数式で計算の中身を見る |
+| **2.2** | ノートブック | 同じ 50 語 × 7 作品 | 同じ数値を pandas で出し，**Excel と一致する**ことを確かめる |
+| **2.3** | — | — | 作品X の正体と，結果の読み方 |
+| **2.4** | ノートブック | 300 語 × 全作品 | Excel では扱えない規模に広げる |
+
+作家を伏せた「作品X」1 点と，既知の 3 作家（各 2 点）を比べる。
+**作品X が誰の作品かは 2.3 まで見ないこと。**'''),
+ ('md', r'''### 2.1 Excel で手計算する
+
+次のセルが `results/<自分>/Step4_delta_manual.xlsx` を作る。Excel（Numbers・
+LibreOffice でもよい）で開き，`説明` シートから順に見ていく。
+
+- **最頻語・平均・標準偏差は既知の作品だけから決める。** 作品X に物差しを
+  動かさせないためである（Burrows 2002）
+- 標準偏差は**母標準偏差**（Excel の `STDEVP`，numpy の `ddof=0`）。
+  `07_descriptive_stats.py` も同じ
+- シートを**並べ替えないこと**（数式の参照が崩れる）'''),
+ ('code', r'''# ---- 手計算用のブックを作る ------------------------------------------
+# 作品を変えるときは '--questioned 作家:題' '--known 作家:題,作家:題,…' を足す
+DX = OUT/'Step4_delta_manual.xlsx'
+run_script('17_delta_workbook.py', '--tokens', SRC, '--meta', META,
+           '--mfw', 50, '--out', DX)'''),
+ ('md', r'''#### 演習 0 — Excel の上で（15 分）
+
+1. `6_Delta` で，作品X に**いちばん近い作品**と**いちばん近い作家プロファイル**を
+   書き留める。両者は一致するか
+2. `5_z差` で色の濃い（差の大きい）語を 3 つ挙げる。それは作家の癖か，
+   **語りの人称や登場人物名**など別の要因か
+3. `7_語数Nを変える` の黄色のセルに 10・20・50 を入れ，順位の変わり方を見る
+4. `1_度数` の数字を 1 つ書き換え，影響がどのシートまで伝わるかを追う
+   （試したら元に戻すか，上のセルでブックを作り直す）'''),
+ ('md', r'''### 2.2 同じ計算をノートブックで
+
+Excel の `1_度数` から**入力値だけ**を読み，同じ手順を pandas で1行ずつ書く。
+変数名はシート名に合わせてある。最後に Excel の結果と突き合わせる。'''),
+ ('code', r'''# ---- Excel と同じ計算を pandas で ------------------------------------
+import json, openpyxl
+if need(DX, '上のセルでブックを作ること'):
+    ws = openpyxl.load_workbook(DX)['1_度数']
+    R_AU, R_TI, R_N, R0 = 3, 4, 5, 6          # ブックの配置（17_delta_workbook.py と同じ）
+    ncol = ws.max_column
+    names   = [ws.cell(R_TI, c).value for c in range(3, ncol + 1)]
+    authors = [ws.cell(R_AU, c).value for c in range(3, ncol + 1)]
+    words, rows = [], []
+    r = R0
+    while ws.cell(r, 2).value is not None:
+        words.append(ws.cell(r, 2).value)
+        rows.append([ws.cell(r, c).value for c in range(3, ncol + 1)])
+        r += 1
+    counts = pd.DataFrame(rows, index=words, columns=names)            # 1_度数
+    totals = pd.Series([ws.cell(R_N, c).value for c in range(3, ncol + 1)], index=names)
+    X = names[-1]                                                      # 作品X
+    known = names[:-1]
+    author_of = dict(zip(known, authors[:-1]))
+
+    rel  = counts / totals * 10000                                     # 2_相対頻度
+    mu   = rel[known].mean(axis=1)                                     # 3_平均と標準偏差
+    sd   = rel[known].std(axis=1, ddof=0)                              #   STDEVP と同じ
+    z    = rel.sub(mu, axis=0).div(sd, axis=0)                         # 4_zスコア
+    diff = z[known].rsub(z[X], axis=0).abs()                           # 5_z差
+    delta = diff.mean()                                                # 6_Delta
+
+    prof = z[known].T.groupby(author_of).mean().T                      # 作家プロファイル
+    delta_a = prof.rsub(z[X], axis=0).abs().mean()
+
+    t = pd.DataFrame({'作家': [author_of[k] for k in known], '作品': known,
+                      'Delta': delta.values}).sort_values('Delta')
+    t.insert(0, '順位', range(1, len(t) + 1))
+    show(t, caption=f'{X} との Delta（作品ごと・{len(words)} 語）', fmt={'Delta': '{:.4f}'})
+    ta = delta_a.sort_values().rename('Delta').reset_index().rename(columns={'index': '作家'})
+    ta.insert(0, '順位', range(1, len(ta) + 1))
+    show(ta, caption=f'{X} との Delta（作家プロファイル）', fmt={'Delta': '{:.4f}'})
+
+    # ---- Excel と突き合わせる ---------------------------------------------
+    # Excel で開いて「保存」すると計算結果がファイルに残るので，それを読む。
+    # 保存していなければ値が無い（数式しか入っていない）。
+    ws6 = openpyxl.load_workbook(DX, data_only=True)['6_Delta']
+    xl = {ws6.cell(r, 3).value: ws6.cell(r, 4).value
+          for r in range(5, 5 + len(known)) if ws6.cell(r, 1).value == '作品'}
+    if all(v is None for v in xl.values()):
+        print('[info ] ブックに計算結果が保存されていない。Excel で開いて保存してから'
+              'このセルを実行し直すと，自動で突き合わせる。')
+        print('        それまでは 6_Delta の D 列と上の表を目で比べること。')
+    else:
+        gap = max(abs(xl[k] - delta[k]) for k in known if xl.get(k) is not None)
+        print(f'[{"ok  " if gap < 1e-6 else "NG  "}] Excel との差の最大 = {gap:.2e}'
+              + ('（一致）' if gap < 1e-6 else ' — 1_度数 を書き換えたままではないか'))'''),
+ ('md', r'''### 2.3 作品X の正体と，結果の読み方
+
+次のセルで作品X を明かす。**演習 0 の答えを書き留めてから実行すること。**'''),
+ ('code', r'''exp = json.loads((DX.parent / (DX.stem + '_expected.json')).read_text(encoding='utf-8'))
+qx = exp['questioned']
+print(f"作品X ＝ {qx['author']}『{qx['title']}』")
+best_w = min(exp['delta_work'], key=exp['delta_work'].get)
+best_a = min(exp['delta_author'], key=exp['delta_author'].get)
+print(f'いちばん近い作品          : {best_w}')
+print(f'いちばん近い作家プロファイル: {best_a}'
+      + ('  ← 正解' if best_a == qx['author'] else '  ← 外れ'))'''),
+ ('md', r'''**読み方の要点**
+
+- **作品単位と作家単位で答えが変わりうる。** 同じ作家でも作品ごとに
+  語りの人称（一人称の「私」）や文体が違う。1 点ずつ比べると，たまたま
+  似た**別の作家の作品**が割り込む。作家の2作品の z を平均した**プロファイル**
+  は，作品ごとの揺れをならす
+- **近さの理由を必ず語で確かめる。** `5_z差` で差を作っている語が，
+  登場人物名（最頻語に固有名詞が紛れ込む）や「私」のような人称なら，
+  Delta は作家ではなく**語りの形式**を測っている
+- **N を変えると順位が動く。** 10 語では少数の語に振り回される。
+  報告には必ず N を書き，いくつかの N で結論が変わらないことを示す
+- **候補に真の作者がいなくても，いちばん近い誰かは必ず出る。**
+  Delta は「この中で誰に近いか」しか答えない'''),
+ ('md', r'''### 2.4 全作品・300 語に広げる
+
+ここからは Excel では扱えない規模である。手順は 2.2 とまったく同じで，
+作品 × 作品のすべての組について Delta を出す（全作品で z を取るので，
+2.1–2.2 のような「既知／問題」の区別はない）。'''),
  ('code', r'''p = OUT/'descriptive'/'freq_matrix_mfw.csv'
 if need(p, 'この分析のスクリプトを走らせるセルを先に実行すること'):
     F = pd.read_csv(p, index_col=0)
-    Z = (F - F.mean()) / F.std().replace(0, 1e-12)
+    # ddof=0（母標準偏差）。07_descriptive_stats.py・Excel の STDEVP と揃える
+    Z = (F - F.mean()) / F.std(ddof=0).replace(0, 1e-12)
     D = pd.DataFrame(
         np.abs(Z.values[:,None,:] - Z.values[None,:,:]).mean(2),
         index=F.index, columns=F.index)

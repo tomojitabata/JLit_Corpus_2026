@@ -110,6 +110,7 @@ JLit_Corpus_2026/
 │   ├── 11_visualise.py          作図
 │   ├── 15_kwic_index.py         KWIC の索引づくり（TSV → data/kwic）
 │   ├── 16_kwic_server.py        KWIC コンコーダンサ（localhost の画面・書き出し）
+│   ├── 17_delta_workbook.py     Burrows's Delta を手計算する Excel ブック（Step 4）
 │   ├── kwic_core.py             KWIC の中身（索引と検索。ノートブックからも使える）
 │   ├── kwic_app.html            KWIC の画面（外部資源を使わない1枚）
 │   ├── 99_validate.py           健全性検査（重複・外字・奥付・踊り字・メタデータ）
