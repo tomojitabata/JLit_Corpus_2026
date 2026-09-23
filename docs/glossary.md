@@ -887,7 +887,7 @@ Burrows (2002) の元の使い方は「作者の分かっている作品群（�
 
 Step 4 §2 では，これを Excel で1手順ずつ計算する
 （`scripts/17_delta_workbook.py` → `results/<自分>/Step4_delta_manual.xlsx`。
-最頻語 50 語・既知 3 作家 × 2 作品・作品X 1 点）。
+最頻語 50 語・既知 4 作家 × 2 作品・作品X 1 点）。
 
 #### 最近傍 (nearest neighbour) と一致率
 
