@@ -444,9 +444,10 @@ jupyter lab
 | 青空文庫の取得が遅い | 1 秒/件の間隔を守っている | 正常。共有キャッシュがあれば2回目から一瞬で済む |
 | Jupyter のカーネルが違う | 既定カーネルを見ている | `Kernel → Change Kernel` で `Python (JLit)` |
 | **KWIC の画面が開かない** | サーバが立っていない／港（ポート）が使われている | `results/<自分>/kwic_server.log` を見る。`Address already in use` なら Step 3 の `PORT` を 8766, 8767 … に変える（共用 iMac では各自別の番号） |
+| `git pull` で `corpus_metadata_v3.csv` が衝突する | 旧い版のスクリプトで配布版を上書きした | `git checkout -- metadata/` で配布版に戻してから pull。いまの版は `_local.csv` に書く |
 | KWIC の画面が「サーバに接続できません」（セルは `[ok  ] 立った` と出た） | 続けて「止める」のセルまで実行した，またはカーネルを止めた | 「画面を立てる」のセルをもう一度実行する。いまの版では「止める」は `STOP_KWIC = True` にしたときだけ止める |
 | KWIC が `索引が無い` と言う | `15_kwic_index.py` を走らせていない | Step 3 §5.5 の索引のセルを実行する。05 を走らせ直したら索引も作り直す |
-| KWIC の用例の著者が「（メタデータ無し）」 | その作品がメタデータに無い | `metadata/corpus_metadata_v3.csv` に行を足す。**出典の出ない用例は証拠にならない** |
+| KWIC の用例の著者が「（メタデータ無し）」 | その作品がメタデータに無い | 自分の版 `metadata/corpus_metadata_v3_local.csv` に行を足す（配布版 `corpus_metadata_v3.csv` は編集しない）。**出典の出ない用例は証拠にならない** |
 | KWIC で「語彙に無い」と言われる | 列（語彙素／表層形）の選び違い・辞書の切り方・旧仮名 | 画面上の切替で列を変える。`S:` を付けるとその項だけ表層形で当たる |
 | **UMAP を入れたのに図が t-SNE になる** | カーネルが `uv` の環境でない／`umap` という別パッケージ／numba と numpy の版違い | `python3 scripts/check_umap.py`（**ノートブックと同じカーネルで**）。原因別の対処が出る |
 | `uv add umap-learn` したのに `ModuleNotFoundError` | **`uv add` はプロジェクト（`pyproject.toml` のある場所）単位。** `dh_project/pyproject.toml` が無い，または `dh_project` の外に clone したので，別の `.venv` に入った | `bash scripts/00_bootstrap_mac.sh` を実行し直す（`pyproject.toml` を作る）。急ぐときはカーネルの Python を名指し：`uv pip install --python "<sys.executable の値>" umap-learn` → **カーネルを再起動** |

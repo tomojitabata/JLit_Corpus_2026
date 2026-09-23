@@ -46,21 +46,22 @@ def main() -> int:
     ap.add_argument('--tsv', default=str(ROOT / 'data' / 'tokens' / 'tsv'),
                     help='05 の出力の tsv/ ディレクトリ')
     ap.add_argument('--meta', default=None,
-                    help='corpus_metadata_v3.csv（既定は metadata/ から探す）')
+                    help='既定: metadata/ の *_v3_local.csv > v3 > v2')
     ap.add_argument('--out', default=str(ROOT / 'data' / 'kwic'))
     ap.add_argument('--quiet', action='store_true')
     args = ap.parse_args()
 
     meta = args.meta
     if meta is None:
-        for cand in ('corpus_metadata_v3.csv', 'corpus_metadata_v2.csv'):
+        for cand in ('corpus_metadata_v3_local.csv', 'corpus_metadata_v3.csv',
+                     'corpus_metadata_v2.csv'):
             p = ROOT / 'metadata' / cand
             if p.exists():
                 meta = str(p)
                 break
     if not meta or not os.path.exists(meta):
-        sys.exit('メタデータが無い。00_extend_metadata.py で '
-                 'corpus_metadata_v3.csv を作ること。')
+        sys.exit('メタデータが無い。00_extend_metadata.py で v3 を作ること'
+                 '（自分の版は metadata/corpus_metadata_v3_local.csv）。')
     if not args.quiet:
         print(f'[in  ] {args.tsv}')
         print(f'[meta] {meta}')

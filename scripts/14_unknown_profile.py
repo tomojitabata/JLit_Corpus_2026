@@ -245,6 +245,18 @@ def read_rows(path: str) -> list[dict]:
         return list(csv.DictReader(fh))
 
 
+
+def default_meta() -> str:
+    """使うメタデータを決める。自分で作った v3（*_local.csv）> 配布版 v3 > v2。"""
+    base = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                        'metadata')
+    for name in ('corpus_metadata_v3_local.csv', 'corpus_metadata_v3.csv',
+                 'corpus_metadata_v2.csv'):
+        p = os.path.join(base, name)
+        if os.path.exists(p):
+            return p
+    return os.path.join(base, 'corpus_metadata_v3.csv')
+
 def main() -> int:
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -252,7 +264,8 @@ def main() -> int:
                     help='05 が書いた unknown_words.csv')
     ap.add_argument('--report', default=None,
                     help='05 が書いた tokenise_report.csv（作品別の未知語率）')
-    ap.add_argument('--meta', default='metadata/corpus_metadata_v3.csv')
+    ap.add_argument('--meta', default=None,
+                    help='既定: metadata/ の *_v3_local.csv > v3 > v2')
     ap.add_argument('--tsv', default=None,
                     help='05 の tsv ディレクトリ。**逆の誤り**'
                          '（辞書に無い語を既知の語に当てはめた箇所）を探す')
@@ -262,6 +275,8 @@ def main() -> int:
                     help='長音を母音字で書いた表記（サアベル）も畳む。'
                          '別語を同じ組にまとめることがある')
     args = ap.parse_args()
+    if args.meta is None:
+        args.meta = default_meta()
 
     rows = read_rows(args.unknown)
     if not rows:

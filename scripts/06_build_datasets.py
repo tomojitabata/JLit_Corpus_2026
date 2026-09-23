@@ -213,7 +213,8 @@ def main() -> int:
     if not os.path.exists(args.meta):
         raise SystemExit(
             f'メタデータが無い: {args.meta}\n'
-            '  00_extend_metadata.py で corpus_metadata_v3.csv を作ること。')
+            '  00_extend_metadata.py で v3 を作ること'
+            '（自分の版は metadata/corpus_metadata_v3_local.csv）。')
 
     # **どの辞書で作った列か**を先に確かめる。ここで止まるほうが，
     # 辞書の混ざった頻度表で半日考えるより安い。

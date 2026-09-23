@@ -45,7 +45,9 @@ DICTS=(
   "qkana=/Users/Shared/jlit/unidic-qkana-v202512"
 )
 PLAIN="data/plain/full"
+# 自分で作った v3（_local）があればそちらを使う
 META="metadata/corpus_metadata_v3.csv"
+[ -f metadata/corpus_metadata_v3_local.csv ] && META="metadata/corpus_metadata_v3_local.csv"
 OUT="results/dict_compare"
 WORK="data/dict_runs"
 TOPICS=40

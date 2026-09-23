@@ -1223,9 +1223,13 @@ ME = os.environ.get('JLIT_USER', 'student')
 # 使うメタデータ。増補分（45点）を含む v3 があればそちらを優先する。
 # v2 は v1 の 64 点しか無いので，増補後のコーパスで v2 を使うと
 # 突合が外れて period も genre も空になる（Step 3 で v3 を作る）。
-META = ROOT / 'metadata' / 'corpus_metadata_v3.csv'
-if not META.exists():
-    META = ROOT / 'metadata' / 'corpus_metadata_v2.csv'
+# Step 3 で自分が作った v3 は *_local.csv に書かれる（配布版は上書きしない。
+# 上書きすると git pull のたびに衝突する）。自分の版 > 配布版 v3 > v2 の順。
+for _m in ('corpus_metadata_v3_local.csv', 'corpus_metadata_v3.csv',
+           'corpus_metadata_v2.csv'):
+    META = ROOT / 'metadata' / _m
+    if META.exists():
+        break
 
 OUT = ROOT / 'results' / ME
 OUT.mkdir(parents=True, exist_ok=True)
@@ -2448,7 +2452,10 @@ v1 の作品長は 30,555 語（鴎外『大塩平八郎』）から 502,937 語
 **すべて空振りしたまま最後まで通ってしまう。**
 
 `00_extend_metadata.py` が，青空文庫の索引（`fetch_log.csv`）・増補候補表・
-**トークン列からの実測**を典拠ごとに分けて `corpus_metadata_v3.csv` を作る。
+**トークン列からの実測**を典拠ごとに分けて v3 を作る。書き出し先は
+**`metadata/corpus_metadata_v3_local.csv`**（自分の版。git には入らない）で，
+配布版の `corpus_metadata_v3.csv` は書き換えない（書き換えると `git pull` の
+たびに衝突する）。以後のセルは自分の版を優先して読む。
 実測に渡すのは `data/tokens/tokens_surface/` であって `data/plain/full/` ではない。
 後者は分かち書きされていないので，`str.split()` が段落を語として数えてしまう。
 **機械で決められない列（`narration`, `register_level`, `audience`, `form`）は
@@ -2466,8 +2473,9 @@ run_script('00_extend_metadata.py',
            '--candidates', ROOT/'metadata'/'expansion_candidates.csv',
            '--tokens', TOK/'tokens_surface',
            '--remeasure-all',
-           '--out', ROOT/'metadata'/'corpus_metadata_v3.csv')
-META = ROOT/'metadata'/'corpus_metadata_v3.csv'   # 以後はこちらを使う'''),
+           '--out', ROOT/'metadata'/'corpus_metadata_v3_local.csv')
+# 自分の v3。配布版 corpus_metadata_v3.csv は書き換えない（git pull で衝突しない）
+META = ROOT/'metadata'/'corpus_metadata_v3_local.csv'   # 以後はこちらを使う'''),
  ('code', r'''DS = ROOT/'data'/'datasets'
 if need(TOK/'tokens_content', 'このステップの 05_tokenise_unidic.py のセルを先に実行すること'):
     # --max-chunks は長篇の支配を防ぐための上限。結合後の『夜明け前』は

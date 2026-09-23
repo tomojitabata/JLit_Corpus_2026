@@ -161,18 +161,33 @@ def load_meta(path: str) -> dict:
     return out
 
 
+
+def default_meta() -> str:
+    """使うメタデータを決める。自分で作った v3（*_local.csv）> 配布版 v3 > v2。"""
+    base = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                        'metadata')
+    for name in ('corpus_metadata_v3_local.csv', 'corpus_metadata_v3.csv',
+                 'corpus_metadata_v2.csv'):
+        p = os.path.join(base, name)
+        if os.path.exists(p):
+            return p
+    return os.path.join(base, 'corpus_metadata_v3.csv')
+
 def main() -> int:
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--plain', required=True, help='04 が書いた data/plain/full')
     ap.add_argument('--dict', action='append', required=True, metavar='名前=パス',
                     help='比べる辞書。複数指定できる')
-    ap.add_argument('--meta', default='metadata/corpus_metadata_v3.csv')
+    ap.add_argument('--meta', default=None,
+                    help='既定: metadata/ の *_v3_local.csv > v3 > v2')
     ap.add_argument('--out', required=True)
     ap.add_argument('--samples', type=int, default=400,
                     help='食い違いの実例を何件書き出すか')
     ap.add_argument('--seed', type=int, default=20260920)
     args = ap.parse_args()
+    if args.meta is None:
+        args.meta = default_meta()
 
     if not os.path.isdir(args.plain):
         sys.exit(f'入力が無い: {args.plain}\n  04_normalise.py を先に走らせること。')

@@ -176,6 +176,11 @@ JDK・MALLET・UniDic・取得済みテクストを `/Users/Shared/jlit` に置�
 | GitHub | <https://github.com/tomojitabata/JLit_Corpus_2026> | 配布元。受講生はここから clone／pull する |
 | 動作確認 | `~/Documents/dh_project/JLit_Corpus_2026` | 受講生と同じ置き方の clone。マスターを push したら `git pull` して確かめる |
 
+受講生が Step 3 で作るメタデータは `metadata/corpus_metadata_v3_local.csv`
+（`.gitignore` 済み）に書かれ，配布版の `corpus_metadata_v3.csv` は書き換わらない。
+配布版を更新するときは，検証した自分の版をもとに
+`00_extend_metadata.py … --out metadata/corpus_metadata_v3.csv --publish` で書き出してコミットする。
+
 マスターで `00_bootstrap_mac.sh` を実行しても，仮想環境は Dropbox の外
 （`~/Documents/dh_project/.venv`）に作られる。`solutions/`（模範解答）は
 `.gitignore` で除外してあり，GitHub には上がらない。
@@ -267,7 +272,8 @@ python scripts/11_visualise.py --meta metadata/corpus_metadata_v2.csv \
 ```bash
 # 索引（05 を走らせ直したら作り直す。辞書が変われば切り方が変わる）
 python scripts/15_kwic_index.py \
-  --tsv data/tokens/tsv --meta metadata/corpus_metadata_v3.csv --out data/kwic
+  --tsv data/tokens/tsv --out data/kwic
+# --meta を省くと metadata/ の自分の版（*_v3_local.csv）> 配布版 v3 > v2 の順に探す
 
 # 画面（127.0.0.1 にしか結び付けない。この機体からだけ見える）
 python scripts/16_kwic_server.py --open

@@ -49,6 +49,8 @@ v3 を直接手で直してはいけない**。このスクリプトは v3 を�
         --candidates metadata/expansion_candidates.csv \\
         --tokens data/tokens/tokens_surface --remeasure-all \\
         --out metadata/corpus_metadata_v3.csv
+    # → 実際には metadata/corpus_metadata_v3_local.csv に書く（配布版は
+    #   上書きしない）。配布版を更新するのは教員が --publish を付けたときだけ
 
 ``--editorial`` と ``--persons`` は省いてよい。``--meta`` の隣の
 ``editorial_expansion.csv`` と ``--fetch-log`` の隣の
@@ -409,6 +411,9 @@ def main() -> int:
                     help='既存 64 点も同じ方法で測り直す。v1 のテクストは'
                          '外字欠落・奥付混入があるので，本来はこちらが正しい')
     ap.add_argument('--out', required=True)
+    ap.add_argument('--publish', action='store_true',
+                    help='（教員用）配布版 metadata/corpus_metadata_v3.csv を'
+                         'そのまま上書きする。付けなければ *_local.csv に書く')
     args = ap.parse_args()
 
     base = read_csv(args.meta)
@@ -679,6 +684,17 @@ def main() -> int:
         print(f'[fix ] 作品・人物 ID を6桁に揃えた（{padded} セル）。'
               'ファイル名の綴りと一致させるため。')
 
+    # **配布版（git 管理）を上書きしない。** 上書きすると，受講生が
+    # git pull するたびに衝突する。既定では *_local.csv（.gitignore 済み）に
+    # 書き，以後の工程はそちらを優先して読む。配布版を更新するのは教員が
+    # --publish を付けたときだけ。
+    tracked = os.path.join('metadata', 'corpus_metadata_v3.csv')
+    if (not args.publish
+            and os.path.normpath(os.path.abspath(args.out)).endswith(tracked)):
+        local = os.path.splitext(args.out)[0] + '_local.csv'
+        print(f'[note] 配布版 {args.out} は上書きしない → {local} に書く'
+              '（配布版を更新するときは --publish）')
+        args.out = local
     os.makedirs(os.path.dirname(args.out) or '.', exist_ok=True)
     with open(args.out, 'w', newline='', encoding='utf-8-sig') as fh:
         w = csv.DictWriter(fh, fieldnames=cols, extrasaction='ignore')
