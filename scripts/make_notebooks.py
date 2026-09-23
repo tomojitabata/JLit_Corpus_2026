@@ -5381,6 +5381,97 @@ if need(p, '10_mallet.py を先に走らせること'):
         if f.exists():
             print(f'■ p={r.p:.3f} {r.作家}『{r.作品}』{r.チャンク}')
             print('   ', ' '.join(f.read_text(encoding='utf-8').split()[:45]), '…')'''),
+ ('md', r'''## 3.5 語を選び直して学習する — 品詞・集中度・散らばり
+
+上の本番モデルは 05 の `tokens_content`（名詞・動詞・形容詞・副詞をすべて）で
+学習した。そこには二種類の困りものが入る。
+
+| 困りもの | 例 | トピックで起きること |
+|---|---|---|
+| **固有名詞**（登場人物・地名） | 三吉・岸本・半蔵・法水 | 1作品にしか出ないので，トピックが**作品の目印**になる |
+| **意味の薄い高頻度語** | 為る・居る・成る・もう・そう | どのトピックの上位にも出て，区別に役立たない |
+
+`data/tokens/tsv/` には語ごとの品詞（UniDic の pos1–pos3）がある。
+`18_pos_select.py` はそれを使って語を選び直す。
+
+- **品詞**：既定（`nva`）は 普通名詞・自立動詞・自立形容詞。固有名詞・数詞・
+  代名詞・非自立の動詞（為る・居る）・副詞を除く
+- **1作品への集中度**：品詞解析は辞書に無い人名を普通名詞と誤ることがある
+  （「純一」「山嵐」「法水」）。度数の 8 割以上が1作品に集中する語を除く
+- **1作家への集中度**：同じ作家の複数作品に出る人物名（宮本百合子の「素子」）
+  は作品に集中しないので，作家への集中で除く
+- **散らばり dp_in**：Gries (2008) の DP を，その語が**いちばん濃い時代の中で**
+  測ったもの（Step 4 の `dp_in` と同じ考え方）。少数の作品に固まる bursty な語を除く。
+  全体の DP ではなく dp_in を使うのは，**時代への偏りは主題として残したい**からである
+
+⚠ どの閾値も分析の決定である。**報告に必ず書くこと。**'''),
+ ('code', r'''# ---- 語を選び直す（閾値は自分で決めてよい。報告に書くこと）----------
+TOK = ROOT/'data'/'tokens'
+SEL = dict(name='nva_clean', profile='nva',
+           max_work_share=0.8,     # 1作品に 80% 超が集中する語を除く
+           max_author_share=0.9,   # 1作家に 90% 超が集中する語を除く
+           max_dp_in=0.9)          # いちばん濃い時代の中で DP > 0.9 の語を除く
+if need(TOK/'tsv', 'Step 3 の 05_tokenise_unidic.py を先に実行すること'):
+    run_script('18_pos_select.py', '--tsv', TOK/'tsv', '--meta', META,
+               '--profile', SEL['profile'],
+               '--max-work-share', SEL['max_work_share'],
+               '--max-author-share', SEL['max_author_share'],
+               '--max-dp-in', SEL['max_dp_in'],
+               '--name', SEL['name'])'''),
+ ('code', r'''# ---- 選んだ語でチャンクを作り直し，同じ条件で学習する -----------------
+# チャンク長・上限・乱数種は本番モデル（Step 3）と同じにする。変えると比べられない
+TOK_SEL = TOK/f"tokens_{SEL['name']}"
+DS_SEL = ROOT/'data'/f"datasets_{SEL['name']}"
+ML_SEL = OUT/f"mallet_{SEL['name']}"
+if need(TOK_SEL, '上のセルを先に実行すること'):
+    run_script('06_build_datasets.py', '--tokens', TOK_SEL, '--meta', META, '--out', DS_SEL,
+               '--chunk', 2000, '--max-chunks', 40, '--sample', 'stratified', '--seed', 20260920,
+               tail=1500)
+    run_script('10_mallet.py', 'all', '--datasets', DS_SEL, '--out', ML_SEL,
+               '--topics', 50, '--iterations', 2000,
+               '--stoplist', ROOT/'config'/'stopwords_ja.txt', tail=3000)'''),
+ ('md', r'''### トピックビューア
+
+2つのモデル（語を選び直したもの・本番）を1枚の HTML に入れる。ブラウザで開き，
+左の欄で絞り込む。**サーバは要らない。**
+
+- **品詞・頻度帯・集中度・dp_in** で上位語を絞る
+- **relevance λ** を下げると，そのトピックに特有の語が上に来る（0.6 前後が目安）
+- トピックを押すと，**時代別の割合・割合の大きい作品と作家**が出る
+- 語で探すと，その語を上位に持つトピックだけが濃く残る
+
+⚠ **ビューアで語を隠すことと，その語を除いて学習し直すことは違う。**
+隠した語もトピックの形成には効いている。本番モデルで固有名詞を隠しても，
+固有名詞が作ったトピックは「その作品のトピック」のままである。
+カードの「残存」が低いトピックは，隠した語でできている。'''),
+ ('code', r'''# ---- トピックビューアを作る -----------------------------------------
+TV = OUT/'topic_viewer.html'
+models = []
+if (ML_SEL/'doc-topics.txt').exists():
+    models += ['--model', f"語を選び直したもの（{SEL['name']}）={ML_SEL}"]
+if (ML/'doc-topics.txt').exists():
+    models += ['--model', f'本番（内容語すべて）={ML}']
+if not models:
+    print('[未実行] MALLET の結果が無い。上のセルを先に実行すること')
+else:
+    run_script('19_topic_viewer.py', *models, '--meta', META,
+               '--lexicon', TOK/'lexicon.tsv', '--out', TV)
+    print(f'ブラウザで開く: {TV}')
+    if sys.platform == 'darwin':
+        print('（macOS なら次のセルで開ける）')'''),
+ ('code', r'''# macOS：既定のブラウザで開く
+import subprocess
+if sys.platform == 'darwin' and TV.exists():
+    subprocess.run(['open', str(TV)])'''),
+ ('md', r'''### 演習 4 — 選び直す前と後
+
+1. 本番モデルで，**1作品・1作家に偏ったトピック**（ビューアの ⚠）をいくつか挙げる。
+   選び直したモデルでは，それに当たるトピックはどうなったか
+2. 本番モデルのまま，ビューアで「固有名詞」を外し「1作品への集中度」を 60% に
+   下げる。カードの「残存」が低く残るトピックはどれか。**隠しても消えない理由**を説明せよ
+3. `SEL` の閾値を1つだけ変えて学習し直し，トピックの顔ぶれがどう変わるかを見る。
+   どの閾値を採るかを，自分の問いに照らして1段落で正当化せよ
+4. 「汽車」「戦争」「工場」を検索し，それを上位に持つトピックの**時代別の割合**を比べる'''),
  ('md', r'''## 4. 主題の通時変化と多様化
 
 問いは2つある。

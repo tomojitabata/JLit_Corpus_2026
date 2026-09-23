@@ -4,6 +4,7 @@ data/xml/
 data/plain/
 data/tokens/
 data/datasets/
+data/datasets_*/
 data/kwic/
 # 受講生が Step 3 で作るメタデータ（配布版 corpus_metadata_v3.csv は上書きしない）
 metadata/*_local*.csv
