@@ -5324,9 +5324,18 @@ if MALLET and RUN_SWEEP:
     run_script('10_mallet.py', 'sweep', '--datasets', DS,
                '--out', OUT/'mallet_sweep', '--iterations', 1000,
                '--stoplist', ROOT/'config'/'stopwords_ja.txt',
-               '--topic-list', 20, 30, 40, 50, 60, 80)'''),
+               '--topic-list', 20, 30, 40, 50, 60, 80)
+elif MALLET:
+    print('[skip] RUN_SWEEP = False なので，トピック数の比較（sweep）は実行していない。')
+    print('       見たいときは RUN_SWEEP = True にしてこのセルを実行する'
+          '（6 通りの K を学習するので 20–40 分かかる）。')
+    print('       飛ばしても，下の「3. 本番の学習」（K=50）は実行できる。')'''),
  ('code', r'''p = OUT/'mallet_sweep'/'sweep.csv'
-if need(p, 'この分析のスクリプトを走らせるセルを先に実行すること'):
+if not p.exists():
+    # 上のセルが RUN_SWEEP = False（既定）のときは sweep.csv が無いのが正常
+    print(f'[skip] {p.name} が無い。上のセルで RUN_SWEEP = True にして sweep を実行したときだけ図が出る。')
+    print('       飛ばして先へ進んでよい。')
+else:
     sw_ = pd.read_csv(p)
     fig, ax1 = plt.subplots(figsize=(8,5))
     ax1.plot(sw_.topics, sw_.mean_coherence, 'o-', color=PALETTE[0], label='coherence')
