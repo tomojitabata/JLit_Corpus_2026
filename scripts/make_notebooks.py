@@ -1209,12 +1209,24 @@ def run_script(script, *args, tail=4000):
     cmd = [sys.executable, str(ROOT / 'scripts' / script)] + [str(a) for a in args]
     print('$ python', ' '.join(cmd[1:]))
     r = subprocess.run(cmd, capture_output=True, text=True)
+
+    def _tail(s):
+        # 末尾 tail 文字だけを出す。行の途中で切らないよう，切ったときは
+        # 次の改行から始め，前を省いたことを明示する
+        if len(s) <= tail:
+            return s
+        s = s[-tail:]
+        return '（…前略）\n' + s[s.find('\n') + 1:]
+
     if r.stdout:
-        print(r.stdout[-tail:])
+        print(_tail(r.stdout))
     if r.stderr.strip():
-        print('--- stderr ---')
-        print(r.stderr[-tail:])
-    print(f'[exit {r.returncode}]')
+        # 標準エラーには**エラー以外**も出る。MALLET は学習の進み具合
+        # （<10> LL/token: …）と途中のトピック上位語をここに書く。
+        # 判断は [exit 0] かどうかで行う
+        print('--- stderr（進行ログを含む。エラーとは限らない）---')
+        print(_tail(r.stderr))
+    print(f'[exit {r.returncode}]' + ('' if r.returncode == 0 else '  ← 0 でなければ失敗'))
     return r
 
 
