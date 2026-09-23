@@ -61,11 +61,41 @@ def check_pkg(name, import_name=None, required=True, fix=''):
         return None
 
 
-SHARED_DEFAULT = '/Users/Shared/jlit' if sys.platform == 'darwin' else ''
+# 共用 iMac は /Users/Shared/jlit，自分の Mac（--personal）は ~/.jlit。
+SHARED_CANDIDATES = (['/Users/Shared/jlit', os.path.expanduser('~/.jlit')]
+                     if sys.platform == 'darwin' else [])
+SHARED_DEFAULT = next((d for d in SHARED_CANDIDATES if os.path.isdir(d)),
+                      SHARED_CANDIDATES[0] if SHARED_CANDIDATES else '')
 
 
 def shared_root() -> str:
     return os.environ.get('JLIT_SHARED') or SHARED_DEFAULT
+
+
+def load_env_file() -> str | None:
+    """env.sh が読み込まれていなければ，ここで代わりに読み込む。
+
+    ターミナルで source せずに実行したときや，Jupyter を env.sh 抜きで
+    起動したときに，辞書・Java・MALLET が「無い」と誤判定されるのを防ぐ。
+    読み込んだ場合はそのファイルのパスを返す（点検結果に WARN として出す）。
+    """
+    if os.environ.get('JLIT_SHARED') or IS_WIN:
+        return None
+    for d in SHARED_CANDIDATES:
+        f = os.path.join(d, 'env.sh')
+        if not os.path.isfile(f):
+            continue
+        try:
+            out = subprocess.run(['/bin/bash', '-c', f'. "{f}" >/dev/null 2>&1; env -0'],
+                                 capture_output=True, text=True, timeout=10).stdout
+        except Exception:                                       # noqa: BLE001
+            continue
+        for item in out.split('\0'):
+            k, _, v = item.partition('=')
+            if k.startswith('JLIT_') or k in ('JAVA_HOME', 'MALLET', 'PATH'):
+                os.environ[k] = v
+        return f
+    return None
 
 
 # 本番の辞書（2026-09-22 決定。docs/dictionary_comparison.md §10）。
@@ -152,25 +182,36 @@ def check_tagger(dicdir):
 
 
 def check_java():
-    j = shutil.which('java')
-    if not j:
-        jh = os.environ.get('JAVA_HOME') or os.path.join(
-            shared_root(), 'jdk', 'Contents', 'Home')
-        cand = os.path.join(jh, 'bin', 'java')
-        j = cand if os.path.exists(cand) else None
-    if not j:
+    # /usr/bin/java は macOS のスタブで，古い Oracle のプラグイン（Intel 版）を
+    # 拾うことがある。JAVA_HOME → 共有の JDK → PATH の順に探す。
+    cands = []
+    if os.environ.get('JAVA_HOME'):
+        cands.append(os.path.join(os.environ['JAVA_HOME'], 'bin', 'java'))
+    if shared_root():
+        cands.append(os.path.join(shared_root(), 'jdk', 'Contents', 'Home', 'bin', 'java'))
+    if shutil.which('java'):
+        cands.append(shutil.which('java'))
+    cands = [c for c in cands if c and os.path.exists(c)]
+    if not cands:
         add(WARN, 'Java (MALLET 用)', '未導入（Step 8 まで無くてよい）',
             'bash scripts/00_bootstrap_mac.sh が admin 権限なしで導入する。'
             'それでも入らなければ uv pip install tomotopy で代替できる')
         return
-    try:
-        out = subprocess.run([j, '-version'], capture_output=True, text=True, timeout=20)
-        lines = [l for l in (out.stderr or out.stdout).splitlines()
-                 if l.strip() and 'Picked up' not in l]
-        ver = lines[0] if lines else '不明'
-    except Exception:                                           # noqa: BLE001
-        ver = '不明'
-    add(OK, 'Java (MALLET 用)', ver)
+    err = ''
+    for j in cands:
+        try:
+            out = subprocess.run([j, '-version'], capture_output=True, text=True, timeout=20)
+            text = (out.stderr or out.stdout)
+            lines = [l for l in text.splitlines() if l.strip() and 'Picked up' not in l]
+            if out.returncode == 0 and lines and 'version' in lines[0]:
+                add(OK, 'Java (MALLET 用)', f'{lines[0]}  @ {j}')
+                return
+            err = (lines[0] if lines else f'exit {out.returncode}')[:100]
+        except Exception as e:                                  # noqa: BLE001
+            err = str(e)[:100]
+    add(WARN, 'Java (MALLET 用)', f'実行できない: {err}',
+        'source ~/.jlit/env.sh（共用機は /Users/Shared/jlit/env.sh）で JAVA_HOME を'
+        '設定してから実行する。Jupyter は Python (JLit) カーネルを選ぶこと')
 
 
 def check_mallet():
@@ -184,7 +225,7 @@ def check_mallet():
             add(WARN, 'MALLET のパス', '空白を含む', 'ASCII のみの短いパスに移すこと')
         return
     add(WARN, 'MALLET', '環境変数 MALLET が未設定（Step 8 まで無くてよい）',
-        'source /Users/Shared/jlit/env.sh を実行するか，'
+        f'source {os.path.join(shared_root() or "~/.jlit", "env.sh")} を実行するか，'
         'bash scripts/00_bootstrap_mac.sh で導入する')
 
 
@@ -264,6 +305,14 @@ def check_workspace():
     add(OK if not miss else WARN, 'リポジトリ構成',
         here if not miss else '不足: ' + ', '.join(miss),
         'リポジトリのルートから実行しているか確認すること')
+    # 古いコピーや Dropbox 内のコピーで動かしていると，点検も解析も
+    # 手元の最新版と食い違う。git clone したものかどうかも見る。
+    if not os.path.isdir(os.path.join(here, '.git')):
+        add(WARN, 'リポジトリの出所', 'git clone したものではない（古いコピーの可能性）',
+            'git clone https://github.com/tomojitabata/JLit_Corpus_2026 ~/Documents/JLit_Corpus_2026')
+    elif any(k in here for k in ('/Dropbox/', '/CloudStorage/', '/Google Drive/', 'OneDrive')):
+        add(WARN, 'リポジトリの場所', 'クラウド同期フォルダの中にある',
+            '.git と .venv が同期で壊れることがある。~/Documents などに clone すること')
     w = os.path.join(here, 'results')
     try:
         os.makedirs(w, exist_ok=True)
@@ -282,6 +331,10 @@ def main() -> int:
     print(f' {platform.platform()} / {platform.machine()}')
     print('=' * 72)
 
+    loaded = load_env_file()
+    if loaded:
+        add(WARN, '環境変数', f'{loaded} が読み込まれていなかった（点検では代わりに読み込んだ）',
+            f'ターミナルでは source {loaded}。Jupyter では Python (JLit) カーネルを選ぶこと')
     check_machine()
     check_python()
     check_encoding()

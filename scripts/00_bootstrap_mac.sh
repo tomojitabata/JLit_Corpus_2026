@@ -223,7 +223,7 @@ fetch_dict() {
     return 0
   fi
   tmp="$(mktemp -d)"
-  echo "  $label を取得中（約 1 GB。数分かかる）…"
+  echo "  $label を取得中（約 1.7 GB。数分かかる）…"
   if curl -L --fail -o "$tmp/d.zip" "$url"; then
     # Dropbox 内に展開すると同期と競合して壊れることがあるので，
     # 一時ディレクトリで展開してから移す（docs/dictionary_comparison.md §9）。
@@ -281,6 +281,28 @@ EOF
 mkdir -p "$SHARED/aozora-cache"
 chmod -R a+rX "$SHARED" 2>/dev/null
 ok "$ENVFILE を書いた"
+
+# Jupyter を env.sh 抜きで起動しても辞書・Java・MALLET が見えるように，
+# 同じ環境変数を 'Python (JLit)' カーネルの kernel.json に書き込む。
+"$ROOT/.venv/bin/python" - "$ENVFILE" "$ROOT" <<'PY' \
+  && ok "カーネル 'Python (JLit)' に環境変数を持たせた（env.sh を読まずに Jupyter を起動してもよい）" \
+  || warn "カーネルに環境変数を書き込めなかった。Jupyter の前に env.sh を source すること"
+import json, os, subprocess, sys
+from jupyter_client.kernelspec import KernelSpecManager
+envfile, root = sys.argv[1], sys.argv[2]
+out = subprocess.run(['/bin/bash', '-c', f'. "{envfile}" >/dev/null 2>&1; env -0'],
+                     capture_output=True, text=True, check=True).stdout
+env = {}
+for item in out.split('\0'):
+    k, _, v = item.partition('=')
+    if k.startswith('JLIT_') or k in ('JAVA_HOME', 'MALLET', 'PATH'):
+        env[k] = v
+env['PATH'] = os.path.join(root, '.venv', 'bin') + os.pathsep + env.get('PATH', '')
+f = os.path.join(KernelSpecManager().get_kernel_spec('jlit').resource_dir, 'kernel.json')
+spec = json.load(open(f, encoding='utf-8'))
+spec['env'] = env
+json.dump(spec, open(f, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
+PY
 
 # -----------------------------------------------------------------------------
 say "7. 確認"
