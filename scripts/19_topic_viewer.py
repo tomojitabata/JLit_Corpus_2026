@@ -465,25 +465,35 @@ function detail(t){
     v => (100*v).toFixed(2) + '%');
   const per = barsSVG(M.periods.map((p, i) => ({label: p.replace(/^\d_/, ''), v: M.periodTopic[i][t]})), 420, 150,
     v => (100*v).toFixed(1) + '%');
-  const ws = M.works.map((w, i) => ({w, v: M.workTopic[i][t]})).sort((a, b) => b.v - a.v).slice(0, 12);
-  const byAuthor = {};
-  M.works.forEach((w, i) => { (byAuthor[w[1]] ||= []).push(M.workTopic[i][t]); });
-  const au = Object.entries(byAuthor).map(([a, v]) => ({a, v: v.reduce((s, x) => s + x, 0) / v.length, n: v.length}))
-    .sort((a, b) => b.v - a.v).slice(0, 8);
-  const wtab = `<table><tr><th>作品</th><th>作家</th><th>初出</th><th class="num">割合</th></tr>` +
-    ws.map(x => `<tr><td>${esc(x.w[2])}</td><td>${esc(x.w[1])}</td><td>${esc(x.w[3])}</td><td class="num">${(100*x.v).toFixed(1)}%</td></tr>`).join('') + '</table>';
-  const atab = `<table><tr><th>作家</th><th class="num">作品数</th><th class="num">平均割合</th></tr>` +
-    au.map(x => `<tr><td>${esc(x.a)}</td><td class="num">${x.n}</td><td class="num">${(100*x.v).toFixed(1)}%</td></tr>`).join('') + '</table>';
-  // トピックの重み（作品の割合 × チャンク数）のうち，1作品・1作家が占める割合
+  // 2つの割合を区別する
+  //   作品内の割合      P(t|作品)：その作品のチャンクでこのトピックが占める割合の平均
+  //   トピックに占める割合 P(作品|t)：このトピックの重み（割合×チャンク数の総和）のうち，
+  //                      その作品（作家）のチャンクから来ている割合
   const mass = M.works.map((w, i) => M.workTopic[i][t] * w[5]);
   const totalMass = mass.reduce((s, x) => s + x, 0) || 1;
-  const byA = {};
-  M.works.forEach((w, i) => byA[w[1]] = (byA[w[1]] || 0) + mass[i]);
-  const [topA, topAm] = Object.entries(byA).sort((a, b) => b[1] - a[1])[0] || ['', 0];
+  const ws = M.works.map((w, i) => ({w, v: M.workTopic[i][t], sh: mass[i] / totalMass}))
+    .sort((a, b) => b.v - a.v).slice(0, 12);
+  const byAuthor = {};
+  M.works.forEach((w, i) => { const a = (byAuthor[w[1]] ||= {v: [], m: 0}); a.v.push(M.workTopic[i][t]); a.m += mass[i]; });
+  const au = Object.entries(byAuthor).map(([a, o]) => ({a, v: o.v.reduce((s, x) => s + x, 0) / o.v.length, n: o.v.length, sh: o.m / totalMass}))
+    .sort((a, b) => b.sh - a.sh).slice(0, 8);
+  const pct = x => (100 * x).toFixed(1) + '%';
+  const wtab = `<table><tr><th>作品</th><th>作家</th><th>初出</th>
+      <th class="num" title="その作品のチャンクで，このトピックが占める割合の平均">作品内の割合</th>
+      <th class="num" title="このトピックの重み全体のうち，その作品から来ている割合">トピックに占める割合</th></tr>` +
+    ws.map(x => `<tr><td>${esc(x.w[2])}</td><td>${esc(x.w[1])}</td><td>${esc(x.w[3])}</td><td class="num">${pct(x.v)}</td><td class="num">${pct(x.sh)}</td></tr>`).join('') + '</table>';
+  const atab = `<table><tr><th>作家</th><th class="num">作品数</th>
+      <th class="num" title="その作家の各作品での「作品内の割合」の平均">作品内の割合（平均）</th>
+      <th class="num" title="このトピックの重み全体のうち，その作家の作品から来ている割合">トピックに占める割合</th></tr>` +
+    au.map(x => `<tr><td>${esc(x.a)}</td><td class="num">${x.n}</td><td class="num">${pct(x.v)}</td><td class="num">${pct(x.sh)}</td></tr>`).join('') + '</table>';
+  const [topA, topAm] = Object.entries(byAuthor).map(([a, o]) => [a, o.m]).sort((a, b) => b[1] - a[1])[0] || ['', 0];
   const topW = Math.max(...mass) / totalMass, topWi = mass.indexOf(Math.max(...mass));
   let warn = '';
-  if (topW > 0.5) warn = `<p class="warn">⚠ このトピックの重みの ${(100*topW).toFixed(0)}% が1作品（${esc(M.works[topWi][2])}）から来ている。主題ではなく作品の目印である可能性が高い。</p>`;
-  else if (topAm / totalMass > 0.5) warn = `<p class="warn">⚠ このトピックの重みの ${(100*topAm/totalMass).toFixed(0)}% が1作家（${esc(topA)}）から来ている。主題ではなく作家の目印である可能性がある。</p>`;
+  if (topW > 0.5) warn = `<p class="warn">⚠ このトピックの重みの ${(100*topW).toFixed(0)}% が1作品（${esc(M.works[topWi][2])}）から来ている（トピックに占める割合）。主題ではなく作品の目印である可能性が高い。</p>`;
+  else if (topAm / totalMass > 0.5) warn = `<p class="warn">⚠ このトピックの重みの ${(100*topAm/totalMass).toFixed(0)}% が1作家（${esc(topA)}）の作品から来ている（トピックに占める割合）。主題ではなく作家の目印である可能性がある。</p>`;
+  const note = `<p class="hint">「作品内の割合」＝その作品の中でこのトピックが占める割合（P(トピック｜作品)）。
+    「トピックに占める割合」＝このトピックの重みのうちその作品から来る割合（P(作品｜トピック)）。
+    向きが逆なので値は一致しない。どちらも語の絞り込みでは変わらない。</p>`;
   $('detail').hidden = false;
   $('detail').innerHTML = `<h2>T${String(t).padStart(2,'0')}　全体の ${(100*M.prev[t]).toFixed(1)}%・表示の残存 ${(100*keptMass).toFixed(0)}%</h2>
     <div class="legend">${POSGROUPS.map((g, gi) => `<span><i style="background:${COLORS[gi]}"></i>${g[0]}</span>`).slice(0, 8).join('')}</div>
@@ -492,8 +502,8 @@ function detail(t){
       <p class="hint">MALLET の上位語（絞り込み前）：${esc(M.keys[t] || '')}</p>
       <p class="hint">外来語は片仮名だけを表示している。語にマウスを載せると UniDic の語彙素（原綴つき）と品詞が出る。</p></div>
     <div><h3 style="font-size:13px">時代別の割合（チャンク平均）</h3>${per}
-      <h3 style="font-size:13px">割合の大きい作品</h3>${wtab}
-      <h3 style="font-size:13px">割合の大きい作家</h3>${atab}</div></div>`;
+      <h3 style="font-size:13px">このトピックが多い作品（作品内の割合の順）</h3>${wtab}
+      <h3 style="font-size:13px">このトピックを担う作家（トピックに占める割合の順）</h3>${atab}${note}</div></div>`;
 }
 
 $('model').innerHTML = D.models.map((m, i) => `<option value="${i}">${esc(m.label)}</option>`).join('');
