@@ -4,6 +4,7 @@ data/xml/
 data/plain/
 data/tokens/
 data/datasets/
+data/kwic/
 results/*/
 !results/README.txt
 __pycache__/
