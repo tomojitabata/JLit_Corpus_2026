@@ -119,7 +119,7 @@ Step 8  MALLET（主題の多様化）＋総合
 ### よくある躓き
 | 症状 | 対処 |
 |---|---|
-| `fugashi` が import できない | 仮想環境が有効でない。`source .venv/bin/activate` |
+| `fugashi` が import できない | 仮想環境が有効でない。`source ~/Documents/dh_project/.venv/bin/activate` |
 | `mecabrc` がない | `touch /opt/homebrew/etc/mecabrc` |
 | 図が □ | `docs/00_setup_students.md` §1.7 |
 

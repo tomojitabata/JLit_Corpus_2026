@@ -38,9 +38,40 @@ def check_python():
         'python.org から 3.12 を導入し，仮想環境を作り直すこと')
     in_venv = (hasattr(sys, 'real_prefix')
                or (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix))
-    add(OK if in_venv else WARN, '仮想環境',
-        '有効' if in_venv else 'システム Python を使っている',
-        'source .venv/bin/activate （Windows: .\\.venv\\Scripts\\Activate.ps1）')
+    venv = os.path.join(project_dir(), '.venv')
+    act = (f'{venv}\\Scripts\\Activate.ps1' if IS_WIN
+           else f'source {venv}/bin/activate')
+    if not in_venv:
+        add(WARN, '仮想環境', 'システム Python を使っている', act)
+        return
+    here = os.path.realpath(sys.prefix)
+    if os.path.isdir(venv) and here == os.path.realpath(venv):
+        add(OK, '仮想環境', f'有効（{venv}）')
+    else:
+        add(WARN, '仮想環境', f'作業フォルダのものではない（{sys.prefix}）',
+            f'{act}。Jupyter ではカーネル Python (JLit) を選ぶこと')
+
+
+def project_dir() -> str:
+    """作業フォルダ（pyproject.toml と .venv の置き場）。
+
+    規則は 00_bootstrap_mac.sh と同じ：JLIT_PROJECT_DIR があればそれ，
+    リポジトリが同期フォルダの中なら ~/Documents/dh_project，
+    それ以外はリポジトリの親（~/Documents/dh_project/JLit_Corpus_2026 なら
+    ~/Documents/dh_project）。
+    """
+    env = os.environ.get('JLIT_PROJECT_DIR')
+    if env:
+        return os.path.expanduser(env)
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if in_cloud(root):
+        return os.path.join(os.path.expanduser('~'), 'Documents', 'dh_project')
+    return os.path.dirname(root)
+
+
+def in_cloud(path: str) -> bool:
+    return any(k in path for k in ('/Dropbox/', '/CloudStorage/', '/Google Drive/',
+                                   'OneDrive', '/Mobile Documents/', '\\Dropbox\\'))
 
 
 def check_pkg(name, import_name=None, required=True, fix=''):
@@ -307,12 +338,20 @@ def check_workspace():
         'リポジトリのルートから実行しているか確認すること')
     # 古いコピーや Dropbox 内のコピーで動かしていると，点検も解析も
     # 手元の最新版と食い違う。git clone したものかどうかも見る。
+    clone = ('mkdir -p ~/Documents/dh_project && cd ~/Documents/dh_project && '
+             'git clone https://github.com/tomojitabata/JLit_Corpus_2026.git')
     if not os.path.isdir(os.path.join(here, '.git')):
-        add(WARN, 'リポジトリの出所', 'git clone したものではない（古いコピーの可能性）',
-            'git clone https://github.com/tomojitabata/JLit_Corpus_2026 ~/Documents/JLit_Corpus_2026')
-    elif any(k in here for k in ('/Dropbox/', '/CloudStorage/', '/Google Drive/', 'OneDrive')):
-        add(WARN, 'リポジトリの場所', 'クラウド同期フォルダの中にある',
-            '.git と .venv が同期で壊れることがある。~/Documents などに clone すること')
+        add(WARN, 'リポジトリの出所', 'git clone したものではない（古いコピーの可能性）', clone)
+    elif in_cloud(here):
+        add(WARN, 'リポジトリの場所', 'クラウド同期フォルダの中にある（教員のマスター？）',
+            '.git と .venv が同期で壊れることがある。作業は ' + clone + ' で行う')
+    elif (os.path.basename(os.path.dirname(here)) != 'dh_project'
+          and not os.environ.get('JLIT_PROJECT_DIR')):
+        add(WARN, 'リポジトリの場所', f'作業フォルダ dh_project の中にない（{here}）', clone)
+    proj = project_dir()
+    if not os.path.isfile(os.path.join(proj, 'pyproject.toml')) and not IS_WIN:
+        add(WARN, 'uv のプロジェクト', f'{proj}/pyproject.toml が無い（uv add の行き先が定まらない）',
+            'bash scripts/00_bootstrap_mac.sh を実行する')
     w = os.path.join(here, 'results')
     try:
         os.makedirs(w, exist_ok=True)

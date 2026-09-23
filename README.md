@@ -67,6 +67,13 @@
 ## ディレクトリ
 
 ```
+~/Documents/dh_project/          作業フォルダ（各自。00_bootstrap_mac.sh が整える）
+├── pyproject.toml               uv add の行き先をここに固定する
+├── .venv/                       仮想環境（Jupyter カーネル「Python (JLit)」）
+└── JLit_Corpus_2026/            ← このリポジトリ（GitHub から clone）
+```
+
+```
 JLit_Corpus_2026/
 ├── README.md
 ├── requirements.txt
@@ -120,17 +127,24 @@ JLit_Corpus_2026/
 
 ### 0. 環境
 
+リポジトリは作業フォルダ `~/Documents/dh_project` の中に clone し，
+仮想環境はその作業フォルダ（リポジトリの親）に置く。
+
 ```bash
+mkdir -p ~/Documents/dh_project && cd ~/Documents/dh_project
+git clone https://github.com/tomojitabata/JLit_Corpus_2026.git
+cd JLit_Corpus_2026
+
 # macOS（DH Lab 共用 iMac）
 bash scripts/00_bootstrap_mac.sh
-source /Users/Shared/jlit/env.sh && source .venv/bin/activate
+source /Users/Shared/jlit/env.sh && source ~/Documents/dh_project/.venv/bin/activate
 
 # macOS（自分の Mac）
 bash scripts/00_bootstrap_mac.sh --personal
-source ~/.jlit/env.sh && source .venv/bin/activate
+source ~/.jlit/env.sh && source ~/Documents/dh_project/.venv/bin/activate
 
-# Windows
-py -3.12 -m venv .venv && .\.venv\Scripts\Activate.ps1
+# Windows（PowerShell。作業フォルダ dh_project で）
+py -3.12 -m venv ..\.venv && ..\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 # 辞書は本番の unidic-novel-v202512 を取る（docs/00_setup_students.md §4.3）。
 # pip install unidic で入るのは cwj であって本番の辞書ではない。
@@ -149,6 +163,22 @@ JDK・MALLET・UniDic・取得済みテクストを `/Users/Shared/jlit` に置�
 [`docs/dictionary_comparison.md`](docs/dictionary_comparison.md) §10。
 
 詳細は [`docs/00_setup_students.md`](docs/00_setup_students.md)。
+
+パッケージを足すときはリポジトリの中で `uv add <名前>` とすればよい
+（`dh_project/pyproject.toml` が見つかり，カーネルと同じ `.venv` に入る）。
+**`uv sync` は使わない**（`requirements.txt` で入れたものが消える）。
+
+### 教員用 — マスターと配布の関係
+
+| | 場所 | 用途 |
+|---|---|---|
+| マスター | `~/Dropbox/Corpus/DH_text_analytics_2025/JLit_Corpus_2026` | 編集・コミット・`git push` だけに使う。**ここでは実行しない**（`.venv` を置かない） |
+| GitHub | <https://github.com/tomojitabata/JLit_Corpus_2026> | 配布元。受講生はここから clone／pull する |
+| 動作確認 | `~/Documents/dh_project/JLit_Corpus_2026` | 受講生と同じ置き方の clone。マスターを push したら `git pull` して確かめる |
+
+マスターで `00_bootstrap_mac.sh` を実行しても，仮想環境は Dropbox の外
+（`~/Documents/dh_project/.venv`）に作られる。`solutions/`（模範解答）は
+`.gitignore` で除外してあり，GitHub には上がらない。
 
 ### 1. 現行コーパスの診断
 

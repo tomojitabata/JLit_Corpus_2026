@@ -96,8 +96,23 @@ DH Lab の iMac は **XCreds** で認証する。どの機体にもログイン�
 
 ~/.jlit/                   ← 自分の Mac：同じ中身をホームに置く
 
-<リポジトリ>/.venv         ← 各自の仮想環境（数百 MB。作り直せる）
+~/Documents/dh_project/    ← 各自の作業フォルダ（uv のプロジェクト）
+   pyproject.toml             uv add の行き先をここに固定する（スクリプトが作る）
+   .venv/                     各自の仮想環境（数百 MB。作り直せる）
+   JLit_Corpus_2026/          GitHub から clone したリポジトリ
 ```
+
+**仮想環境はリポジトリの中ではなく，その親の `dh_project` に置く。**
+理由は二つある。
+
+- リポジトリで `uv add <パッケージ>` を実行すると，uv は親へ遡って
+  `dh_project/pyproject.toml` を見つけ，**Jupyter のカーネルと同じ `.venv`** に入れる。
+  リポジトリの中に `.venv` を置く旧い方式では，uv が別の場所に入れてしまい，
+  「入れたのに import できない」が起きていた（§7）
+- リポジトリを消して clone し直しても，仮想環境はそのまま残る
+
+`.venv` と `pyproject.toml` は `00_bootstrap_mac.sh` が作る。
+**`dh_project` の外に clone するとスクリプトは止まる**（置き直す手順を表示する）。
 
 macOS の `/Users/Shared` は **admin 権限なしに全ユーザが読み書きできる**。
 ここに置いておけば，同じ機体なら次の人が 1 GB の辞書を取り直さずに済む。
@@ -129,7 +144,7 @@ macOS の `/Users/Shared` は **admin 権限なしに全ユーザが読み書き
 mkdir -p /Users/Shared/jlit && cd /Users/Shared/jlit
 curl -L -O https://clrd.ninjal.ac.jp/unidic_archive/2512/unidic-novel-v202512.zip
 /usr/bin/unzip -q unidic-novel-v202512.zip
-python3 ~/Documents/JLit_Corpus_2026/scripts/check_unidic_dir.py /Users/Shared/jlit/unidic-novel-v202512
+python3 ~/Documents/dh_project/JLit_Corpus_2026/scripts/check_unidic_dir.py /Users/Shared/jlit/unidic-novel-v202512
 ```
 
 **展開先を Dropbox・iCloud の中にしないこと**（同期と競合して壊れる）。
@@ -144,8 +159,9 @@ python3 ~/Documents/JLit_Corpus_2026/scripts/check_unidic_dir.py /Users/Shared/j
 ターミナル（`ターミナル.app`）を開いて：
 
 ```bash
-cd ~/Documents
-git clone <授業で案内する URL> JLit_Corpus_2026
+mkdir -p ~/Documents/dh_project
+cd ~/Documents/dh_project
+git clone https://github.com/tomojitabata/JLit_Corpus_2026.git
 cd JLit_Corpus_2026
 ```
 
@@ -160,7 +176,8 @@ bash scripts/00_bootstrap_mac.sh
 これ 1 本で次を行う。**`sudo` は一度も要求されない。**
 
 1. `uv` を `~/.local/bin` に導入（既にあれば飛ばす）
-2. `.venv` を作り，`requirements.txt` のパッケージを入れる
+2. `~/Documents/dh_project` を uv のプロジェクトにし（`pyproject.toml`），
+   `~/Documents/dh_project/.venv` を作って `requirements.txt` のパッケージを入れる
 3. Jupyter カーネル「Python (JLit)」を登録
 4. JDK 21 を `/Users/Shared/jlit/jdk` に展開（既にあれば飛ばす）
 5. MALLET を `/Users/Shared/jlit/mallet` に展開し，**ヒープを搭載メモリの 1/4 に設定**
@@ -177,7 +194,8 @@ bash scripts/00_bootstrap_mac.sh
 
 ```bash
 source /Users/Shared/jlit/env.sh
-source ~/Documents/JLit_Corpus_2026/.venv/bin/activate
+source ~/Documents/dh_project/.venv/bin/activate
+cd ~/Documents/dh_project/JLit_Corpus_2026
 ```
 
 プロンプト頭に `(.venv)` が付けば有効。毎回打つのが面倒なら `~/.zshrc` の末尾に
@@ -190,8 +208,8 @@ source ~/Documents/JLit_Corpus_2026/.venv/bin/activate
 ### 2.4 別の機体に移ったとき
 
 ```bash
-cd ~/Documents
-git clone <URL> JLit_Corpus_2026 && cd JLit_Corpus_2026
+mkdir -p ~/Documents/dh_project && cd ~/Documents/dh_project
+git clone https://github.com/tomojitabata/JLit_Corpus_2026.git && cd JLit_Corpus_2026
 bash scripts/00_bootstrap_mac.sh
 ```
 
@@ -222,8 +240,8 @@ Intel Mac でも動く（スクリプトが CPU を見て適切な JDK を選ぶ
 ### 3.2 セットアップ
 
 ```bash
-cd ~/Documents
-git clone <URL> JLit_Corpus_2026 && cd JLit_Corpus_2026
+mkdir -p ~/Documents/dh_project && cd ~/Documents/dh_project
+git clone https://github.com/tomojitabata/JLit_Corpus_2026.git && cd JLit_Corpus_2026
 bash scripts/00_bootstrap_mac.sh --personal
 ```
 
@@ -235,7 +253,8 @@ bash scripts/00_bootstrap_mac.sh --personal
 
 ```bash
 source ~/.jlit/env.sh
-source ~/Documents/JLit_Corpus_2026/.venv/bin/activate
+source ~/Documents/dh_project/.venv/bin/activate
+cd ~/Documents/dh_project/JLit_Corpus_2026
 ```
 
 `~/.zshrc` に `[ -f ~/.jlit/env.sh ] && . ~/.jlit/env.sh` を足しておけば
@@ -271,15 +290,18 @@ winget install --id EclipseAdoptium.Temurin.21.JDK -e
 ### 4.2 リポジトリと仮想環境
 
 ```powershell
-cd $HOME\Documents
-git clone <URL> JLit_Corpus_2026
-cd JLit_Corpus_2026
+mkdir $HOME\Documents\dh_project -Force
+cd $HOME\Documents\dh_project
+git clone https://github.com/tomojitabata/JLit_Corpus_2026.git
 py -3.12 -m venv .venv
 .\.venv\Scripts\Activate.ps1
+cd JLit_Corpus_2026
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 python -m ipykernel install --user --name jlit --display-name "Python (JLit)"
 ```
+
+macOS と同じく，仮想環境は `dh_project\.venv`（リポジトリの親）に置く。
 
 `Activate.ps1` が実行ポリシーで止まる場合：
 
@@ -300,7 +322,7 @@ mkdir C:\JLit
 cd C:\JLit
 curl.exe -L -O https://clrd.ninjal.ac.jp/unidic_archive/2512/unidic-novel-v202512.zip
 Expand-Archive .\unidic-novel-v202512.zip -DestinationPath .
-python scripts\check_unidic_dir.py C:\JLit\unidic-novel-v202512
+python $HOME\Documents\dh_project\JLit_Corpus_2026\scripts\check_unidic_dir.py C:\JLit\unidic-novel-v202512
 ```
 
 MALLET は <https://github.com/mimno/Mallet/releases>（v202108 の `Mallet-202108-bin.zip`）から取得し，
@@ -340,7 +362,7 @@ git config --global user.email "<大学のメールアドレス>"
 ### 5.2 毎回の作業終わりに
 
 ```bash
-cd ~/Documents/JLit_Corpus_2026
+cd ~/Documents/dh_project/JLit_Corpus_2026
 git add results/<自分の名前>
 git commit -m "Step 2: 外字の復元を確認"
 git push
@@ -364,7 +386,8 @@ git push
 # macOS（A も B も同じ）
 # env.sh は /Users/Shared/jlit/env.sh または ~/.jlit/env.sh
 source <env.sh のパス>
-source .venv/bin/activate
+source ~/Documents/dh_project/.venv/bin/activate
+cd ~/Documents/dh_project/JLit_Corpus_2026
 # ALL OK を確認
 python scripts/00_env_check.py
 jupyter lab
@@ -372,11 +395,14 @@ jupyter lab
 
 ```powershell
 # Windows
-.\.venv\Scripts\Activate.ps1
+$HOME\Documents\dh_project\.venv\Scripts\Activate.ps1
+cd $HOME\Documents\dh_project\JLit_Corpus_2026
 python scripts\00_env_check.py
 jupyter lab
 ```
 
+**`jupyter lab` はリポジトリ（`dh_project/JLit_Corpus_2026`）で起動すること。**
+別の場所（古いコピーなど）で起動すると，そちらのスクリプトが動く。
 ブラウザが開いたら `notebooks/01_corpus_design.ipynb` から順に進む。
 カーネルが **Python (JLit)** になっていることを確認すること
 （右上に表示される。違っていたら `Kernel → Change Kernel`）。
@@ -399,7 +425,8 @@ jupyter lab
 |---|---|---|
 | 前回の作業が消えた（共用 iMac） | 別の機体にログインした | §1.1。機体名を控え，Git から取り直す |
 | `uv: command not found` | PATH に `~/.local/bin` が無い | 端末を開き直す。または `export PATH="$HOME/.local/bin:$PATH"` |
-| `ModuleNotFoundError: fugashi` | 仮想環境が有効でない | `source .venv/bin/activate` |
+| `ModuleNotFoundError: fugashi` | 仮想環境が有効でない | `source ~/Documents/dh_project/.venv/bin/activate` |
+| `[ERR ] リポジトリが作業フォルダ dh_project の中にない` | `~/Documents` などに直接 clone した | 表示される手順で `~/Documents/dh_project` の中に clone し直す |
 | `UniDic 辞書 未導入` | 共有辞書が無い機体 | `bash scripts/00_bootstrap_mac.sh` を再実行 |
 | `[warn] **本番の辞書ではない。**` | cwj か unidic-lite に落ちている | §1.4。`JLIT_UNIDIC_DIR` を `unidic-novel-v202512` に向け直す |
 | `[FATAL] param.cpp ... no such file: ./dicrc` | 辞書の展開が途中で切れている | `python3 scripts/check_unidic_dir.py <辞書のパス>`。`docs/dictionary_comparison.md` §9 |
@@ -421,8 +448,9 @@ jupyter lab
 | KWIC の用例の著者が「（メタデータ無し）」 | その作品がメタデータに無い | `metadata/corpus_metadata_v3.csv` に行を足す。**出典の出ない用例は証拠にならない** |
 | KWIC で「語彙に無い」と言われる | 列（語彙素／表層形）の選び違い・辞書の切り方・旧仮名 | 画面上の切替で列を変える。`S:` を付けるとその項だけ表層形で当たる |
 | **UMAP を入れたのに図が t-SNE になる** | カーネルが `uv` の環境でない／`umap` という別パッケージ／numba と numpy の版違い | `python3 scripts/check_umap.py`（**ノートブックと同じカーネルで**）。原因別の対処が出る |
-| `uv add umap-learn` したのに `ModuleNotFoundError` | **`uv add` はプロジェクト（`pyproject.toml` のある場所）単位。** 本プロジェクトには無いので，親の別プロジェクトの `.venv` に入った | カーネルの Python を名指しして入れる：`uv pip install --python "<sys.executable の値>" umap-learn` → **カーネルを再起動** |
-| 同上（カーネル自体が別の Python） | JupyterLab を `.venv` 以外の Python で起動している | `uv add ipykernel` → `uv run python -m ipykernel install --user --name jlit-uv --display-name "JLit (uv)"` → カーネルを切り替えて**再起動** |
+| `uv add umap-learn` したのに `ModuleNotFoundError` | **`uv add` はプロジェクト（`pyproject.toml` のある場所）単位。** `dh_project/pyproject.toml` が無い，または `dh_project` の外に clone したので，別の `.venv` に入った | `bash scripts/00_bootstrap_mac.sh` を実行し直す（`pyproject.toml` を作る）。急ぐときはカーネルの Python を名指し：`uv pip install --python "<sys.executable の値>" umap-learn` → **カーネルを再起動** |
+| 同上（カーネル自体が別の Python） | JupyterLab のカーネルが `dh_project/.venv` 以外の Python | `Kernel → Change Kernel` で `Python (JLit)` に切り替えて**再起動**。無ければ `bash scripts/00_bootstrap_mac.sh` を実行し直す |
+| `uv sync` のあと fugashi などが消えた | `uv sync` は `pyproject.toml` に無いものを消す | **`uv sync` は使わない。** `bash scripts/00_bootstrap_mac.sh` で入れ直す |
 | `umap.UMAP` が無いというエラー | PyPI の `umap`（別物）が入っている | `uv remove umap` してから `uv add umap-learn`。`umap.__file__` が `umap/umap_.py` を指すこと |
 | UMAP の初回だけ十数秒止まる | numba の JIT | 正常。2回目から速い。書けない機体では `NUMBA_CACHE_DIR` を自分の領域に向ける |
 | **`Failed to build llvmlite` / `LLVM version is 20, llvmlite only officially supports 22`** | **Intel Mac**。llvmlite の x86_64 wheel は 0.45.1 が最後で，新しい版はソースからビルドしに行く | 版を固定：`uv pip install --python "<sys.executable>" --only-binary :all: "numba==0.62.1" "llvmlite==0.45.1" "numpy<2.4" umap-learn` |

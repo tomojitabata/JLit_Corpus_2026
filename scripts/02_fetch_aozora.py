@@ -60,7 +60,11 @@ UA = "JLitCorpus/2026 (academic corpus construction; contact: tomoji.tabata@exam
 SLEEP = 1.0
 
 # 取得済み XHTML の共有キャッシュ（マシン内。admin 権限は要らない）
-DEFAULT_CACHE = '/Users/Shared/jlit/aozora-cache' if sys.platform == 'darwin' else ''
+# 共用 iMac は /Users/Shared/jlit，自分の Mac（--personal）は ~/.jlit
+DEFAULT_CACHE = (next((os.path.join(d, 'aozora-cache')
+                       for d in ('/Users/Shared/jlit', os.path.expanduser('~/.jlit'))
+                       if os.path.isdir(d)), '/Users/Shared/jlit/aozora-cache')
+                 if sys.platform == 'darwin' else '')
 
 
 class FetchError(RuntimeError):

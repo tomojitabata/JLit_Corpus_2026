@@ -67,17 +67,17 @@ gensim>=4.3
 #    matplotlib 3.11 はいずれも numpy 2.3 で動く（2026-09-22 に確認）。
 #    Apple Silicon では版の固定は要らない。
 # ⚠ **uv add はプロジェクト（pyproject.toml のある場所）単位である。**
-#    本プロジェクトには pyproject.toml を置いていないので，作業コピーで
-#    `uv add umap-learn` を走らせると uv は**親へ遡って別のプロジェクト**に
-#    入れる（成功と表示されるが，カーネルの .venv には入らない）。
-#    ノートブックのカーネルに確実に入れるには**インタプリタを名指しする**:
+#    00_bootstrap_mac.sh は作業フォルダ ~/Documents/dh_project に
+#    pyproject.toml と .venv を作り，リポジトリはその中に clone する。
+#    したがってリポジトリの中で `uv add umap-learn` を走らせれば，uv は
+#    親の dh_project を見つけ，**カーネルと同じ .venv** に入れる。
+#    **uv sync は使わないこと**（このファイルで入れたものを消す）。
+#    dh_project の外に clone した場合などは，インタプリタを名指しする:
 #      uv pip install --python "<sys.executable の値>" umap-learn
 #    sys.executable は  import sys; print(sys.executable)  で確かめる。
 #    入れたら**カーネルを再起動**すること。
-# ⚠ カーネル自体が別の Python（anaconda3 など）のときは登録し直す:
-#      uv add ipykernel
-#      uv run python -m ipykernel install --user \
-#          --name jlit-uv --display-name "JLit (uv)"
+# ⚠ カーネル自体が別の Python（anaconda3 など）のときは，
+#    Kernel → Change Kernel で「Python (JLit)」に切り替える。
 #    切り分けは  python3 scripts/check_umap.py （ノートブックと同じ
 #    カーネルで走らせること）。
 umap-learn>=0.5

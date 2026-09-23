@@ -7,6 +7,11 @@
 # したがって共用機でも自分の機械でも同じ手順で通る。
 #
 # 使い方
+# 置き方（受講生・教員の動作確認とも）
+#   mkdir -p ~/Documents/dh_project && cd ~/Documents/dh_project
+#   git clone https://github.com/tomojitabata/JLit_Corpus_2026.git
+#   cd JLit_Corpus_2026
+#
 #   bash scripts/00_bootstrap_mac.sh             # DH Lab 共用 iMac
 #   bash scripts/00_bootstrap_mac.sh --personal  # 自分の Mac
 #   bash scripts/00_bootstrap_mac.sh --check     # 何もせず現状だけ表示
@@ -24,7 +29,18 @@
 #       共有する相手がいないので自分のホームに置く。ホームは消えないから，
 #       一度入れれば以後は何もしなくてよい。
 #
-# どちらでも仮想環境は リポジトリ/.venv に作る（軽いので作り直せる）。
+# どちらでも仮想環境は**リポジトリの親（作業フォルダ）**に作る。
+#
+#   ~/Documents/dh_project/        作業フォルダ（uv のプロジェクト）
+#   ├── pyproject.toml             uv add の行き先をここに固定する
+#   ├── .venv/                     仮想環境（Jupyter カーネル「Python (JLit)」）
+#   └── JLit_Corpus_2026/          git clone したリポジトリ（このスクリプト）
+#
+# リポジトリの中で `uv add umap-learn` などを実行すると，uv は親へ遡って
+# dh_project/pyproject.toml を見つけ，カーネルと同じ .venv に入れる。
+# リポジトリを Dropbox など同期フォルダの中に置いた場合（教員のマスター）は
+# .venv が同期で壊れるので，代わりに ~/Documents/dh_project を使う。
+# 作業フォルダは環境変数 JLIT_PROJECT_DIR で明示することもできる。
 # 何度実行してもよい（冪等）。入っているものは飛ばす。
 # =============================================================================
 set -uo pipefail
@@ -76,6 +92,23 @@ done
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENVFILE="$SHARED/env.sh"
 
+# 作業フォルダ（仮想環境の置き場）を決める
+PROJECT_DEFAULT="$HOME/Documents/dh_project"
+case "$ROOT" in
+  */Dropbox/*|*/CloudStorage/*|*"/Google Drive/"*|*/OneDrive*|*"/Mobile Documents/"*)
+    IN_CLOUD="yes" ;;
+  *) IN_CLOUD="no" ;;
+esac
+if [ -n "${JLIT_PROJECT_DIR:-}" ]; then
+  PROJECT="${JLIT_PROJECT_DIR%/}"
+elif [ "$IN_CLOUD" = yes ]; then
+  PROJECT="$PROJECT_DEFAULT"
+else
+  PROJECT="$(dirname "$ROOT")"
+fi
+VENV="$PROJECT/.venv"
+PY="$VENV/bin/python"
+
 say()  { printf '\n\033[1m== %s\033[0m\n' "$1"; }
 ok()   { printf '  [ok  ] %s\n' "$1"; }
 skip() { printf '  [have] %s\n' "$1"; }
@@ -93,8 +126,33 @@ printf '  ホーム          %s\n' "$HOME"
 printf '  macOS           %s (%s)\n' "$(sw_vers -productVersion)" "$(uname -m)"
 printf '  空き容量        %s\n' "$(df -h / | awk 'NR==2{print $4}')"
 printf '  共有ディレクトリ %s\n' "$SHARED"
+printf '  リポジトリ      %s\n' "$ROOT"
+printf '  作業フォルダ    %s（仮想環境 %s）\n' "$PROJECT" "$VENV"
 printf '  想定            %s\n' \
   "$([ "$KIND" = lab ] && echo 'DH Lab 共用 iMac' || echo '自分の Mac')"
+
+if [ "$IN_CLOUD" = yes ] && [ -z "${JLIT_PROJECT_DIR:-}" ]; then
+cat <<NOTE
+
+  このリポジトリは同期フォルダ（Dropbox など）の中にある。
+  仮想環境は同期で壊れるので，ここではなく ${PROJECT} に作る。
+  動作確認は受講生と同じく ~/Documents/dh_project に clone したもので行うこと。
+NOTE
+elif [ "$(basename "$PROJECT")" != "dh_project" ] && [ -z "${JLIT_PROJECT_DIR:-}" ]; then
+cat <<NOTE
+
+  [ERR ] リポジトリが作業フォルダ dh_project の中にない（今は ${ROOT}）。
+  仮想環境はリポジトリの親に作るので，このままでは ${PROJECT} に作ってしまう。
+  次の手順で置き直すこと。
+
+    mkdir -p ~/Documents/dh_project && cd ~/Documents/dh_project
+    git clone https://github.com/tomojitabata/JLit_Corpus_2026.git
+    cd JLit_Corpus_2026 && bash scripts/00_bootstrap_mac.sh $*
+
+  （別の場所を使いたいときは JLIT_PROJECT_DIR=<作業フォルダ> を付けて実行する）
+NOTE
+  exit 1
+fi
 
 if [ "$KIND" = lab ]; then
 cat <<'NOTE'
@@ -127,7 +185,7 @@ if [ "$MODE" = check ]; then
     || warn "検算用の辞書なし（${BUNGO_DIR_NAME}。--with-bungo で入る）"
   [ -d "$SHARED/unidic" ] \
     && warn "旧 cwj が $SHARED/unidic に残っている（本番ではない。消してよい）"
-  [ -d "$ROOT/.venv" ]     && skip "仮想環境 $ROOT/.venv"     || warn "仮想環境なし"
+  [ -d "$VENV" ]           && skip "仮想環境 $VENV"           || warn "仮想環境なし（$VENV）"
   [ -f "$ENVFILE" ]        && skip "env.sh   $ENVFILE"        || warn "env.sh なし"
   exit 0
 fi
@@ -149,18 +207,31 @@ fi
 export PATH="$HOME/.local/bin:$PATH"
 
 # -----------------------------------------------------------------------------
-say "2. 仮想環境とパッケージ"
+say "2. 仮想環境とパッケージ（作業フォルダ $PROJECT）"
+mkdir -p "$PROJECT" || die "$PROJECT を作れない"
 cd "$ROOT"
-if [ -d .venv ]; then
-  skip ".venv は既にある"
+# 作業フォルダを uv のプロジェクトにする（pyproject.toml だけを置く）。
+# これで，リポジトリの中で uv add を実行しても行き先がこの .venv に定まる。
+if [ -f "$PROJECT/pyproject.toml" ]; then
+  skip "pyproject.toml は既にある（$PROJECT）"
 else
-  uv venv --python 3.12 .venv || die "仮想環境を作れない"
-  ok ".venv を作った（Python 3.12）"
+  (cd "$PROJECT" && uv init --bare --name dh-project --python 3.12 >/dev/null 2>&1) \
+    && ok "$PROJECT を uv のプロジェクトにした（pyproject.toml）" \
+    || warn "pyproject.toml を作れなかった（uv add は使えない。uv pip install --python を使う）"
 fi
-uv pip install --python .venv/bin/python -r requirements.txt \
+if [ -x "$PY" ]; then
+  skip "仮想環境は既にある（$VENV）"
+else
+  uv venv --python 3.12 "$VENV" || die "仮想環境を作れない"
+  ok "仮想環境を作った（$VENV，Python 3.12）"
+fi
+# 旧い置き方（リポジトリ/.venv）が残っていれば知らせる
+[ -d "$ROOT/.venv" ] && [ "$ROOT/.venv" != "$VENV" ] \
+  && warn "旧い仮想環境 $ROOT/.venv が残っている。使わないので消してよい"
+uv pip install --python "$PY" -r requirements.txt \
   || die "パッケージの導入に失敗。requirements.txt を確認すること"
-uv pip install --python .venv/bin/python ipykernel >/dev/null 2>&1
-.venv/bin/python -m ipykernel install --user --name jlit \
+uv pip install --python "$PY" ipykernel >/dev/null 2>&1
+"$PY" -m ipykernel install --user --name jlit \
   --display-name "Python (JLit)" >/dev/null 2>&1 \
   && ok "Jupyter カーネル 'Python (JLit)' を登録した"
 
@@ -250,7 +321,7 @@ echo "  （近現代口語小説UniDic。未知語率 0.17%。docs/dictionary_co
 if ! fetch_dict "$UNIDIC_DIR_NAME" "$UNIDIC_URL" "近現代口語小説UniDic v202512"; then
   warn "本番の辞書が入らなかった。unidic-lite で代替する"
   warn "**代替の辞書で出した数値は本番の結果と比べられない。報告に明記すること**"
-  uv pip install --python .venv/bin/python unidic-lite >/dev/null 2>&1
+  uv pip install --python "$PY" unidic-lite >/dev/null 2>&1
 fi
 if [ "$WITH_BUNGO" = yes ]; then
   fetch_dict "$BUNGO_DIR_NAME" "$BUNGO_URL" "近代文語UniDic v202512（検算用）" || true
@@ -258,9 +329,9 @@ else
   echo "  検算用の近代文語UniDic は入れない（--with-bungo で入る）"
 fi
 # 展開できたかを実際に読み込んで確かめる
-if [ -x "$ROOT/.venv/bin/python" ]; then
+if [ -x "$PY" ]; then
   for d in "$SHARED/$UNIDIC_DIR_NAME" "$SHARED/$BUNGO_DIR_NAME"; do
-    [ -d "$d" ] && "$ROOT/.venv/bin/python" "$ROOT/scripts/check_unidic_dir.py" "$d" \
+    [ -d "$d" ] && "$PY" "$ROOT/scripts/check_unidic_dir.py" "$d" \
       | tail -5
   done
 fi
@@ -284,12 +355,12 @@ ok "$ENVFILE を書いた"
 
 # Jupyter を env.sh 抜きで起動しても辞書・Java・MALLET が見えるように，
 # 同じ環境変数を 'Python (JLit)' カーネルの kernel.json に書き込む。
-"$ROOT/.venv/bin/python" - "$ENVFILE" "$ROOT" <<'PY' \
+"$PY" - "$ENVFILE" "$VENV" <<'PY' \
   && ok "カーネル 'Python (JLit)' に環境変数を持たせた（env.sh を読まずに Jupyter を起動してもよい）" \
   || warn "カーネルに環境変数を書き込めなかった。Jupyter の前に env.sh を source すること"
 import json, os, subprocess, sys
 from jupyter_client.kernelspec import KernelSpecManager
-envfile, root = sys.argv[1], sys.argv[2]
+envfile, venv = sys.argv[1], sys.argv[2]
 out = subprocess.run(['/bin/bash', '-c', f'. "{envfile}" >/dev/null 2>&1; env -0'],
                      capture_output=True, text=True, check=True).stdout
 env = {}
@@ -297,7 +368,7 @@ for item in out.split('\0'):
     k, _, v = item.partition('=')
     if k.startswith('JLIT_') or k in ('JAVA_HOME', 'MALLET', 'PATH'):
         env[k] = v
-env['PATH'] = os.path.join(root, '.venv', 'bin') + os.pathsep + env.get('PATH', '')
+env['PATH'] = os.path.join(venv, 'bin') + os.pathsep + env.get('PATH', '')
 f = os.path.join(KernelSpecManager().get_kernel_spec('jlit').resource_dir, 'kernel.json')
 spec = json.load(open(f, encoding='utf-8'))
 spec['env'] = env
@@ -308,15 +379,20 @@ PY
 say "7. 確認"
 # shellcheck disable=SC1090
 . "$ENVFILE"
-"$ROOT/.venv/bin/python" "$ROOT/scripts/00_env_check.py"
+"$PY" "$ROOT/scripts/00_env_check.py"
 
 cat <<EOF
 
 --------------------------------------------------------------------------
-次からは，作業の前にこの2行を実行する。
+次からは，作業の前にこの3行を実行する。
 
     source $ENVFILE
-    source $ROOT/.venv/bin/activate
+    source $VENV/bin/activate
+    cd $ROOT
+
+Jupyter は上の3行のあとに jupyter lab で起動し，カーネルは Python (JLit) を選ぶ。
+パッケージを足すときはリポジトリの中で uv add <名前>（$PROJECT の .venv に入る）。
+**uv sync は使わないこと**（requirements.txt で入れたものが消える）。
 
 毎回打つのが面倒なら ~/.zshrc の末尾に次を足してもよい（このマシンだけ）。
 

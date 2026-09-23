@@ -79,11 +79,15 @@ admin 権限 / UniDic / MALLET / JDK / `PYTHONUTF8` / Git で持ち運ぶ
 #### 仮想環境 (virtual environment) ★
 
 この授業のために必要な Python パッケージだけを入れた，隔離された作業場。
-`python3 -m venv .venv` で作り，`source .venv/bin/activate` で入る。
+本授業では**作業フォルダ `~/Documents/dh_project/.venv`** に置く
+（リポジトリ `JLit_Corpus_2026` はその中に clone する）。
+`00_bootstrap_mac.sh` が作り，`source ~/Documents/dh_project/.venv/bin/activate` で入る。
+リポジトリの中に置かないのは，`uv add` の行き先をカーネルと同じ環境に
+揃えるためである（→「`uv add` はプロジェクト単位である」）。
 
 **なぜ要るか**：共用機では前の受講生が入れたパッケージと衝突する。
 また `sudo pip install` はマシン全体の Python を壊すので**禁止**である。
-仮想環境に入っていれば `pip install` は自分の `.venv/` だけを変える。
+仮想環境に入っていれば `pip install` は自分の `dh_project/.venv/` だけを変える。
 
 ⚠ プロンプトの先頭に `(.venv)` が出ていなければ，**入っていない**。
 「入れたはずのパッケージが無い」というつまずきの大半はこれである。
@@ -1545,7 +1549,7 @@ ALL CHECKS PASS）。形容詞と副詞の対は色覚差 7.6 で 6–8 の下�
 | 原因 | 見分け方 | 対処 |
 |---|---|---|
 | **入れた先とカーネルの環境が違う**（最多） | `import umap` が `ModuleNotFoundError` なのに「入れたはず」 | **カーネルの Python を名指しして入れる**：`uv pip install --python "<sys.executable の値>" umap-learn` → カーネルを再起動 |
-| カーネルが別の Python（anaconda3 など） | `sys.executable` が `.venv/bin/python` でない | `uv add ipykernel` → `uv run python -m ipykernel install --user --name jlit-uv --display-name "JLit (uv)"` → カーネルを切り替えて再起動 |
+| カーネルが別の Python（anaconda3 など） | `sys.executable` が `dh_project/.venv/bin/python` でない | `Kernel → Change Kernel` で `Python (JLit)` に切り替えて再起動。無ければ `bash scripts/00_bootstrap_mac.sh` を実行し直す |
 | `umap` という**別パッケージ** | `umap.UMAP` が無いというエラー | `uv remove umap` → `uv add umap-learn`。`umap.__file__` が `umap/umap_.py` を指すこと |
 | numba / llvmlite が numpy の版と合わない | `import umap` 自体が例外 | 下の Intel Mac の項の組み合わせで入れ直す |
 | **Intel Mac で新しい llvmlite を入れようとした** | インストールが `Failed to build llvmlite` で止まり，`LLVM CMake export states LLVM version is 20, llvmlite only officially supports 22` と出る | 版を固定する（下項） |
@@ -1556,14 +1560,19 @@ ALL CHECKS PASS）。形容詞と副詞の対は色覚差 7.6 で 6–8 の下�
 > ### ⚠ `uv add` はプロジェクト単位である（2026-09-22 に実際に起きた）
 >
 > `uv add` が入れるのは「**プロジェクト**（`pyproject.toml` のある
-> ディレクトリ）の `.venv`」である。本プロジェクトの作業コピーには
-> `pyproject.toml` を置いていないので，そこで `uv add umap-learn` を走らせると
-> **uv は親へ遡って別のプロジェクトを探し（無ければ作り），そちらの
-> `.venv` に入れる。** カーネルが使っている `.venv` には入らない。
-> しかも `uv add` は成功と表示するので，入ったように見える。
+> ディレクトリ）の `.venv`」である。リポジトリ自体には `pyproject.toml` が
+> 無いので，uv は**親へ遡って**プロジェクトを探す。以前は作業コピーの中に
+> `.venv` を置いていたため，uv は**別のプロジェクト**に入れてしまい，
+> カーネルが使っている `.venv` には入らなかった（しかも成功と表示する）。
 >
-> ノートブックのカーネルの環境に確実に入れるには，**インタプリタを
-> 名指しする**。プロジェクトの有無に依存しない:
+> **いまの置き方ではこれが起きない。** `00_bootstrap_mac.sh` が
+> `~/Documents/dh_project/` に `pyproject.toml` と `.venv` を作り，
+> リポジトリはその中にある。リポジトリで `uv add umap-learn` を実行すれば，
+> uv は `dh_project` を見つけ，**カーネルと同じ `.venv`** に入れる。
+> ただし **`uv sync` は使わないこと**（`requirements.txt` で入れたものを消す）。
+>
+> 置き方が違う（`dh_project` の外に clone した等）ときや急ぐときは，
+> **インタプリタを名指しする**。プロジェクトの有無に依存しない:
 >
 > ```bash
 > uv pip install --python "<sys.executable の値>" umap-learn
@@ -1618,7 +1627,7 @@ ALL CHECKS PASS）。形容詞と副詞の対は色覚差 7.6 で 6–8 の下�
 
 #### `check_umap.py` ★
 
-UMAP が使えるかを切り分ける診断。`sys.executable`・`.venv` との一致・
+UMAP が使えるかを切り分ける診断。`sys.executable`・`dh_project/.venv` との一致・
 `umap` の実体と版・周辺の版（numpy / numba / llvmlite / pynndescent）を
 出し，実際に小さな射影を試し，**原因ごとの対処**を並べる。
 

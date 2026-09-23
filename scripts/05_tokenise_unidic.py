@@ -140,8 +140,15 @@ VERSION_RE = __import__('re').compile(r'-(v?\d[\d.]*)$')
 
 def shared_root() -> str:
     """このマシンの共有場所。00_bootstrap_mac.sh が作る。"""
-    return os.environ.get('JLIT_SHARED') or (
-        '/Users/Shared/jlit' if sys.platform == 'darwin' else '')
+    # 共用 iMac は /Users/Shared/jlit，自分の Mac（--personal）は ~/.jlit
+    if os.environ.get('JLIT_SHARED'):
+        return os.environ['JLIT_SHARED']
+    if sys.platform != 'darwin':
+        return ''
+    for d in ('/Users/Shared/jlit', os.path.expanduser('~/.jlit')):
+        if os.path.isdir(d):
+            return d
+    return '/Users/Shared/jlit'
 
 
 def identify_dict(path: str) -> tuple[str, str]:

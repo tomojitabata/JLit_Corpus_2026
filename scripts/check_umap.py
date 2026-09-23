@@ -17,10 +17,13 @@ Step 5 §4 の語彙のギャラクシーは UMAP で射影し，入っていな
 
 1. **入れた先とカーネルの環境が違う**（いちばん多い）
    ``uv add`` は**プロジェクト**（``pyproject.toml`` のあるディレクトリ）の
-   ``.venv`` に入れる。``pyproject.toml`` が無いディレクトリで走らせると，
-   uv は**親へ遡って**別のプロジェクトを探す（無ければ作る）ので，
-   **カーネルが使っている ``.venv`` とは別の場所に入る。** 本プロジェクトの
-   作業コピーには ``pyproject.toml`` が無いので，これが起きやすい。
+   ``.venv`` に入れる。リポジトリ自体には ``pyproject.toml`` が無いので，
+   uv は**親へ遡って**プロジェクトを探す。本授業の置き方
+   （``~/Documents/dh_project/`` に ``pyproject.toml`` と ``.venv``，
+   その中に ``JLit_Corpus_2026/``）なら，見つかるのは ``dh_project`` で，
+   **カーネルと同じ ``.venv`` に入る。** 置き方が違う（``dh_project`` の外に
+   clone した，``pyproject.toml`` が無い，別の親プロジェクトがある）と，
+   **カーネルが使っている ``.venv`` とは別の場所に入る。**
    JupyterLab を anaconda3 など別の Python で起動している場合も同じ。
    どちらも ``sys.executable`` と下の「この環境に入っているか」で分かる。
 
@@ -124,12 +127,34 @@ def find_projects(root: Path, up: int = 3) -> list[Path]:
     return out
 
 
+def project_dir() -> Path:
+    """作業フォルダ（pyproject.toml と .venv の置き場）。
+
+    00_bootstrap_mac.sh と同じ規則：JLIT_PROJECT_DIR があればそれ，
+    リポジトリが同期フォルダ（Dropbox など）の中なら ~/Documents/dh_project，
+    それ以外はリポジトリの親。
+    """
+    env = os.environ.get('JLIT_PROJECT_DIR')
+    if env:
+        return Path(env).expanduser()
+    s = str(ROOT)
+    if any(k in s for k in ('/Dropbox/', '/CloudStorage/', '/Google Drive/',
+                            'OneDrive', '/Mobile Documents/')):
+        return Path.home() / 'Documents' / 'dh_project'
+    return ROOT.parent
+
+
 def in_venv(exe: str) -> tuple[bool, str]:
-    """この Python がプロジェクトの .venv かどうか。"""
-    venv = ROOT / '.venv'
+    """この Python が作業フォルダの .venv かどうか。"""
+    venv = project_dir() / '.venv'
+    if not venv.exists() and (ROOT / '.venv').exists():    # 旧い置き方
+        venv = ROOT / '.venv'
     if venv.exists():
         try:
-            same = Path(exe).resolve().is_relative_to(venv.resolve())
+            # .venv/bin/python は元の Python へのシンボリックリンクなので，
+            # resolve() すると .venv の外を指す。sys.prefix と見比べる。
+            same = (Path(sys.prefix).resolve() == venv.resolve()
+                    or Path(exe).absolute().is_relative_to(venv.absolute()))
         except Exception:                                    # noqa: BLE001
             same = str(venv) in exe
         return same, str(venv)
@@ -160,27 +185,26 @@ def main() -> int:
     same_venv, venv = in_venv(sys.executable)
     if venv:
         if same_venv:
-            print(f'{OK} プロジェクトの .venv で動いている')
+            print(f'{OK} 作業フォルダの .venv で動いている')
         else:
-            print(f'{NG} **プロジェクトの .venv ではない Python で動いている**')
+            print(f'{NG} **作業フォルダの .venv ではない Python で動いている**')
             print(f'       .venv = {venv}')
             print(f'       いま  = {sys.executable}')
             remedies.append(
-                'カーネルを uv の環境に登録して切り替える:\n'
-                '    uv add ipykernel\n'
-                '    uv run python -m ipykernel install --user \\\n'
-                '        --name jlit-uv --display-name "JLit (uv)"\n'
+                'カーネルを作業フォルダの環境に切り替える:\n'
+                '    bash scripts/00_bootstrap_mac.sh（--personal）をもう一度実行し，\n'
                 '  JupyterLab の右上のカーネル名をクリックして '
-                '「JLit (uv)」に切り替える。\n'
-                '  ノートブックの最初のセルで sys.executable が '
-                '.venv/bin/python になっていることを確かめる。')
+                '「Python (JLit)」に切り替える。\n'
+                f'  ノートブックの最初のセルで sys.executable が '
+                f'{venv}/bin/python になっていることを確かめる。')
     elif not args.quiet:
-        print(f'{INFO} プロジェクトに .venv が無い（uv を使っていない環境）')
+        print(f'{INFO} 作業フォルダ {project_dir()} に .venv が無い'
+              '（bash scripts/00_bootstrap_mac.sh で作る）')
 
     # ---- 1b. uv add はどのプロジェクトに入れるのか ------------------------
-    # **ここが落とし穴。** 作業コピーに pyproject.toml が無いと，uv は
-    # 親へ遡って別のプロジェクトに入れる。カーネルの .venv には入らないのに，
-    # 出力は成功したように見える。
+    # **ここが落とし穴。** uv は親へ遡って最初に見つけた pyproject.toml の
+    # プロジェクトに入れる。それが作業フォルダ（dh_project）でなければ，
+    # カーネルの .venv には入らないのに，出力は成功したように見える。
     projs = find_projects(ROOT)
     proj_note = ''
     if not args.quiet:
@@ -190,16 +214,18 @@ def main() -> int:
             print(f'{WARN} {ROOT} とその親に pyproject.toml が無い')
             print('       この状態で uv add を走らせると，uv は**さらに親を'
                   '探すか新しく作る**。カーネルの .venv には入らない。')
-        proj_note = ('このプロジェクトには pyproject.toml が無いので，'
+            print(f'       bash scripts/00_bootstrap_mac.sh が {project_dir()} に'
+                  ' pyproject.toml を作る。')
+        proj_note = ('作業フォルダに pyproject.toml が無いので，'
                      '**uv add は別の場所の .venv に入れた疑いが濃い**。')
     else:
-        here = projs[0] == ROOT
+        here = projs[0].resolve() == project_dir().resolve()
         if not args.quiet:
             print(f'{OK if here else WARN} 最初に見つかる pyproject.toml = '
                   f'{projs[0] / "pyproject.toml"}')
         if not here:
             if not args.quiet:
-                print('       **これはこのプロジェクトのものではない。**'
+                print(f'       **これは作業フォルダ {project_dir()} のものではない。**'
                       'uv add はそちらの .venv に入れる。')
             proj_note = (f'uv add は {projs[0]} のプロジェクトに入れる。'
                          'カーネルの環境とは別である。')

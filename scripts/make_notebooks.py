@@ -1299,6 +1299,12 @@ bash scripts/00_bootstrap_mac.sh             # DH Lab 共用 iMac
 bash scripts/00_bootstrap_mac.sh --personal  # 自分の Mac
 ```
 
+リポジトリは **`~/Documents/dh_project/JLit_Corpus_2026`** に clone し，
+仮想環境は **`~/Documents/dh_project/.venv`** に置く（スクリプトが作る）。
+下のセルの出力で「リポジトリ構成」と「仮想環境」がこの場所を指しているか，
+カーネルが **Python (JLit)** かを確かめること。別の場所（古いコピーなど）を
+指していたら，Jupyter をリポジトリで起動し直す。
+
 ### 共用 iMac を使う人へ — 表示される「作業中のマシン」を控えること
 
 DH Lab の iMac は XCreds 認証で，**ホームはログインしたマシンにしか残らない**。
@@ -3596,7 +3602,7 @@ save_fig(fig, 'Step5_wordspace'); plt.show()'''),
 
 | 原因 | 見分け方 |
 |---|---|
-| **カーネルが uv の環境でない**（最多） | 下のセルの `sys.executable` が `.venv/bin/python` でない |
+| **カーネルが作業フォルダの環境でない**（最多） | 下のセルの `sys.executable` が `dh_project/.venv/bin/python` でない |
 | `umap` という**別パッケージ**が入っている | `umap.UMAP` が無いというエラー |
 | numba / llvmlite が numpy の版と合わない | `import umap` 自体が例外 |
 | numba がキャッシュを書けない | 初回の射影で permission のエラー |
@@ -3611,15 +3617,13 @@ print(subprocess.run([sys.executable, str(ROOT/'scripts'/'check_umap.py')],
                      capture_output=True, text=True).stdout)
 ```
 
-カーネルが違っていたときの直し方（`uv` を使っている場合）:
+カーネルが違っていたときは，JupyterLab の右上でカーネルを
+「Python (JLit)」に切り替え，**再起動する**。無ければ
+`bash scripts/00_bootstrap_mac.sh`（自分の Mac は `--personal`）を実行し直す。
 
-```bash
-uv add ipykernel
-uv run python -m ipykernel install --user \
-    --name jlit-uv --display-name "JLit (uv)"
-```
-
-JupyterLab の右上でカーネルを「JLit (uv)」に切り替え，**再起動する**。
+入っていないパッケージは，リポジトリの中で `uv add umap-learn` のように入れる。
+`~/Documents/dh_project/pyproject.toml` があるので，カーネルと同じ `.venv` に入る
+（**`uv sync` は使わない**）。
 
 ### この図が見せようとしていること — 文法と意味の二重構造
 
@@ -3980,11 +3984,11 @@ def _umap_diagnosis(e):
     if isinstance(e, ModuleNotFoundError):
         # **入れた先とカーネルの環境が違う**のが圧倒的に多い。
         # uv add は「プロジェクト（pyproject.toml のある場所）」単位なので，
-        # pyproject.toml が無いディレクトリで走らせると，uv は親へ遡って
-        # 別のプロジェクトに入れる。カーネルの .venv には入らない。
+        # dh_project/pyproject.toml が無い，または dh_project の外に clone
+        # した場合は，uv は別のプロジェクトに入れる。カーネルの .venv には入らない。
         print('       **この環境には入っていない。** 入れた先が違う可能性が高い')
-        print('       （uv add はプロジェクト単位。本プロジェクトには')
-        print('        pyproject.toml が無いので，親の別プロジェクトに入る）。')
+        print('       （uv add はプロジェクト単位。~/Documents/dh_project に')
+        print('        pyproject.toml が無いと，別のプロジェクトに入る）。')
         print('       この環境を名指しして入れるのが確実:')
         import platform as _pf
         if sys.platform == 'darwin' and _pf.machine() == 'x86_64':
