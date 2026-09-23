@@ -2552,8 +2552,11 @@ if need(TOK/'tsv', 'このステップの 05_tokenise_unidic.py のセルを先�
  ('md', r"""### 画面を立てる
 
 次のセルは**別の過程**としてサーバを起動する（ノートブックは止まらない）。
-出てくるリンクをクリックすると，ブラウザで開く。終わるときは下の
-「止める」のセルを実行する。
+出てくるリンクをクリックすると，ブラウザで開く。
+
+サーバはカーネルを再起動しても止まらない。使い終わったら下の「止める」の
+セルで `STOP_KWIC = True` にして実行する（**既定では止めない**。上から順に
+実行したとき，立てた直後に止めてしまわないようにしてある）。
 
 ⚠ サーバは **127.0.0.1 にしか結び付けない**（この機体からしか見えない）。
 青空文庫由来の本文は再配布できないので，これは仕様である。共用 iMac で
@@ -2562,9 +2565,11 @@ if need(TOK/'tsv', 'このステップの 05_tokenise_unidic.py のセルを先�
 # **港（ポート）が開くまで待ってからリンクを出す。** 待たずにリンクを出すと，
 # 索引を読んでいる最中にクリックして「サーバに接続できません」になる
 # （実際にそうなった）。立ち上がらなかったときは記録をその場に出す。
-import socket, subprocess, sys, time
+import socket, subprocess, sys, time, urllib.request
+from IPython.display import display, HTML
 PORT = 8765          # 共用機では各自変える（8766, 8767, …）
 KWIC_LOG = OUT/'kwic_server.log'
+KWIC_PID = OUT/'kwic_server.pid'
 
 def port_open(port, host='127.0.0.1', timeout=0.4):
     try:
@@ -2573,9 +2578,25 @@ def port_open(port, host='127.0.0.1', timeout=0.4):
     except OSError:
         return False
 
-proc = globals().get('KWIC_PROC')
-if proc is not None and proc.poll() is None and port_open(PORT):
-    print(f'[info ] すでに立っている（PID {proc.pid}）。止めるには下のセル。')
+def is_kwic(port):
+    """その港で応えているのが KWIC の画面かどうか。"""
+    try:
+        with urllib.request.urlopen(f'http://127.0.0.1:{port}/', timeout=2) as r:
+            return 'JLit KWIC' in r.read(4000).decode('utf-8', 'replace')
+    except Exception:                                        # noqa: BLE001
+        return False
+
+def show_link(port):
+    display(HTML(f'<p style="font-size:1.05em">'
+                 f'<a href="http://127.0.0.1:{port}/" target="_blank">'
+                 f'KWIC コンコーダンサを開く（127.0.0.1:{port}）</a></p>'))
+    print('リンクが開かないときは，ブラウザに '
+          f'http://127.0.0.1:{port}/ を直接入れること。')
+
+if port_open(PORT) and is_kwic(PORT):
+    # 前に立てたもの（カーネル再起動の前のものを含む）をそのまま使う
+    print(f'[info ] すでに立っている（港 {PORT}）。止めるには下のセル。')
+    show_link(PORT)
 elif not (KW/'kwic_index.json').exists():
     print(f'[NG  ] 索引が無い: {KW}')
     print('       上の「索引を作る」セルを先に実行すること。')
@@ -2587,11 +2608,15 @@ elif port_open(PORT):
     print('       違うものが出るなら PORT を 8766 などに変えてこのセルを'
           '実行し直す。')
 else:
+    # -u: 出力を溜めずに記録へ書く（溜めると動いていても記録が空に見える）
+    # start_new_session: カーネルの中断・再起動に巻き込まれないようにする
     with open(KWIC_LOG, 'w', encoding='utf-8') as _log:
         KWIC_PROC = subprocess.Popen(
-            [sys.executable, str(ROOT/'scripts'/'16_kwic_server.py'),
+            [sys.executable, '-u', str(ROOT/'scripts'/'16_kwic_server.py'),
              '--index', str(KW), '--port', str(PORT)],
-            stdout=_log, stderr=subprocess.STDOUT, text=True)
+            stdout=_log, stderr=subprocess.STDOUT, text=True,
+            start_new_session=True)
+    KWIC_PID.write_text(f'{KWIC_PROC.pid} {PORT}\n', encoding='utf-8')
     t0 = time.time()
     ok = False
     while time.time() - t0 < 90:
@@ -2614,23 +2639,32 @@ else:
     else:
         print(f'[ok  ] 立った（PID {KWIC_PROC.pid}・{time.time() - t0:.1f} 秒）'
               f'／記録 {KWIC_LOG}')
-        from IPython.display import display, HTML
-        display(HTML(f'<p style="font-size:1.05em">'
-                     f'<a href="http://127.0.0.1:{PORT}/" target="_blank">'
-                     f'KWIC コンコーダンサを開く（127.0.0.1:{PORT}）</a></p>'))
-        print('リンクが開かないときは，ブラウザに '
-              f'http://127.0.0.1:{PORT}/ を直接入れること。')'''),
- ('code', r'''# ---- 止める（使い終わったら実行する）---------------------------------
-proc = globals().get('KWIC_PROC')
-if proc is None or proc.poll() is not None:
-    print('[info ] 立っていない')
+        show_link(PORT)'''),
+ ('code', r'''# ---- 止める（使い終わったら STOP_KWIC = True にして実行する）----------
+# 既定は False。上から順にセルを実行したとき，立てた直後に止めないため。
+STOP_KWIC = False
+
+import os, signal
+KWIC_PID = OUT/'kwic_server.pid'
+if not STOP_KWIC:
+    print('[info ] 止めない（STOP_KWIC = False）。画面は立ったまま使える。')
+    print('       使い終わったら STOP_KWIC = True にしてこのセルを実行する。')
 else:
-    proc.terminate()
-    try:
-        proc.wait(timeout=5)
-    except Exception:
-        proc.kill()
-    print('[ok  ] 止めた')'''),
+    pid = None
+    proc = globals().get('KWIC_PROC')
+    if proc is not None and proc.poll() is None:
+        pid = proc.pid
+    elif KWIC_PID.exists():                 # カーネルを再起動したあと
+        pid = int(KWIC_PID.read_text().split()[0])
+    if pid is None:
+        print('[info ] 立っていない')
+    else:
+        try:
+            os.kill(pid, signal.SIGTERM)
+            print(f'[ok  ] 止めた（PID {pid}）')
+        except ProcessLookupError:
+            print('[info ] すでに止まっていた')
+        KWIC_PID.unlink(missing_ok=True)'''),
  ('md', r"""### ノートブックの中でも引ける
 
 画面を使わずに，**表として**用例を出すこともできる（レポートに貼るとき・
