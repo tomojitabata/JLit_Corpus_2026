@@ -363,6 +363,9 @@ const posGroup = l => POSGROUPS.findIndex(g => g[1](l));
 let M = null, sel = null, gOf = [];
 const st = {pos: new Set(POSGROUPS.map((_, i) => i)), minc: 1, maxdr: 1, maxws: 1, maxdp: 1, maxas: 1, lam: 1, nw: 12, q: '', sort: 'id'};
 
+// UniDic は外来語の語彙素に原綴を付ける（テーブル-table）。表示は片仮名だけにし，
+// 原綴はマウスを載せたときに出す（ロケット-locket のような解析の誤りを確かめるため）
+const disp = w => String(w).replace(/-[A-Za-z][A-Za-z .'-]*$/, '');
 function esc(s){return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 
 function initModel(i){
@@ -428,12 +431,13 @@ function render(){
   let hits = 0;
   $('grid').innerHTML = order.map(({t, list, keptMass}) => {
     const top = list.slice(0, st.nw);
-    const has = q && top.some(x => M.vocab[x.j][0] === q);
+    const has = q && top.some(x => M.vocab[x.j][0] === q || disp(M.vocab[x.j][0]) === q);
     if (has) hits++;
     const dim = q && !has ? ' dim' : '';
     const ws = top.map(x => {
       const v = M.vocab[x.j];
-      return `<b style="color:${COLORS[gOf[x.j]]}" class="${v[0]===q?'m':''}">${esc(v[0])}</b>`;}).join(' ');
+      const hit = q && (v[0] === q || disp(v[0]) === q);
+      return `<b style="color:${COLORS[gOf[x.j]]}" class="${hit?'m':''}" title="${esc(v[0])}（${esc(v[1])}）">${esc(disp(v[0]))}</b>`;}).join(' ');
     return `<div class="card${dim}${sel===t?' sel':''}" data-t="${t}"><h3>T${String(t).padStart(2,'0')}
       <span title="全体に占める割合・絞り込み後に残った語の確率の割合">${(100*M.prev[t]).toFixed(1)}%・残存 ${(100*keptMass).toFixed(0)}%</span></h3>
       <div class="prevbar"><i style="width:${100*M.prev[t]/maxPrev}%"></i></div><div class="words">${ws || '<span class="warn">表示できる語が無い</span>'}</div></div>`;
@@ -449,7 +453,7 @@ function render(){
 function barsSVG(items, w, labelW, fmt){
   const h = 16, H = items.length * h + 6, max = Math.max(...items.map(x => x.v), 1e-9);
   return `<svg width="100%" viewBox="0 0 ${w} ${H}" role="img">` + items.map((x, i) =>
-    `<text x="${labelW-4}" y="${i*h+12}" text-anchor="end">${esc(x.label)}</text>
+    `<text x="${labelW-4}" y="${i*h+12}" text-anchor="end">${esc(x.show || x.label)}<title>${esc(x.label)}</title></text>
      <rect x="${labelW}" y="${i*h+3}" width="${Math.max(1,(w-labelW-60)*x.v/max)}" height="${h-5}" rx="2" fill="${x.c||'var(--acc)'}"><title>${esc(x.label)}：${fmt(x.v)}</title></rect>
      <text x="${labelW+(w-labelW-60)*x.v/max+4}" y="${i*h+12}" class="mut">${fmt(x.v)}</text>`).join('') + '</svg>';
 }
@@ -457,7 +461,7 @@ function barsSVG(items, w, labelW, fmt){
 function detail(t){
   const {list, keptMass} = ranked(t);
   const top = list.slice(0, 30);
-  const words = barsSVG(top.map(x => ({label: M.vocab[x.j][0], v: x.pwt, c: COLORS[gOf[x.j]]})), 420, 90,
+  const words = barsSVG(top.map(x => ({label: M.vocab[x.j][0], show: disp(M.vocab[x.j][0]), v: x.pwt, c: COLORS[gOf[x.j]]})), 420, 90,
     v => (100*v).toFixed(2) + '%');
   const per = barsSVG(M.periods.map((p, i) => ({label: p.replace(/^\d_/, ''), v: M.periodTopic[i][t]})), 420, 150,
     v => (100*v).toFixed(1) + '%');
@@ -485,7 +489,8 @@ function detail(t){
     <div class="legend">${POSGROUPS.map((g, gi) => `<span><i style="background:${COLORS[gi]}"></i>${g[0]}</span>`).slice(0, 8).join('')}</div>
     ${warn}
     <div class="cols"><div><h3 style="font-size:13px">上位語（λ=${st.lam.toFixed(2)} の順・棒は p(w|t)）</h3>${words}
-      <p class="hint">MALLET の上位語（絞り込み前）：${esc(M.keys[t] || '')}</p></div>
+      <p class="hint">MALLET の上位語（絞り込み前）：${esc(M.keys[t] || '')}</p>
+      <p class="hint">外来語は片仮名だけを表示している。語にマウスを載せると UniDic の語彙素（原綴つき）と品詞が出る。</p></div>
     <div><h3 style="font-size:13px">時代別の割合（チャンク平均）</h3>${per}
       <h3 style="font-size:13px">割合の大きい作品</h3>${wtab}
       <h3 style="font-size:13px">割合の大きい作家</h3>${atab}</div></div>`;

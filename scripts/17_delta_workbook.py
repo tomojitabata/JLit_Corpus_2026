@@ -80,6 +80,13 @@ def default_meta() -> str:
     return os.path.join(base, 'corpus_metadata_v3.csv')
 
 
+def disp(w: str) -> str:
+    """表示用の語形。UniDic は外来語の語彙素に原綴を付ける（テーブル-table）ので，
+    片仮名だけにする。原綴はセルのコメントに残す（解析の誤りを確かめるため）。"""
+    import re
+    return re.sub(r"-[A-Za-z][A-Za-z .'-]*$", '', w)
+
+
 def resolve(spec: str, rows: list[dict], tokdir: str) -> dict:
     """「作家:題」からメタデータの行とトークンファイルを引く。"""
     if ':' not in spec:
@@ -216,7 +223,10 @@ def main() -> int:
             ws.cell(R_N, 1, '総語数').font = f_hd
         for j, w in enumerate(mfw):
             ws.cell(R0 + j, 1, j + 1).font = f_fx
-            ws.cell(R0 + j, 2, w).font = f_hd
+            c = ws.cell(R0 + j, 2, disp(w))
+            c.font = f_hd
+            if disp(w) != w:
+                c.comment = Comment(f'UniDic の語彙素：{w}', 'JLit')
         ws.column_dimensions['A'].width = 7
         ws.column_dimensions['B'].width = 12
         for c in range(3, 4 + nk):
@@ -272,7 +282,10 @@ def main() -> int:
     for j, w in enumerate(mfw):
         r = R0 + j
         ws3.cell(r, 1, j + 1)
-        ws3.cell(r, 2, w).font = f_hd
+        c = ws3.cell(r, 2, disp(w))
+        c.font = f_hd
+        if disp(w) != w:
+            c.comment = Comment(f'UniDic の語彙素：{w}', 'JLit')
         ws3[f'C{r}'] = f'=AVERAGE({rng(r)})'
         ws3[f'D{r}'] = f'=STDEVP({rng(r)})'
         ws3[f'E{r}'] = f'=IF(C{r}=0,0,D{r}/C{r})'
