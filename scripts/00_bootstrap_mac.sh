@@ -43,6 +43,9 @@
 # 作業フォルダは環境変数 JLIT_PROJECT_DIR で明示することもできる。
 # 何度実行してもよい（冪等）。入っているものは飛ばす。
 # =============================================================================
+# ⚠ 編集するときの注意：日本語の直前の変数は必ず ${VAR} と書くこと。
+#   macOS 標準の bash 3.2 は "$VAR（…）" の全角文字を変数名に取り込み，
+#   set -u のもとで "VAR?: unbound variable" で止まる（2026-09-23 に2度起きた）。
 set -uo pipefail
 
 # CPU に応じて JDK を選ぶ。Apple Silicon は aarch64，Intel Mac は x64。
@@ -185,7 +188,7 @@ if [ "$MODE" = check ]; then
     || warn "検算用の辞書なし（${BUNGO_DIR_NAME}。--with-bungo で入る）"
   [ -d "$SHARED/unidic" ] \
     && warn "旧 cwj が $SHARED/unidic に残っている（本番ではない。消してよい）"
-  [ -d "$VENV" ]           && skip "仮想環境 $VENV"           || warn "仮想環境なし（$VENV）"
+  [ -d "$VENV" ]           && skip "仮想環境 $VENV"           || warn "仮想環境なし（${VENV}）"
   [ -f "$ENVFILE" ]        && skip "env.sh   $ENVFILE"        || warn "env.sh なし"
   exit 0
 fi
@@ -207,23 +210,23 @@ fi
 export PATH="$HOME/.local/bin:$PATH"
 
 # -----------------------------------------------------------------------------
-say "2. 仮想環境とパッケージ（作業フォルダ $PROJECT）"
+say "2. 仮想環境とパッケージ（作業フォルダ ${PROJECT}）"
 mkdir -p "$PROJECT" || die "$PROJECT を作れない"
 cd "$ROOT"
 # 作業フォルダを uv のプロジェクトにする（pyproject.toml だけを置く）。
 # これで，リポジトリの中で uv add を実行しても行き先がこの .venv に定まる。
 if [ -f "$PROJECT/pyproject.toml" ]; then
-  skip "pyproject.toml は既にある（$PROJECT）"
+  skip "pyproject.toml は既にある（${PROJECT}）"
 else
   (cd "$PROJECT" && uv init --bare --name dh-project --python 3.12 >/dev/null 2>&1) \
     && ok "$PROJECT を uv のプロジェクトにした（pyproject.toml）" \
     || warn "pyproject.toml を作れなかった（uv add は使えない。uv pip install --python を使う）"
 fi
 if [ -x "$PY" ]; then
-  skip "仮想環境は既にある（$VENV）"
+  skip "仮想環境は既にある（${VENV}）"
 else
   uv venv --python 3.12 "$VENV" || die "仮想環境を作れない"
-  ok "仮想環境を作った（$VENV，Python 3.12）"
+  ok "仮想環境を作った（${VENV}，Python 3.12）"
 fi
 # 旧い置き方（リポジトリ/.venv）が残っていれば知らせる
 [ -d "$ROOT/.venv" ] && [ "$ROOT/.venv" != "$VENV" ] \
