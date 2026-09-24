@@ -466,7 +466,9 @@ PowerShell を開き直してから作業する。これを設定しないと
    → Generate new token。
    - Repository access：**Only select repositories** → `jlit-work`
    - Permissions：**Contents** を **Read and write**
-   - 有効期限：学期の終わりまで
+   - 有効期限：**各自で決めてよい。** ただし期限が切れると `my_work/` の push・pull が
+     できなくなる。授業の終わり（最終リポートの提出）より短くした人は，途中で
+     トークンを作り直す必要がある（作り直し方は §7 の表）
 
    表示された `github_pat_…` をコピーしておく。**この画面を閉じると二度と表示されない。**
 
@@ -645,6 +647,7 @@ bash scripts/update.sh
 | `git pull` が `untracked working tree files would be overwritten` で止まる | 新しく配られるファイルと同名のファイルを手で置いていた | 同上。`update.sh` が `my_work/_backup/<日時>/` へ退避する |
 | `git push` が `'DISABLED' does not appear to be a git repository` で止まる | コースのリポジトリで push した（無効にしてある） | 正常。自分の作業は `cd my_work` してから push する（§5.4） |
 | `my_work` の push で `Authentication failed` / `Invalid username or token` | パスワードの欄に GitHub のパスワードを入れた／トークンの期限切れ・権限不足 | §5.1 のトークンを入れる。作り直すときは Contents を Read and write に |
+| 途中から `my_work` の push・pull が `Authentication failed` になった | トークンの有効期限が切れた（§5.1） | GitHub で同じ設定のトークンを作り直し，保存済みの古いトークンを消す：`printf "protocol=https\nhost=github.com\n\n" \| git credential reject`。次の push でユーザ名と新しいトークンを入れる |
 | `my_work` の push で `Repository not found` | GitHub に `jlit-work` を作っていない／ユーザ名の綴り違い | §5.1 の 2。`cd my_work && git remote -v` で push 先を確かめる |
 | `[ERR ] 50 MB を超えるファイルは控えに入れない` | モデルなど大きい生成物をコミットしようとした | 表示のとおり `git restore --staged` で外す。作り直せるものは控えに入れない |
 | `git pull` で `corpus_metadata_v3.csv` が衝突する | 旧い版のスクリプトで配布版を上書きした | `bash scripts/update.sh`（上書きされた版は退避される）。いまの版は `_local.csv` に書く |
