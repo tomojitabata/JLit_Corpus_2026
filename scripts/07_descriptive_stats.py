@@ -12,10 +12,24 @@
 ``freq_matrix_mfw.csv``   最頻語 N 語 × 作品 の相対頻度行列（stylo と互換）
 ``work_profile.csv``      作品ごとの文体指標（TTR・平均文長・漢字率・会話率ほか）
 ``keyness_by_period.csv`` 時代ごとの特徴語（対数尤度比 G² と効果量，
-                          および**散らばり**の列 df_all_pct / dp_gries /
+                          および**散らばり**の列 df_all_prop / dp_gries /
                           top_work_share。culling と bursty 判定に使う）
 ``delta_matrix.csv``      Burrows's Delta 距離行列
 ``pca_coordinates.csv``   最頻語相対頻度の主成分得点（第1–4主成分）
+
+列名の約束
+----------
+**割合は 0–1 で書き，名前の末尾を ``_prop`` / ``_ratio`` / ``_share`` にする**
+（``df_all_prop`` = 0.1584 は 15.84 % の意）。0–100 の百分率を入れる列だけを
+``_pct`` と綴る（このパイプラインでは ``14_unknown_profile.py`` の
+``types_pct`` / ``tokens_pct`` のみ）。読み手が列を見ただけで尺度を決められる
+ようにするための約束である。``scripts/check_units.py`` が機械で見張っている。
+
+.. note::
+   2026-09-24 に ``df_all_pct`` → ``df_all_prop``，``df_in_pct`` →
+   ``df_in_prop`` に改名した（中身は 0–1 なので per cent は誤称であった）。
+   古い CSV を読むノートブックは旧名を自動で読み替えるが，**07 を走らせ直す
+   のが正しい**。
 
 使い方
 ------
@@ -99,7 +113,7 @@ def main() -> int:
     ap.add_argument('--cull-df', type=float, default=0.10, metavar='RATIO',
                     help='報告に使う culling の閾値（既定 0.10 ＝ 全作品の 10%%）。'
                          '**行を落とすのではなく，この閾値で何語が弾かれるかを'
-                         '表示するだけ**。culling そのものは df_all_pct 列を'
+                         '表示するだけ**。culling そのものは df_all_prop 列を'
                          '使って後の工程で行う')
     ap.add_argument('--allow-unmatched', action='store_true',
                     help='メタデータと突合できない作品が1割を超えても続ける'
@@ -289,8 +303,9 @@ def main() -> int:
     # ではない。両者を見分けるために，頻度と一緒に散らばりを測る。
     #
     #   df_all        その語を含む作品数（**時代別集計に入る作品の中で**）
-    #   df_all_pct    その割合。**culling の閾値に使う**（例 df < 10% を弾く）
+    #   df_all_prop   その割合。**culling の閾値に使う**（例 df < 10% を弾く）
     #   df_in         その時代の中で，その語を含む作品数
+    #   df_in_prop    その時代の作品数に対する割合
     #   top_work_share  総頻度のうち最も多い1作品が占める割合
     #   dp_gries      Gries (2008) の deviation of proportions（コーパス全体）
     #                 0 に近い＝均等に散らばる／1 に近い＝一点に固まる
@@ -382,9 +397,9 @@ def main() -> int:
                 'G2': round(g, 2),
                 # 以下は散らばり。culling と bursty/even の判定に使う
                 'df_all': df_all[term],
-                'df_all_pct': round(df_all[term] / max(1, n_works), 4),
+                'df_all_prop': round(df_all[term] / max(1, n_works), 4),
                 'df_in': df_in_period[p][term],
-                'df_in_pct': round(df_in_period[p][term] / n_in, 4),
+                'df_in_prop': round(df_in_period[p][term] / n_in, 4),
                 'dp_gries': dp,
                 'dp_in': dispersion_in(term, p),
                 'top_work_share': top_share,
@@ -411,15 +426,15 @@ def main() -> int:
         # 数点の作品の語彙を映している。
         t15 = rows_p[:15]
         if t15:
-            thin = [r['term'] for r in t15 if r['df_all_pct'] < cut]
+            thin = [r['term'] for r in t15 if r['df_all_prop'] < cut]
             print(f'{"":24}上位15語のうち df<{cut:.0%} が {len(thin):>2} 語'
                   + (f'（{" ".join(thin[:8])}）' if thin else ''))
     print(f'\n[ok  ] 出力 → {args.out}')
     print('      注意：特徴語は作家効果を含む。1作家に偏る時代では，その作家固有の')
     print('      語（人名・地名）が上位に来る。keyness_by_period.csv を必ず目視すること。')
     print(f'      keyness_by_period.csv には散らばりの列がある'
-          f'（df_all_pct / dp_gries / top_work_share）。')
-    print(f'      df_all_pct < {cut:.0%} を弾いた場合との比較は Step 4 のノートブック。')
+          f'（df_all_prop / dp_gries / top_work_share）。')
+    print(f'      df_all_prop < {cut:.0%} を弾いた場合との比較は Step 4 のノートブック。')
     return 0
 
 

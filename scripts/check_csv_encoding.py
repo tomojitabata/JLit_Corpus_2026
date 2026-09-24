@@ -77,15 +77,39 @@ def check_files(root: str, fix: bool) -> list[tuple]:
 READ_RE = re.compile(r"open\([^)]*encoding=['\"]utf-8['\"]")
 
 
+def call_text(src: str, i: int) -> str:
+    """``open(`` の位置から**その呼び出しだけ**を取り出す（括弧を数える）。
+
+    ⚠ 前は前後4行をまとめて見ていたので，**次の文で .tsv を書いている**と
+    その手前の ``.txt`` を書く open まで「CSV を BOM 無しで書いた」と
+    誤って咎めた（18_pos_select.py で実際に起きた）。
+    呼び出しの範囲だけを見れば取り違えない。
+    """
+    j = src.index('(', i)
+    depth, k = 0, j
+    while k < len(src):
+        if src[k] == '(':
+            depth += 1
+        elif src[k] == ')':
+            depth -= 1
+            if depth == 0:
+                return src[i:k + 1]
+        k += 1
+    return src[i:j + 200]
+
+
 def check_scripts(root: str) -> list[tuple]:
     out = []
     for p in sorted(glob.glob(os.path.join(root, 'scripts', '*.py'))):
         rel = os.path.relpath(p, root)
-        src = open(p, encoding='utf-8').read().split('\n')
+        text = open(p, encoding='utf-8').read()
+        src = text.split('\n')
         for n, line in enumerate(src, 1):
             if 'open(' not in line:
                 continue
-            blob = '\n'.join(src[n - 1:n + 3])
+            # その行の open( の位置を原文の中で求め，呼び出しだけを取り出す
+            off = sum(len(x) + 1 for x in src[:n - 1]) + line.index('open(')
+            blob = call_text(text, off)
             if '.csv' not in blob and '.tsv' not in blob:
                 continue
             if 'utf-8-sig' in blob:

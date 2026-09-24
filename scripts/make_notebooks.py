@@ -87,6 +87,31 @@ def need(path, hint=''):
     return ok
 
 
+# 旧名 → 新名。**中身は 0–1 の割合なので per cent は誤称**であった。
+# 2026-09-24 に改名。古い出力を持っている人のために読み替えだけは残す。
+LEGACY_COLS = {'df_all_pct': 'df_all_prop', 'df_in_pct': 'df_in_prop'}
+
+
+def read_table(path, **kw):
+    """CSV を読み，**古い列名があれば新しい名前に読み替える**。
+
+    列名の約束：割合（0–1）は ``_prop`` / ``_ratio`` / ``_share``，
+    百分率（0–100）だけを ``_pct`` と綴る。``df_all_prop`` が 0.1584 なら
+    15.84 % の意である。読み替えたときは黙らずに知らせる — 黙って直すと，
+    手元の CSV と教材の列名が食い違っていることに気づけないため。
+    """
+    d = pd.read_csv(path, **kw)
+    old = {k: v for k, v in LEGACY_COLS.items()
+           if k in d.columns and v not in d.columns}
+    if old:
+        d = d.rename(columns=old)
+        print('[note] 古い列名を読み替えた: '
+              + '，'.join(f'{k}→{v}' for k, v in old.items())
+              + '\n       07_descriptive_stats.py を走らせ直すと'
+                '新しい名前で書き出される。')
+    return d
+
+
 def load_meta(path=None, analysis_only=True):
     """メタデータを読む。既定では**分析に使う行だけ**を返す。
 
@@ -647,6 +672,128 @@ def label_points(ax, xs, ys, texts, fontsize=8, color='#333333', pad=4,
             print(f'[warn] {len(risky)} 件の注記は**別の点のほうが近い**'
                   f'（{head}{more}）。leader="none" では読み違えが起きる。')
     return len(placed)
+def _proj_versions():
+    """射影に関わる版を並べる（うまくいかないときの手がかり）。"""
+    import importlib
+    out = []
+    for nm in ['numpy', 'numba', 'llvmlite', 'pynndescent', 'sklearn']:
+        try:
+            out.append(f'{nm} ' + str(getattr(importlib.import_module(nm),
+                                              '__version__', '?')))
+        except Exception:                                    # noqa: BLE001
+            out.append(f'{nm} ×')
+    return '／'.join(out)
+
+def umap_diagnosis(e):
+    """UMAP が使えないときに，**何をすればよいか**を出す。"""
+    import sys
+    print(f'[NG  ] UMAP が使えない: {type(e).__name__}: {e}')
+    print(f'       このカーネルの Python = {sys.executable}')
+    print(f'       {_proj_versions()}')
+    if isinstance(e, ModuleNotFoundError):
+        # **入れた先とカーネルの環境が違う**のが圧倒的に多い。
+        # uv add は「プロジェクト（pyproject.toml のある場所）」単位なので，
+        # dh_project/pyproject.toml が無い，または dh_project の外に clone
+        # した場合は，uv は別のプロジェクトに入れる。カーネルの .venv には入らない。
+        print('       **この環境には入っていない。** 入れた先が違う可能性が高い')
+        print('       （uv add はプロジェクト単位。~/Documents/dh_project に')
+        print('        pyproject.toml が無いと，別のプロジェクトに入る）。')
+        print('       この環境を名指しして入れるのが確実:')
+        import platform as _pf
+        if sys.platform == 'darwin' and _pf.machine() == 'x86_64':
+            # **Intel Mac は版を固定する。** llvmlite の x86_64 wheel は
+            # 0.45.1 が最後で，0.46 以降は arm64 のみ。固定しないと
+            # ソースからのビルドに落ち，Homebrew の LLVM と版が合わずに
+            # 失敗する（llvmlite 0.49 は LLVM 22 を要求）。
+            print('       （Intel Mac なので**版を固定する**。'
+                  'llvmlite の x86_64 wheel は 0.45.1 が最後）')
+            print(f'         uv pip install --python "{sys.executable}" \\')
+            print('             --only-binary :all: \\')
+            print('             "numba==0.62.1" "llvmlite==0.45.1" '
+                  '"numpy<2.4" umap-learn')
+        else:
+            print(f'         uv pip install --python "{sys.executable}" umap-learn')
+        print('       入れたら**カーネルを再起動**して，このセルから実行し直す。')
+    else:
+        print('       import は通るが使えない型の失敗である'
+              '（別パッケージの umap／numba と numpy の版違い／'
+              'numba のキャッシュ）。')
+    print('       切り分けの全項目:')
+    print('         import sys, subprocess; print(subprocess.run('
+          '[sys.executable,')
+    print("             str(ROOT/'scripts'/'check_umap.py')], "
+          'capture_output=True,')
+    print('             text=True).stdout)')
+
+def project(Xn, how='umap', seed=20260920, n_neighbors=15, min_dist=0.12,
+            perplexity=30):
+    """高次元の行列を2次元に落とす。**どの方法で落としたかを必ず返す。**
+
+    ``how`` は ``'umap'``／``'tsne'``／``'auto'``。既定の ``'umap'`` は，
+    使えなければ**止まって理由を出す**。``'auto'`` のときだけ t-SNE に落ちる。
+    **黙って別の方法に替えないのが肝心である**（図は出るが塊の見え方は
+    変わるので，環境の問題を分析結果と読み違える）。
+
+    Step 5 の §3（主成分分析との比較）と §4（ギャラクシー）が共有する。
+    """
+    import importlib
+    Xn = np.asarray(Xn, dtype=np.float32)
+    if how in ('auto', 'umap'):
+        try:
+            m = importlib.import_module('umap')
+            if not hasattr(m, 'UMAP'):
+                # PyPI には umap（別物）と umap-learn（本物）がある。
+                # pip install umap をしていると import umap はそちらを拾う。
+                raise ImportError(
+                    f'umap に UMAP クラスが無い（{getattr(m, "__file__", "?")}）。'
+                    '別パッケージの umap が入っている。'
+                    'umap を外して umap-learn を入れること')
+            P = m.UMAP(n_neighbors=n_neighbors, min_dist=min_dist,
+                       metric='cosine', random_state=seed).fit_transform(Xn)
+            return (np.asarray(P, dtype=np.float32),
+                    f'UMAP {getattr(m, "__version__", "")}'
+                    f' (n_neighbors={n_neighbors}, min_dist={min_dist}, cosine)')
+        except Exception as e:                               # noqa: BLE001
+            umap_diagnosis(e)
+            if how == 'umap':
+                # **黙って別の方法に替えない。** どうしても t-SNE で
+                # 進めたいときは 'tsne' と明示し，報告にもそう書くこと。
+                raise
+            print('[warn] how="auto" なので t-SNE に切り替える。'
+                  '**図と報告に t-SNE と書くこと。**')
+    from sklearn.manifold import TSNE
+    P = TSNE(n_components=2, perplexity=perplexity, metric='cosine',
+             init='pca', random_state=seed).fit_transform(Xn)
+    return (np.asarray(P, dtype=np.float32),
+            f't-SNE (perplexity={perplexity}, cosine)')
+
+
+def proj_quality(Xn, P, k=10):
+    """射影がどれだけ嘘をついているかを3つの数で返す。
+
+    ``trust``  … 2次元で近く見える点が原空間でも近いか（局所・1が最良）
+    ``keep``   … 原空間の上位 k 近傍のうち画面でも上位 k に入る語数
+    ``rho``    … 原空間の距離と画面の距離の順位相関（**大域**の保存）
+
+    局所（trust・keep）と大域（rho）は別物である。**UMAP は局所に強く，
+    主成分分析は大域に強い**——これを目で見ずに数で確かめるための関数。
+    """
+    from scipy.spatial.distance import pdist
+    from scipy.stats import spearmanr
+    from sklearn.manifold import trustworthiness
+    Xn, P = np.asarray(Xn, np.float32), np.asarray(P, np.float32)
+    S = Xn @ Xn.T
+    np.fill_diagonal(S, -np.inf)
+    nn_t = np.argsort(-S, axis=1)[:, :k]
+    d2 = ((P[:, None, :] - P[None, :, :]) ** 2).sum(-1)
+    np.fill_diagonal(d2, np.inf)
+    nn_p = np.argsort(d2, axis=1)[:, :k]
+    keep = np.array([len(set(a) & set(b)) for a, b in zip(nn_t, nn_p)])
+    trust = float(trustworthiness(Xn, P, n_neighbors=k, metric='cosine'))
+    rho = float(spearmanr(pdist(Xn, 'cosine'), pdist(P))[0])
+    return {'trust': trust, 'keep': keep, 'rho': rho}
+
+
 def reserve_right(fig, frac=0.80):
     """面の外に凡例を置いた図で，**右に余白を確保する**。
 
@@ -931,7 +1078,7 @@ if (q) q.addEventListener('input', () => {
 
 def save_interactive(fig, ax, stem, xs, ys, tips, out=None, title='',
                      note='', table_cols=None, source=None, id_col='語',
-                     hint='', table_idx=None):
+                     hint='', table_idx=None, coords=None):
     """SVG を保存し，**同じ SVG を埋め込んだ対話的な HTML** も書く。
 
     ``xs`` ``ys`` はデータ座標，``tips`` は点ごとの情報
@@ -962,6 +1109,12 @@ def save_interactive(fig, ax, stem, xs, ys, tips, out=None, title='',
     そのときは載せる点を選ぶ。**ただし図の当たり判定と検索は全点に効く**
     ので，表に無い語も指せるし検索で図に印が付く。表を絞ったときは，
     何件のうち何件を載せたかを HTML に明記する（黙って捨てないこと）。
+
+    ``coords`` は**面ごとの座標**（``[(x1, y1), (x2, y2)]``）。同じ点を
+    **違う座標系**で2面に描いた図（主成分分析と UMAP の比較など）で使う。
+    渡さなければ全部の面で ``xs`` ``ys`` を使う。
+    ⚠ 面ごとに座標が違うのに ``coords`` を渡さないと，2面めの当たり判定が
+    1面めの座標で置かれる。**図は出るが，指した点と出る語が食い違う。**
     """
     import json as _json
     if not (len(xs) == len(ys) == len(tips)):
@@ -1002,9 +1155,18 @@ def save_interactive(fig, ax, stem, xs, ys, tips, out=None, title='',
         for t in tips)
 
     pts = []
+    if coords is not None and len(coords) != len(axes_list):
+        raise ValueError(
+            f'save_interactive: coords の数が面の数と違う'
+            f'（面 {len(axes_list)} / coords {len(coords)}）')
     for k, axk in enumerate(axes_list):
-      pxy = axk.transData.transform(np.column_stack([np.asarray(xs, float),
-                                                     np.asarray(ys, float)]))
+      xk, yk = (coords[k] if coords is not None else (xs, ys))
+      if not (len(xk) == len(yk) == n_pts):
+          raise ValueError(
+              f'save_interactive: 面 {k} の座標の数が情報の数と違う'
+              f'（x={len(xk)}, y={len(yk)}, 情報={n_pts}）')
+      pxy = axk.transData.transform(np.column_stack([np.asarray(xk, float),
+                                                     np.asarray(yk, float)]))
       for j, (t, (px, py)) in enumerate(zip(tips, pxy)):
         i = k * n_pts + j
         # **変数名に注意。** ここを d と書くと，上で取った出力先 d
@@ -1390,18 +1552,18 @@ show(pd.DataFrame(rows), caption='各項目の内訳', fmt={'割合': '{:.1%}'})
  ('code', r'''# 語数ベースでも見る。作品数と語数で印象が変わる軸はどれか。
 g = (meta.groupby('period')
         .agg(works=('id','count'), tokens=('tokens','sum'))
-        .assign(work_pct=lambda d: d.works/d.works.sum(),
-                token_pct=lambda d: d.tokens/d.tokens.sum()))
+        .assign(work_prop=lambda d: d.works/d.works.sum(),
+                token_prop=lambda d: d.tokens/d.tokens.sum()))
 show(g.reset_index().rename(columns={'period':'時代','works':'作品数',
-                                      'tokens':'語数','work_pct':'作品数の割合',
-                                      'token_pct':'語数の割合'}),
+                                      'tokens':'語数','work_prop':'作品数の割合',
+                                      'token_prop':'語数の割合'}),
      caption='時代の構成 — 作品数で見るか語数で見るか',
      fmt={'語数':'{:,.0f}','作品数の割合':'{:.1%}','語数の割合':'{:.1%}'})
 
 fig, ax = plt.subplots(figsize=(9,4))
 x = np.arange(len(g))
-ax.bar(x-0.2, g.work_pct, .38, label='作品数の比率', color=PALETTE[0])
-ax.bar(x+0.2, g.token_pct, .38, label='語数の比率', color=PALETTE[1])
+ax.bar(x-0.2, g.work_prop, .38, label='作品数の比率', color=PALETTE[0])
+ax.bar(x+0.2, g.token_prop, .38, label='語数の比率', color=PALETTE[1])
 ax.set_xticks(x); ax.set_xticklabels([i.split('_',1)[1] for i in g.index],
                                       rotation=20, ha='right')
 ax.set_ylabel('比率'); ax.legend(frameon=False)
@@ -3196,10 +3358,10 @@ $$G^2 = 2\left(a\ln\frac{a}{E_1} + b\ln\frac{b}{E_2}\right)$$
    これは 4.1 で扱う。'''),
  ('code', r'''p = OUT/'descriptive'/'keyness_by_period.csv'
 if need(p, 'この分析のスクリプトを走らせるセルを先に実行すること'):
-    ky = pd.read_csv(p)
-    # 散らばりの列は 07 が書く（df_all_pct / dp_in / top_work_share）。
+    ky = read_table(p)
+    # 散らばりの列は 07 が書く（df_all_prop / dp_in / top_work_share）。
     # 古い CSV には無いので，無ければ 4.1 以降が動かないことを先に言う。
-    DISP = ['df_all_pct', 'df_in_pct', 'dp_in', 'top_work_share', 'top_work']
+    DISP = ['df_all_prop', 'df_in_prop', 'dp_in', 'top_work_share', 'top_work']
     lack = [c for c in DISP if c not in ky.columns]
     if lack:
         print('[warn] 散らばりの列が無い: ' + '，'.join(lack))
@@ -3275,11 +3437,16 @@ log ratio=18.92 になる）。しかし意味はまったく違う。
 
 | 列 | 何を測るか | bursty なら |
 |---|---|---|
-| `df_all_pct` | 全 101 点のうち何割に出るか | **小さい** |
-| `df_in_pct` | その時代の作品のうち何割に出るか | 小さい |
+| `df_all_prop` | 全 101 点のうち何割に出るか | **小さい** |
+| `df_in_prop` | その時代の作品のうち何割に出るか | 小さい |
 | `dp_in` | **その時代の中での** Gries の DP（偏差の総和の半分） | **1 に近い** |
 | `top_work_share` | 総頻度のうち最多の1作品が占める割合 | 1 に近い |
 | `top_work` | その1作品はどれか | — |
+
+**割合の列はすべて 0–1 である**（`df_all_prop` = 0.1584 は 15.84 % の意）。
+このパイプラインでは，0–1 の割合を `_prop` / `_ratio` / `_share`，
+0–100 の百分率だけを `_pct` と綴り分ける。名前を見れば尺度が決まる。
+表計算ソフトで開いて「0.15」と「15」を取り違えないための約束である。
 
 ⚠ `dp_gries`（コーパス全体の DP）を bursty 判定に使わないこと。
 **ある時代だけに出る語は，その時代の全作品に均等に出ていても
@@ -3294,9 +3461,10 @@ TOPK = 15
 
 p = OUT/'descriptive'/'keyness_by_period.csv'
 if need(p, 'この分析のスクリプトを走らせるセルを先に実行すること'):
-    ky = pd.read_csv(p)
-    if 'df_all_pct' not in ky.columns:
-        print('[warn] df_all_pct 列が無い。07 を走らせるセルを実行し直すこと。')
+    ky = read_table(p)
+    if 'df_all_prop' not in ky.columns:
+        print('[warn] df_all_prop 列が無い（旧名 df_all_pct も無い）。'
+              '07 を走らせるセルを実行し直すこと。')
     else:
         # **語幹（000160_003368）では誰の何だか分からない。**
         # 「この語はこの作品のものだ」と言えて初めて bursty の話が通じる。
@@ -3306,7 +3474,7 @@ if need(p, 'この分析のスクリプトを走らせるセルを先に実行�
             return LAB4.get(x, x)     # 引けないときは語幹のまま出す
         for per in sorted(ky.period.unique()):
             a = ky[(ky.period==per)&(ky.G2>0)]
-            b = a[a.df_all_pct >= CULL]
+            b = a[a.df_all_prop >= CULL]
             A = list(a.nlargest(TOPK,'G2').term)
             B = list(b.nlargest(TOPK,'G2').term)
             rank = {t:i+1 for i,t in enumerate(a.nlargest(500,'G2').term)}
@@ -3320,7 +3488,7 @@ if need(p, 'この分析のスクリプトを走らせるセルを先に実行�
                 mark = ''
                 if t_a and t_a not in sb:
                     r = a[a.term == t_a].iloc[0]
-                    mark = (f'← 落ちた（df {r.df_all_pct:.0%}／'
+                    mark = (f'← 落ちた（df {r.df_all_prop:.0%}／'
                             f'dp_in {r.dp_in:.2f}／最多 {_w4(r.top_work)} '
                             f'{r.top_work_share:.0%}）')
                 elif t_b and t_b not in sa:
@@ -3348,14 +3516,14 @@ if need(p, 'この分析のスクリプトを走らせるセルを先に実行�
 *このコーパスでは高頻度の特徴語ほど bursty なのか*を問うほうがよい。'''),
  ('code', r'''p = OUT/'descriptive'/'keyness_by_period.csv'
 if need(p, 'この分析のスクリプトを走らせるセルを先に実行すること'):
-    ky = pd.read_csv(p)
+    ky = read_table(p)
     if 'dp_in' not in ky.columns:
         print('[warn] dp_in 列が無い。07 を走らせるセルを実行し直すこと。')
     else:
         rows = []
         for per in sorted(ky.period.unique()):
             a = ky[(ky.period==per)&(ky.G2>0)]
-            b = a[a.df_all_pct >= CULL]
+            b = a[a.df_all_prop >= CULL]
             rec = {'period': per, '有意語': len(a), 'culling後': len(b),
                    '残存率': len(b)/max(1,len(a))}
             for k in (15, 50):
@@ -3367,8 +3535,8 @@ if need(p, 'この分析のスクリプトを走らせるセルを先に実行�
                 rec[f'重なり@{k}'] = len(A & B)/max(1, min(k, len(a)))
                 rec[f'入替@{k}'] = len(B - A)
             t50 = a.nlargest(50,'G2')
-            keep = t50[t50.df_all_pct >= CULL]
-            drop = t50[t50.df_all_pct <  CULL]
+            keep = t50[t50.df_all_prop >= CULL]
+            drop = t50[t50.df_all_prop <  CULL]
             rec['残る語のdp_in中位'] = keep.dp_in.median() if len(keep) else np.nan
             rec['落ちる語のdp_in中位'] = drop.dp_in.median() if len(drop) else np.nan
             # G² の順位と bursty さの関係。正なら「上位ほど一点に固まる」
@@ -3393,7 +3561,7 @@ if need(p, 'この分析のスクリプトを走らせるセルを先に実行�
 - **弾かれるが均等** … その時代の作品数が少ないために df が 10% に
   届かないだけで，その時代の中では均等に出る語
 
-下の図は横軸に `df_all_pct`（culling の規則），縦軸に `dp_in`
+下の図は横軸に `df_all_prop`（culling の規則），縦軸に `dp_in`
 （bursty さ）を取る。**規則が捉え損なう語は左上と右下に現れる。**
 その語に名前が付いているので，自分の目で確かめられる。
 
@@ -3421,13 +3589,13 @@ HTML は**その SVG をそのまま埋め込んでいる**（描き直してい
 ブラウザで開ける**（`open results/student/Step4_keyness_dispersion.html`）。'''),
  ('code', r'''p = OUT/'descriptive'/'keyness_by_period.csv'
 if need(p, 'この分析のスクリプトを走らせるセルを先に実行すること'):
-    ky = pd.read_csv(p)
+    ky = read_table(p)
     if 'dp_in' not in ky.columns:
         print('[warn] dp_in 列が無い。07 を走らせるセルを実行し直すこと。')
     else:
         sub = pd.concat([ky[(ky.period==per)&(ky.G2>0)].nlargest(50,'G2')
                          for per in sorted(ky.period.unique())])
-        keep = (sub.df_all_pct >= CULL).values
+        keep = (sub.df_all_prop >= CULL).values
         # このセル単独でも走るように，語幹→作家『作品』の表はここでも作る
         LAB4 = work_labels()
         def _w4(x):
@@ -3437,15 +3605,15 @@ if need(p, 'この分析のスクリプトを走らせるセルを先に実行�
         fig, ax = plt.subplots(figsize=(9.4,6.2))
         ax.axvspan(0, CULL, color='#f4f4f1', zorder=0)   # 弾かれる領域
         # 色だけでなく印の形も変える（色覚の多様性と白黒印刷のため）
-        ax.scatter(sub.df_all_pct[keep], sub.dp_in[keep], s=26, alpha=.80,
+        ax.scatter(sub.df_all_prop[keep], sub.dp_in[keep], s=26, alpha=.80,
                    color=PALETTE[0], linewidth=0, label=f'残る（df≧{CULL:.0%}）')
-        ax.scatter(sub.df_all_pct[~keep], sub.dp_in[~keep], s=30, alpha=.85,
+        ax.scatter(sub.df_all_prop[~keep], sub.dp_in[~keep], s=30, alpha=.85,
                    color=PALETTE[1], marker='^', linewidth=0,
                    label=f'弾かれる（df<{CULL:.0%}）')
         ax.axvline(CULL, color='#8a8a83', lw=1, ls='--')
         ax.axhline(0.5, color='#8a8a83', lw=1, ls=':')
 
-        ax.set_xlabel('df_all_pct — 全作品のうち何割に出るか（culling の規則）')
+        ax.set_xlabel('df_all_prop — 全作品のうち何割に出るか（culling の規則）')
         ax.set_ylabel('dp_in — その時代の中での偏り（1 に近いほど bursty）')
         ax.set_title('culling の閾値と bursty さは一致しない（各時代の上位50語）')
         ax.set_xlim(-0.02, 1.02); ax.set_ylim(-0.03, 1.03)
@@ -3465,7 +3633,7 @@ if need(p, 'この分析のスクリプトを走らせるセルを先に実行�
         over = k0[k0.dp_in < 0.3].nsmallest(6,'dp_in')     # 弾かれるのに均等
         lab = pd.concat([miss, over])
         if len(lab):
-            label_points(ax, lab.df_all_pct, lab.dp_in, lab.term, fontsize=8)
+            label_points(ax, lab.df_all_prop, lab.dp_in, lab.term, fontsize=8)
 
         # SVG（静止版）と HTML（対話版）を同じ図から出す。
         # **注記は SVG の中にあるので対話版にもそのまま残る。**
@@ -3474,17 +3642,17 @@ if need(p, 'この分析のスクリプトを走らせるセルを先に実行�
         tips = [{'term': r.term,
                  'fields': [('時代', r.period),
                             ('G²', f'{r.G2:.0f}'),
-                            ('df（全作品）', f'{r.df_all_pct:.0%}'),
-                            ('df（その時代）', f'{r.df_in_pct:.0%}'),
+                            ('df（全作品）', f'{r.df_all_prop:.0%}'),
+                            ('df（その時代）', f'{r.df_in_prop:.0%}'),
                             ('dp_in', f'{r.dp_in:.3f}'),
                             ('最多作品の占有', f'{r.top_work_share:.0%}'),
                             ('最多作品', _w4(r.top_work)),
-                            ('culling', '残る' if r.df_all_pct >= CULL
+                            ('culling', '残る' if r.df_all_prop >= CULL
                                         else '弾かれる')]}
                 for _, r in sub.iterrows()]
         save_interactive(
             fig, ax, 'Step4_keyness_dispersion',
-            sub.df_all_pct, sub.dp_in, tips, source=p,
+            sub.df_all_prop, sub.dp_in, tips, source=p,
             title='culling の閾値と bursty さは一致しない',
             hint=('点にカーソルを近づけると語が出る（最も近い点を拾うので，'
                   '真上に置かなくてよい）。図の中の注記は静止版と同じもので，'
@@ -3502,10 +3670,10 @@ if need(p, 'この分析のスクリプトを走らせるセルを先に実行�
             over.assign(位置='右下：弾かれるが均等')])
         if len(bad):
             bad = bad.assign(top_work=bad.top_work.map(_w4))
-            show(bad[['位置','period','term','df_all_pct','dp_in',
+            show(bad[['位置','period','term','df_all_prop','dp_in',
                       'top_work_share','top_work','G2']]
                  .rename(columns={'period':'時代','term':'語',
-                                  'df_all_pct':'df','dp_in':'dp_in',
+                                  'df_all_prop':'df','dp_in':'dp_in',
                                   'top_work_share':'最多作品の占有',
                                   'top_work':'最多作品','G2':'G²'}),
                  caption='df の規則が取りこぼした語',
@@ -3747,24 +3915,129 @@ ax.spines[['top','right']].set_visible(False)
 fig.tight_layout()
 label_points(ax, stab.freq, stab.jaccard, stab.term, fontsize=9)
 save_fig(fig, 'Step5_stability'); plt.show()'''),
- ('md', r'''## 3. 語彙空間を眺める
+ ('md', r"""## 3. 語彙空間を眺める — **主成分分析と UMAP を並べて比べる** ★
 
-主成分分析や t-SNE で2次元に落として，語のまとまりを見る。
-**射影は必ず情報を失う**ので，図はあくまで探索の道具として使う。'''),
- ('code', r'''sel = [w for w,c in vocab.most_common(400) if w in w2v.wv][:300]
-X = np.vstack([w2v.wv[w] for w in sel])
+2次元に落として語のまとまりを見る。ただし**落とし方は1つではない**。
+同じ300語を**2つの方法**で落として並べる。
+
+| | 何を守ろうとするか | 何を捨てるか |
+|---|---|---|
+| **主成分分析（PCA）** | **大域**の構造（分散の大きい向き）。線形 | 局所の細かい近さ。第1・2主成分に乗らない違い |
+| **UMAP** | **局所**の近さ（各点の近傍） | 大域の配置・塊どうしの距離。軸の意味 |
+
+見どころは「どちらが正しいか」ではない。**同じ空間なのに絵が違う**こと，
+そして**違い方が方法の性質どおりか**である。
+
+- PCA の第1主成分は，たいてい**頻度**か**品詞**の軸になる（語彙素の列なら
+  助詞・助動詞が一方の端に寄る）。軸に解釈を与えられるのが PCA の強み。
+- UMAP は塊をはっきり見せるが，**塊どうしの距離と軸には意味が無い**。
+  締まった塊が出たからクラスタがあるとは言えない。
+
+目で見るだけでは水掛け論になるので，**3つの数**を並べる。
+
+| 指標 | 何を測るか | 強いのは |
+|---|---|---|
+| 信頼度（trustworthiness） | 画面で近い点が原空間でも近いか（局所） | ふつう UMAP |
+| 近傍保存 | 原空間の上位10近傍のうち画面でも上位10に入る語数 | ふつう UMAP |
+| 順位相関 ρ | 原空間の距離と画面の距離の順位の一致（**大域**） | ふつう PCA |
+
+**この表が「方法を選ぶ」ということの中身である。** 図の見た目ではなく，
+何を守りたいかで選び，選んだ理由を報告に書く。"""),
+ ('code', r'''# ---- 同じ300語を2つの方法で落とす ------------------------------------
+WORD_PROJ = 'umap'      # 'umap' / 'tsne' / 'auto'（auto のときだけ t-SNE に落ちる）
+WORD_SEED = 20260920
+
+sel = [w for w,c in vocab.most_common(400) if w in w2v.wv][:300]
+X  = np.vstack([w2v.wv[w] for w in sel]).astype(np.float32)
+Xn = X / (np.linalg.norm(X, axis=1, keepdims=True) + 1e-12)
+
+# (1) 主成分分析（線形・大域）。中心化してから特異値分解する
 Xc = X - X.mean(0)
-U,S,Vt = np.linalg.svd(Xc, full_matrices=False)
-P = U[:,:2]*S[:2]
-fig, ax = plt.subplots(figsize=(11,9))
-ax.scatter(P[:,0], P[:,1], s=10, color=PALETTE[0], alpha=.5, rasterized=True)
-ax.set_title('word2vec 空間の主成分射影（高頻度300語）')
-ax.spines[['top','right']].set_visible(False)
+U, S, Vt = np.linalg.svd(Xc, full_matrices=False)
+P_pca = U[:, :2] * S[:2]
+var = (S ** 2 / (S ** 2).sum())[:2]
+
+# (2) UMAP（非線形・局所）。使えなければ**止まって理由を出す**
+P_umap, METHOD_W = project(Xn, WORD_PROJ, WORD_SEED)
+
+q_pca  = proj_quality(Xn, P_pca)
+q_umap = proj_quality(Xn, P_umap)
+show(pd.DataFrame([
+        {'射影': f'主成分分析（第1・2主成分で {var.sum():.1%}）',
+         '信頼度': q_pca['trust'], '近傍保存（/10）': q_pca['keep'].mean(),
+         '順位相関 ρ（大域）': q_pca['rho']},
+        {'射影': METHOD_W.split(' (')[0],
+         '信頼度': q_umap['trust'], '近傍保存（/10）': q_umap['keep'].mean(),
+         '順位相関 ρ（大域）': q_umap['rho']}]),
+     caption=f'同じ {len(sel)} 語を2つの方法で2次元に落とした結果',
+     fmt={'信頼度': '{:.3f}', '近傍保存（/10）': '{:.1f}',
+          '順位相関 ρ（大域）': '{:+.3f}'})
+print('局所（信頼度・近傍保存）と大域（ρ）は別物である。')
+print('**どちらが上でも「良い射影」ではない。** 何を守りたいかで選ぶ。')'''),
+ ('code', r'''# ---- 2面に並べて描く（静止版 SVG ＋ 対話版 HTML）----------------------
+fig, axes = plt.subplots(1, 2, figsize=(14, 7))
+panels = [('主成分分析', P_pca,
+           f'第1・2主成分（分散の {var.sum():.1%}）／'
+           f'ρ {q_pca["rho"]:+.2f}・信頼度 {q_pca["trust"]:.2f}'),
+          (METHOD_W.split(' (')[0], P_umap,
+           f'{METHOD_W}／ρ {q_umap["rho"]:+.2f}・'
+           f'信頼度 {q_umap["trust"]:.2f}')]
+# **名前を打つ語は2面で同じにする。** 違えると見比べられない。
+# 300語ぜんぶに打つと真っ黒になるので，頻度上位 40 語に絞る
+# （残りの語は対話版で指せる。label_points が省いた件数を報告する）。
+mark = set(sel[:40])
+for ax, (name, P, sub) in zip(axes, panels):
+    ax.scatter(P[:, 0], P[:, 1], s=12, color=PALETTE[0], alpha=.45,
+               linewidth=0, rasterized=True)
+    ax.set_title(f'{name}\n{sub}', fontsize=10)
+    ax.set_xticks([]); ax.set_yticks([])
+    for sp in ax.spines.values():
+        sp.set_visible(False)
+axes[0].set_xlabel('軸に意味がある（分散の大きい向き）', fontsize=9)
+axes[1].set_xlabel('※ 軸にも塊どうしの距離にも意味は無い', fontsize=9)
+fig.suptitle(f'word2vec 空間（{X.shape[1]}次元・高頻度{len(sel)}語）を'
+             f'2つの方法で2次元に落とす', fontsize=12)
 fig.tight_layout()
-# 300語ぜんぶに名前を打つと真っ黒になる。重ならない語だけを表示し，
-# 何語を省いたかを報告する（省いた語は上の一覧で確認できる）。
-label_points(ax, P[:,0], P[:,1], sel, fontsize=7)
-save_fig(fig, 'Step5_wordspace'); plt.show()'''),
+# ⚠ 注記は tight_layout の**後**（軸が動くと位置がずれる）
+# ⚠ 座標と名前は**同じ添字で**絞る。綴りも揃えておく（片方だけ絞る事故を
+#   check_scatter_labels.py が見つけられるようにするため）
+sel_arr = np.array(sel)
+idx = np.array([i for i, w in enumerate(sel) if w in mark])
+for ax, (name, P, sub) in zip(axes, panels):
+    label_points(ax, P[idx, 0], P[idx, 1], sel_arr[idx], fontsize=7)
+
+tips = [{'term': w,
+         'fields': [('頻度', f'{vocab[w]:,}'),
+                    ('近傍保存 PCA', f'{int(q_pca["keep"][i])}/10'),
+                    ('近傍保存 UMAP', f'{int(q_umap["keep"][i])}/10')]}
+        for i, w in enumerate(sel)]
+# **面ごとに座標が違う**ので coords で渡す（渡さないと2面めの当たり判定が
+# 1面めの座標で置かれ，指した点と出る語が食い違う）
+save_interactive(fig, list(axes), 'Step5_wordspace',
+                 P_pca[:, 0], P_pca[:, 1], tips,
+                 coords=[(P_pca[:, 0], P_pca[:, 1]),
+                         (P_umap[:, 0], P_umap[:, 1])],
+                 source=DS/'chunks', id_col='語',
+                 title='語彙空間 — 主成分分析と UMAP の比較',
+                 note=(f'word2vec {X.shape[1]}次元・高頻度{len(sel)}語／'
+                       f'左 主成分分析（分散 {var.sum():.1%}）／右 {METHOD_W}／'
+                       f'種 {WORD_SEED}'),
+                 hint=('**同じ語が左右のどこに来るか**を見る。点にカーソルを'
+                       '近づけると語と，それぞれの射影での近傍保存が出る。'
+                       '検索すると両方の面に印が付く。'),
+                 table_cols=['頻度', '近傍保存 PCA', '近傍保存 UMAP'])
+plt.show()'''),
+ ('md', r"""### 演習 — 2つの絵の違いを言葉にする
+
+1. **同じ語**（たとえば「私」「汽車」「美しい」）が左右のどこに来るかを，
+   対話版で追え。両方で端にある語，片方だけで端にある語を書き出す。
+2. PCA の第1主成分の両端に来る語を10語ずつ並べ，**その軸が何か**を
+   述べよ（頻度か，品詞か，語種か）。`vocab` の頻度と見比べる。
+3. 上の表で ρ と信頼度がどちらに振れたかを確かめ，
+   **「UMAP の絵で塊が2つに見えた」から言えること／言えないこと**を書け。
+4. `WORD_SEED` を変えて UMAP だけ描き直し，塊の位置がどれだけ動くかを見よ。
+   **PCA は種に依存しない**（同じ行列からは同じ答えが出る）。ここが
+   「軸に意味がある」ことの実際的な意味である。"""),
 
  ('md', r"""## 4. 語彙のギャラクシー — 300次元を2次元に落として眺める
 
@@ -4145,87 +4418,7 @@ print(f'原空間: {X.shape[0]} 語 × {X.shape[1]} 次元')
 # 図は出るが塊の見え方が変わるので，設定の問題を分析結果と読み違える。
 # 原因の切り分けは  python3 scripts/check_umap.py  が全部やってくれる。
 GAL_PROJ = 'umap'
-import importlib, sys, time as _time
-
-def _versions():
-    out = []
-    for nm in ['numpy', 'numba', 'llvmlite', 'pynndescent', 'sklearn']:
-        try:
-            out.append(f'{nm} ' + str(getattr(importlib.import_module(nm),
-                                              '__version__', '?')))
-        except Exception:                                    # noqa: BLE001
-            out.append(f'{nm} ×')
-    return '／'.join(out)
-
-def _umap_diagnosis(e):
-    print(f'[NG  ] UMAP が使えない: {type(e).__name__}: {e}')
-    print(f'       このカーネルの Python = {sys.executable}')
-    print(f'       {_versions()}')
-    if isinstance(e, ModuleNotFoundError):
-        # **入れた先とカーネルの環境が違う**のが圧倒的に多い。
-        # uv add は「プロジェクト（pyproject.toml のある場所）」単位なので，
-        # dh_project/pyproject.toml が無い，または dh_project の外に clone
-        # した場合は，uv は別のプロジェクトに入れる。カーネルの .venv には入らない。
-        print('       **この環境には入っていない。** 入れた先が違う可能性が高い')
-        print('       （uv add はプロジェクト単位。~/Documents/dh_project に')
-        print('        pyproject.toml が無いと，別のプロジェクトに入る）。')
-        print('       この環境を名指しして入れるのが確実:')
-        import platform as _pf
-        if sys.platform == 'darwin' and _pf.machine() == 'x86_64':
-            # **Intel Mac は版を固定する。** llvmlite の x86_64 wheel は
-            # 0.45.1 が最後で，0.46 以降は arm64 のみ。固定しないと
-            # ソースからのビルドに落ち，Homebrew の LLVM と版が合わずに
-            # 失敗する（llvmlite 0.49 は LLVM 22 を要求）。
-            print('       （Intel Mac なので**版を固定する**。'
-                  'llvmlite の x86_64 wheel は 0.45.1 が最後）')
-            print(f'         uv pip install --python "{sys.executable}" \\')
-            print('             --only-binary :all: \\')
-            print('             "numba==0.62.1" "llvmlite==0.45.1" '
-                  '"numpy<2.4" umap-learn')
-        else:
-            print(f'         uv pip install --python "{sys.executable}" umap-learn')
-        print('       入れたら**カーネルを再起動**して，このセルから実行し直す。')
-    else:
-        print('       import は通るが使えない型の失敗である'
-              '（別パッケージの umap／numba と numpy の版違い／'
-              'numba のキャッシュ）。')
-    print('       切り分けの全項目:')
-    print('         import sys, subprocess; print(subprocess.run('
-          '[sys.executable,')
-    print("             str(ROOT/'scripts'/'check_umap.py')], "
-          'capture_output=True,')
-    print('             text=True).stdout)')
-
-def project(Xn, how, seed):
-    # 2次元に落とす。**どの方法で落としたかを必ず返す**（図にも刻む）
-    if how in ('auto', 'umap'):
-        try:
-            m = importlib.import_module('umap')
-            if not hasattr(m, 'UMAP'):
-                # PyPI には umap（別物）と umap-learn（本物）がある。
-                # pip install umap をしていると import umap はそちらを拾う。
-                raise ImportError(
-                    f'umap に UMAP クラスが無い（{getattr(m, "__file__", "?")}）。'
-                    '別パッケージの umap が入っている。'
-                    'umap を外して umap-learn を入れること')
-            P = m.UMAP(n_neighbors=15, min_dist=0.12, metric='cosine',
-                       random_state=seed).fit_transform(Xn)
-            return (np.asarray(P, dtype=np.float32),
-                    f'UMAP {getattr(m, "__version__", "")}'
-                    ' (n_neighbors=15, min_dist=0.12, cosine)')
-        except Exception as e:                               # noqa: BLE001
-            _umap_diagnosis(e)
-            if how == 'umap':
-                # **黙って別の方法に替えない。** どうしても t-SNE で
-                # 進めたいときは GAL_PROJ = 'tsne' と書いて，
-                # 報告にもそう書くこと。
-                raise
-            print('[warn] GAL_PROJ が "auto" なので t-SNE に切り替える。'
-                  '**図と報告に t-SNE と書くこと。**')
-    from sklearn.manifold import TSNE
-    P = TSNE(n_components=2, perplexity=30, metric='cosine', init='pca',
-             random_state=seed).fit_transform(Xn)
-    return np.asarray(P, dtype=np.float32), 't-SNE (perplexity=30, cosine)'
+import time as _time
 
 # 1万語だと UMAP で1–3分，t-SNE ではもっとかかる。**待つこと。**
 # 初回は numba の JIT に十数秒余分にかかる。

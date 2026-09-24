@@ -27,6 +27,8 @@ check_interactive.py
 3. 面が2つある図（Step 7 の doc2vec）で，``links`` が**同じ面**を指す
 4. 表の行が論理点のぶんだけ（面の数だけ重複しない）
 5. ``table_idx`` が重複と範囲外を落とし，件数を HTML に明記する
+6. ``coords``（面ごとの座標）で，主成分分析と UMAP のように**面ごとに
+   座標系が違う**図でも，2面めの当たり判定がその面の座標で置かれる
 6. プロジェクトの外の入力から描いた図に**赤字の警告**が出る
 7. （``--browser``）実際のブラウザで吹き出し・近傍の線・検索が動く
 
@@ -152,6 +154,34 @@ def main() -> int:
         '2) 近傍語の並びは書かず JS が組む（links から）')
     chk(len(re.findall(r'<tr data-i=', s2)) == 5,
         '4) 2面でも表は論理点のぶんだけ')
+
+    # ---- 面ごとに座標が違う図（主成分分析と UMAP の比較）------------------
+    # **ここを間違えると，2面めで指した点と出る語が食い違う。**
+    fig, axes = plt.subplots(1, 2)
+    xs2, ys2 = xs[::-1] * 2.0, ys[::-1] + 1.0      # 別の座標系に見立てる
+    axes[0].scatter(xs, ys)
+    axes[1].scatter(xs2, ys2)
+    tipsc = [{'term': f'語{i}', 'fields': [('頻度', i)]} for i in range(5)]
+    _, html = save_interactive(fig, list(axes), 'chk6', xs, ys, tipsc,
+                               coords=[(xs, ys), (xs2, ys2)], source=INSIDE)
+    plt.close(fig)
+    raw, s6 = payload(Path(html))
+    nlog = len(tipsc)
+    same = sum(1 for i in range(nlog)
+               if abs(raw['pts'][i]['x'] - raw['pts'][i + nlog]['x']) < 1e-9
+               and abs(raw['pts'][i]['y'] - raw['pts'][i + nlog]['y']) < 1e-9)
+    chk(len(raw['pts']) == 2 * nlog and same == 0,
+        f'8a) 面ごとの座標（coords）が面ごとに置かれる'
+        f'（2面で同じ位置になった点 {same}／0 が正しい）')
+    fig, axes = plt.subplots(1, 2)
+    try:
+        save_interactive(fig, list(axes), 'chk7', xs, ys, tipsc,
+                         coords=[(xs, ys)], source=INSIDE)
+        chk(False, '8b) coords の数が面と違えば例外')
+    except ValueError:
+        chk(True, '8b) coords の数が面と違えば例外')
+    finally:
+        plt.close(fig)
 
     # ---- 見出しが点ごとに違う経路 ----------------------------------------
     fig, ax = plt.subplots()
