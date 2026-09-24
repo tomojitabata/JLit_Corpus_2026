@@ -84,7 +84,7 @@ CODEBOOK = [
  ("file_v1","v1 コーパスにおけるファイル名（対応確認用）",""),
  ("author_ja / author_reading / author_sex / author_birth / author_death","著者情報。sex は F / M",""),
  ("title_aozora","青空文庫の作品名欄どおりの表記。v1 の通称ではなくこちらを正とする",""),
- ("aozora_person_id / aozora_work_id / aozora_card_url","青空文庫の人物 ID・作品 ID・図書カード URL。再取得と検証の鍵",""),
+ ("aozora_person_id / aozora_work_id / aozora_card_url","青空文庫の人物 ID・作品 ID・図書カード URL。再取得と検証のキー",""),
  ("year_first / year_first_end","初出の開始年と終了年。単発なら同値",""),
  ("year_source","card＝青空文庫図書カードの記載どおり／editor＝カードに記載がなく編者が補った。editor 行は要確認","card / editor"),
  ("period","初出年の文学史的区分（6区分）","1_明治前期 / 2_明治中期 / 3_明治後期 / 4_大正 / 5_昭和戦前 / 6_昭和戦後"),

@@ -23,10 +23,10 @@
   語数に切り揃える。
 * **作家効果**。1 スライスが 1 作家に偏ると，その作家の語法が時代変化に見える。
   ``--max-per-author`` でスライス内の作家あたり語数に上限を設ける。
-* **乱数**。``--runs``（既定 10）で種を変えて何度も学習し，**平均とばらつき**
+* **乱数**。``--runs``（既定 10）でシードを変えて何度も学習し，**平均とばらつき**
   を出す。``drift_sd`` と変動係数 ``drift_cv`` が大きい語は，乱数を変えると
   値が変わる語である。**安定しない変化は報告しない。**
-  種の並びは ``--seeds``（既定 11 22 33 44 55 66 77 88 99 111）。
+  シードの並びは ``--seeds``（既定 11 22 33 44 55 66 77 88 99 111）。
   全体モデル（語彙と初期値の基準）は1回だけ学習する。
 
 出力
@@ -35,7 +35,7 @@
 ``semantic_change.csv``         語ごとの変化量。**平均 ± 標準偏差**
 ``semantic_change_runs.csv``    試行ごとの生の値（上位2000語）
 ``probe_neighbours.csv``        指定語の近傍。``jaccard_runs`` は試行間の一致
-``w2v_provenance.json``         設定と**使った種の並び**
+``w2v_provenance.json``         設定と**使ったシードの並び**
 ``w2v_all.model``               全体モデル
 ``w2v_<スライス>.model``        スライス別モデル（**第1試行のもの**）
 ``aligned_*``                   アラインメント後のベクトル・語彙・スライス名（第1試行）
@@ -104,10 +104,10 @@ DEFAULT_SEEDS = [11, 22, 33, 44, 55, 66, 77, 88, 99, 111]
 
 
 def seed_list(seeds, runs, first):
-    """--runs 回ぶんの種を決める。
+    """--runs 回ぶんのシードを決める。
 
-    並びが足りないときは 11 ずつ足して伸ばす。**使った種は必ず出力に残す**
-    （json と CSV の両方）。種を書かない結果は再現できない。
+    並びが足りないときは 11 ずつ足して伸ばす。**使ったシードは必ず出力に残す**
+    （json と CSV の両方）。シードを書かない結果は再現できない。
     """
     if runs <= 1:
         return [first]
@@ -140,16 +140,16 @@ def main() -> int:
                     help='各スライスを最小スライスのチャンク数に切り揃える')
     ap.add_argument('--max-per-author', type=int, default=0)
     ap.add_argument('--runs', type=int, default=10,
-                    help='種を変えて何回学習するか（既定 10）。'
+                    help='シードを変えて何回学習するか（既定 10）。'
                          '安定した変化だけを報告するため。'
                          '時間がないときは 1 にして，**報告にそう書く**')
     ap.add_argument('--min-slice-tokens', type=int, default=50_000,
                     help='この語数に満たないスライスは学習しない。'
                          '小さすぎるスライスの word embeddings は解釈に耐えないため')
     ap.add_argument('--seed', type=int, default=11,
-                    help='単発（--runs 1）のときの種。既定 11')
+                    help='単発（--runs 1）のときのシード。既定 11')
     ap.add_argument('--seeds', type=int, nargs='*', default=None,
-                    help='複数回学習に使う種の並び。既定は '
+                    help='複数回学習に使うシードの並び。既定は '
                          '11 22 33 44 55 66 77 88 99 111'
                          '（config/pipeline.yaml の word2vec.seeds と同じ）。'
                          '**報告にはこの並びをそのまま書く**')
@@ -235,7 +235,7 @@ def main() -> int:
     anchor = keys[-1]                    # 最新スライスを基準にする
     seeds = seed_list(args.seeds, args.runs, args.seed)
     print(f'\n[runs] スライス別モデルを {len(seeds)} 回学習する'
-          f'（種: {", ".join(str(x) for x in seeds)}）')
+          f'（シード: {", ".join(str(x) for x in seeds)}）')
     if len(seeds) > 1:
         print('       **スライスに割り当てるチャンクは全試行で同じ。**'
               '変わるのは学習の乱数だけである。'
@@ -337,7 +337,7 @@ def main() -> int:
                 if ri == 0:
                     nb_sims[(w, k)] = [float(sims[j]) for j in top]
         if len(seeds) > 1:
-            print(f'  [run ] {ri + 1}/{len(seeds)}（種 {sd}）終了')
+            print(f'  [run ] {ri + 1}/{len(seeds)}（シード {sd}）終了')
 
     # ---- 試行をまとめる ---------------------------------------------------
     # **平均だけを出してはいけない。** ばらつきが大きい語は，
@@ -445,7 +445,7 @@ def main() -> int:
 
     # ---- 何をどう数えたかを残す -------------------------------------------
     # **設定が残っていない結果は再現できない。** v1 コーパスの失敗はここに
-    # 由来する。種の並びまで書く。
+    # 由来する。シードの並びまで書く。
     with open(os.path.join(args.out, 'w2v_provenance.json'), 'w',
               encoding='utf-8') as fh:
         json.dump({'slice': args.slice, 'slices': keys, 'anchor': anchor,
@@ -458,7 +458,7 @@ def main() -> int:
                    'common_vocab': len(common),
                    'chunks_index': os.path.abspath(args.index)},
                   fh, ensure_ascii=False, indent=2)
-    print('[ok  ] w2v_provenance.json（設定と種の並び）')
+    print('[ok  ] w2v_provenance.json（設定とシードの並び）')
 
     print(f'\n[ok  ] 出力 → {args.out}')
     print('      注意：drift 上位語には低頻度語・固有名詞が混じりやすい。')

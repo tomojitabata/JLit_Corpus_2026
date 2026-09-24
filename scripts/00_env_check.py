@@ -55,21 +55,21 @@ def check_git_roles(here: str) -> None:
         add(OK, 'コースへの push', '無効（教材には書き込まない）')
     mw = os.path.join(here, 'my_work')
     if not os.path.isdir(os.path.join(mw, '.git')):
-        add(WARN, '作業の控え（my_work/）', 'まだ git になっていない',
+        add(WARN, '作業のバックアップ（my_work/）', 'まだ git になっていない',
             'bash scripts/setup_my_work.sh <GitHubのユーザ名>（手順書 §5.2）')
         return
     url = _git(['remote', 'get-url', 'origin'], mw)
     if not url:
-        add(WARN, '作業の控え（my_work/）', 'push 先が無い',
+        add(WARN, '作業のバックアップ（my_work/）', 'push 先が無い',
             'bash scripts/setup_my_work.sh <GitHubのユーザ名>')
     elif 'tomojitabata/JLit_Corpus_2026' in url:
-        add(NG, '作業の控え（my_work/）', f'push 先がコースのリポジトリになっている（{url}）',
+        add(NG, '作業のバックアップ（my_work/）', f'push 先がコースのリポジトリになっている（{url}）',
             'cd my_work && git remote set-url origin https://github.com/<自分>/jlit-work.git')
     else:
         dirty = _git(['status', '--porcelain'], mw)
         n = len(dirty.splitlines()) if dirty else 0
-        add(OK, '作業の控え（my_work/）',
-            url + ('' if not n else f'（控えていない変更 {n} 件：作業の終わりに push）'))
+        add(OK, '作業のバックアップ（my_work/）',
+            url + ('' if not n else f'（バックアップしていない変更 {n} 件：作業の終わりに push）'))
 
 def check_python():
     v = sys.version_info
@@ -181,7 +181,7 @@ def check_unidic():
     """辞書の探索順は 05_tokenise_unidic.py と揃えてある。
 
     本番は近現代口語小説UniDic（``unidic-novel`` v202512）である。
-    それ以外の辞書しか無い機体では，**使えるが本番ではない**ことを
+    それ以外の辞書しか無いマシンでは，**使えるが本番ではない**ことを
     はっきり出す。cwj（現代書き言葉）は 2026-09-22 の判定で落選した
     （未知語率が novel の 3.9 倍）。気づかずに混ぜると比較が壊れる。
     """
@@ -357,11 +357,11 @@ def check_encoding():
 def check_machine():
     """どのマシンで作業しているかを記録させる。
 
-    DH Lab の iMac は XCreds 認証で，ホームはログインした機体ごとに作られ，
-    その機体には保持される。**ただし機体どうしでは共有されない。** 別の iMac に
-    移るとその機体の新しいホームから始まる（前の機体の作業はそちらに残る）。
+    DH Lab の iMac は XCreds 認証で，ホームはログインしたマシンごとに作られ，
+    そのマシンには保持される。**ただしマシンどうしでは共有されない。** 別の iMac に
+    移るとそのマシンの新しいホームから始まる（前のマシンの作業はそちらに残る）。
     受講生がこれを知らないまま2台目に移ると，作業が消えたように見える。
-    毎回ここで機体名を表示し，レポートに書かせる。
+    毎回ここでマシン名を表示し，レポートに書かせる。
     """
     host = platform.node().split('.')[0]
     try:
@@ -371,7 +371,7 @@ def check_machine():
     except Exception:                                           # noqa: BLE001
         name = host
     add(OK, '作業中のマシン', f'{name}（{host}）',
-        'ホームは機体ごとに別々（この機体には残るが他の機体からは見えない）。'
+        'ホームはマシンごとに別々（このマシンには残るが他のマシンからは見えない）。'
         '成果物は Git で持ち運ぶこと')
 
     try:
@@ -388,7 +388,7 @@ def check_machine():
         return
     if os.path.isdir(root):
         # 辞書は名前が増えるので決め打ちにしない。unidic で始まるものは
-        # すべて挙げる（どの辞書が置いてある機体かが一目で分かる）。
+        # すべて挙げる（どの辞書が置いてあるマシンかが一目で分かる）。
         have = [n for n in ('jdk', 'mallet', 'aozora-cache')
                 if os.path.isdir(os.path.join(root, n))]
         have += sorted(n for n in os.listdir(root)

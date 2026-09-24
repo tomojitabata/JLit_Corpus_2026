@@ -28,8 +28,8 @@
 
 - 教材の版：（`git rev-parse --short HEAD` の出力）
 - 辞書：unidic-novel-v202512
-- 機体：（ラベル番号。自分の Mac なら機種）
-- 変えた設定・乱数の種：
+- マシン：（ラベル番号。自分の Mac なら機種）
+- 変えた設定・乱数シード：
 - 添付：config/pipeline.yaml
 
 ## 参考文献

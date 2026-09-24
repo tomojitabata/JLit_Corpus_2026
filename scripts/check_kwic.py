@@ -230,7 +230,7 @@ def main() -> int:
     s2 = kw.search('。', stream='lemma', sample=2, seed=7)
     s3 = kw.search('。', stream='lemma', sample=2, seed=7)
     chk([x['pos_i'] for x in s2['rows']] == [x['pos_i'] for x in s3['rows']],
-        '8b) 同じ種なら同じ標本（再現する）')
+        '8b) 同じシードなら同じ標本（再現する）')
 
     # ---- 9. テクストに戻る -----------------------------------------------
     p = kw.passage(r['rows'][0]['pos_i'], before=50, after=50)

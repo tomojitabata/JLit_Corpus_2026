@@ -91,7 +91,7 @@ coherence / exclusivity がどう違ったかを書き，上位語は**例示**�
 **必ず平均語長・1字語率と並べて**見る。
 
 > 未知語率が下がり，同時に平均語長も下がっていたら，それは
-> 「よく解析できた」のではなく「刻んだ」のかもしれない。
+> 「よく解析できた」のではなく「細かく分割した」のかもしれない。
 
 ### 境界一致率 — 正解が無くても比較はできる
 
@@ -209,7 +209,7 @@ python3 scripts/13_pipeline_compare.py \
 `dict_by_stratum.csv` の各層で，次の3つを見る。
 
 1. 未知語率が低い
-2. かつ平均語長が**下がっていない**（刻んで稼いでいないこと）
+2. かつ平均語長が**下がっていない**（細かく分割して稼いでいないこと）
 3. かつ `dict_disagreements.csv` の実例を読んで，切り方に納得できる
 
 3つを満たせばその層の勝者。**2 が満たされない場合は 1 を採用しない。**
@@ -358,7 +358,7 @@ python3 scripts/12_dict_compare.py --plain data/plain/full --dict main=<本番�
 | 旧字旧仮名・文語体（2.7%） | kindai が優位 | 正規化（踊り字・外字）が効きすぎて現代語に寄っている可能性 |
 | 新字新仮名・口語体（64.4%） | novel が優位，cwj が近い2位 | 素性の並び・単位認定の差を確認する |
 | 新字旧仮名・過渡（12.1%） | **novel と qkana が競る** | novel が旧仮名をどこまで収録しているか |
-| 全体（語数重み） | **novel が優位** | 構成比を数え直す。刻んで稼いでいないか（平均語長） |
+| 全体（語数重み） | **novel が優位** | 構成比を数え直す。細かく分割して稼いでいないか（平均語長） |
 
 **予想が外れること自体は失敗ではない。** 外れ方が，このコーパスの
 どの性質によるものかを説明できれば，それが知見である。
@@ -395,7 +395,7 @@ python3 scripts/12_dict_compare.py --plain data/plain/full --dict main=<本番�
 | 05 | 解決した辞書名・版・パスを **各 TSV の1行目**と `data/tokens/tokenise_provenance.json` に書く |
 | 05 | 本番（`unidic-novel`）以外に落ちたら `[warn]`。`--expect-dict unidic-novel` で停止 |
 | 06 | `tokenise_provenance.json` と `config/pipeline.yaml` の `tokenise.dictionary` を突き合わせる。`--strict-dict` で停止 |
-| 06 | `data/datasets/dataset_provenance.json` に辞書＋チャンク長＋上限＋種を書く |
+| 06 | `data/datasets/dataset_provenance.json` に辞書＋チャンク長＋上限＋シードを書く |
 
 辞書を意図して比べるときは `--out` を辞書ごとに分ける
 （`13_pipeline_compare.py` は `data/dict_runs/<辞書名>/` に分けて書く）。
@@ -594,7 +594,7 @@ python3 scripts/12_dict_compare.py --plain data/plain/full \
 
 ### 読み取り
 
-**(1) 「刻んで稼いだ」のではない。** 規則1の条件2が最も重要な検査だったが，
+**(1) 「細かく分割して稼いだ」のではない。** 規則1の条件2が最も重要な検査だったが，
 結果は逆であった。未知語率の低い3辞書は，**いずれも cwj より平均語長が
 長い**（1.575–1.582 対 1.560）。cwj は最も細かく切って最も未知語が多い。
 `novel` は cwj に対して**未知語率・平均語長・助動詞率の3点すべてで優る**
@@ -637,7 +637,7 @@ python3 scripts/12_dict_compare.py --plain data/plain/full \
 | `scripts/05_tokenise_unidic.py` の `PROD_*` | 探索順の既定・警告・`--expect-dict` |
 | `data/tokens/tokenise_provenance.json` | 実際に使った辞書・版・素性数・語形方針・未知語率（05 が毎回書く） |
 | 各 TSV の 1 行目 | `dictionary=` `version=` `lemma_policy=` `dicdir=`（`auto` とは書かない） |
-| `data/datasets/dataset_provenance.json` | 上記＋チャンク長・上限・種（06 が書く） |
+| `data/datasets/dataset_provenance.json` | 上記＋チャンク長・上限・シード（06 が書く） |
 | `metadata/corpus_metadata_v3.csv` の `measure_source` | 実測に使ったトークン列と**辞書名**（`rebuilt:tokens_surface@unidic-novel-v202512`） |
 
 ### 変更した箇所の一覧（2026-09-22）

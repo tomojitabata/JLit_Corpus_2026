@@ -93,8 +93,8 @@ JLit_Corpus_2026/
 │   ├── expansion_candidates.csv 増補候補41件（優先度つき）
 │   └── diagnostics_v1.csv       v1 全64ファイルの実測値
 ├── notebooks/                   全8ステップの講義ノートブック（配布版。受講生は直接開かない）
-├── templates/                   課題の型（StepN_report.md・final_report.md。make_notebooks.py が生成）
-├── my_work/                     受講生の作業フォルダ（独立した git。受講生自身の GitHub に控える）
+├── templates/                   課題のテンプレート（StepN_report.md・final_report.md。make_notebooks.py が生成）
+├── my_work/                     受講生の作業フォルダ（独立した git。受講生自身の GitHub にバックアップする）
 ├── scripts/
 │   ├── 00_bootstrap_mac.sh      macOS セットアップ（共用 iMac／自分の Mac）
 │   ├── 00_env_check.py          環境チェック
@@ -123,7 +123,7 @@ JLit_Corpus_2026/
 │   ├── 99_validate.py           健全性検査（重複・外字・奥付・踊り字・メタデータ）
 │   ├── make_notebooks.py        ノートブック生成
 │   ├── copy_notebooks.py        配布版を my_work/notebooks/ にコピー（教員が直した版は別名で置く）
-│   ├── setup_my_work.sh         my_work/ を git にし，受講生自身の GitHub に控えを作る
+│   ├── setup_my_work.sh         my_work/ を git にし，受講生自身の GitHub にバックアップを作る
 │   ├── update.sh                受講生用の安全な git pull（手元の変更を退避・コースへの push を無効化）
 │   ├── find_unclosed_quotes.py  閉じ括弧のない「の検出
 │   └── lib/aozora.py            外字復元・踊り字展開の中核
@@ -164,9 +164,9 @@ python scripts/00_env_check.py          # ALL OK を確認
 ```
 
 `00_bootstrap_mac.sh` は **sudo を一度も使わない**（uv・Temurin の tar.gz・
-MALLET の tar.gz を展開するだけ）。共用 iMac ではホームが機体ごとに別々（共有されない）ため，
+MALLET の tar.gz を展開するだけ）。共用 iMac ではホームがマシンごとに別々（共有されない）ため，
 JDK・MALLET・UniDic・取得済みテクストを `/Users/Shared/jlit` に置き，
-同じ機体なら次回も別のユーザでも使い回せるようにしている。
+同じマシンなら次回も別のユーザでも使い回せるようにしている。
 
 **解析辞書は `unidic-novel`（近現代口語小説UniDic v202512）に決めてある**
 （2026-09-22。4 辞書を 111 点で比較。未知語率 0.17%＝cwj の 3.9 分の 1）。
@@ -286,7 +286,7 @@ python scripts/15_kwic_index.py \
   --tsv data/tokens/tsv --out data/kwic
 # --meta を省くと metadata/ の自分の版（*_v3_local.csv）> 配布版 v3 > v2 の順に探す
 
-# 画面（127.0.0.1 にしか結び付けない。この機体からだけ見える）
+# 画面（127.0.0.1 でだけ待ち受ける。このマシンからだけ見える）
 python scripts/16_kwic_server.py --open
 
 # 結果をそのまま配れる HTML／CSV に落とす（サーバは要らない）
@@ -319,7 +319,7 @@ XML に写像し，解析用テクストはそこから決定的に生成する�
 
 - 時代ラベルをシャッフルした対照実験（Step 6）
 - 作家をグループとする交差検証（Step 7）
-- 乱数種を変えた安定性検査（Step 5）
+- 乱数シードを変えた安定性検査（Step 5）
 - 児童書を除いても傾向が残るかの確認（Step 8）
 
 いずれもノートブックに実装済みである。

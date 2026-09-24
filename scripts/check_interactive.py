@@ -38,7 +38,7 @@ check_interactive.py
     python3 scripts/check_interactive.py --browser    # Playwright があれば
 
 ``--browser`` は Chromium を使う。入っていなければ 7 だけを飛ばす
-（受講生の機体では必要ない。図を作り直したときにこちらで確かめる）。
+（受講生のマシンでは必要ない。図を作り直したときにこちらで確かめる）。
 """
 from __future__ import annotations
 
@@ -254,7 +254,7 @@ def main() -> int:
             chk(tgt['term'] in tip and '近傍' in tip and '頻度' in tip,
                 '7b) 吹き出しに語・見出し・近傍が出る')
             chk('1 件' in cnt and marks == 1,
-                '7c) 検索が表と図の印の両方に効く')
+                '7c) 検索が表と図のマーカーの両方に効く')
 
     print()
     if ng:

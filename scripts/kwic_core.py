@@ -24,7 +24,7 @@ KWIC コンコーダンサの中身（索引づくりと検索）。**画面も�
    語彙素で検索して表層形を表示することもできる。
 2. **辞書名と版を索引に刻む。** どの辞書で切った本文を読んでいるのかが
    分からない用例は，証拠にならない。
-3. **メタデータの突合は0埋めに強い鍵で行い，外れた作品は必ず報告する。**
+3. **メタデータの突合は0埋めに強いキーで行い，外れた作品は必ず報告する。**
    2026-09-22 に 101 点中 62 点が黙って落ちた事故（``work_rows()`` の項）と
    同じ轍を踏まないため。突合できない作品は「メタデータ無し」と**表示に出す**。
 4. **句読点も索引に入れる。** 読み返すのに要る（``keep_punct`` は
@@ -83,10 +83,10 @@ def year_band(year) -> int:
 
 
 # ---------------------------------------------------------------------------
-# メタデータの突合（0埋めに強い鍵）
+# メタデータの突合（0埋めに強いキー）
 # ---------------------------------------------------------------------------
 def stem_keys(r: dict) -> list[str]:
-    """メタデータの1行から，トークンファイルの語幹になりうる鍵をすべて作る。
+    """メタデータの1行から，トークンファイルの語幹になりうるキーをすべて作る。
 
     ⚠ ``corpus_metadata_v3.csv`` の作品 ID は，v1 由来の行では0埋めされて
     おらず（``1743``），増補した行では0埋めされている（``001504``）。
@@ -231,7 +231,7 @@ def build_index(tsv_dir: str | os.PathLike, meta_path: str | os.PathLike,
             '出典が出ない用例は証拠にならないので，metadata を直すこと。')
     if len(unmatched) > len(files) * 0.1:
         say(f'[FATAL] 突合できない作品が {len(unmatched)}/{len(files)} 点'
-            '（1割超）ある。**鍵の作り方を疑うこと**'
+            '（1割超）ある。**キーの作り方を疑うこと**'
             '（scripts/check_stem_keys.py）。')
 
     if len(dict_names) > 1:
@@ -618,7 +618,7 @@ class KwicIndex:
 
         def ctx_rank(off: int) -> np.ndarray:
             # 文境界を越えた先は -1（空文字と同じ扱い＝先頭）にする。
-            # 並べ替えの鍵に隣の文の語を使ってはいけない。
+            # 並べ替えのキーに隣の文の語を使ってはいけない。
             j = hits + off
             ok = (j >= 0) & (j < self.n)
             jj = np.clip(j, 0, self.n - 1)
@@ -634,7 +634,7 @@ class KwicIndex:
             else:
                 offs = [span] if sort == 'right1' else [span, span + 1]
             keys = [ctx_rank(o) for o in offs]
-            # lexsort は**最後の鍵が主**なので逆順に積む
+            # lexsort は**最後のキーが主**なので逆順に積む
             idx = np.lexsort(tuple(reversed(keys + [hits.astype(np.int64)])))
         elif sort in ('year', 'author', 'title'):
             wid = np.asarray(self.a['work'][hits], dtype=np.int64)
@@ -710,7 +710,7 @@ class KwicIndex:
     # -- 共起語 -----------------------------------------------------------
     def _collocates(self, hits: np.ndarray, span: int, base: str,
                     window: int, topn: int) -> list[dict]:
-        """窓内の共起語を LogDice・MI・t で並べる。
+        """ウィンドウ内の共起語を LogDice・MI・t で並べる。
 
         LogDice（Rychlý 2008）を既定にする。**MI は低頻度語を持ち上げる**ので，
         文学コーパスでは固有名詞や誤解析が上位に来やすい。
@@ -723,7 +723,7 @@ class KwicIndex:
         N = float(self.n)
         f_node = float(hits.size)
         V = len(self.v[base])
-        # ⚠ **窓の中を Python の二重の輪で回さない。** 何十万件も当たる式で
+        # ⚠ **ウィンドウの中を Python の二重の輪で回さない。** 何十万件も当たる式で
         # 数秒かかる。ずらし幅ごとに一括で拾って ``bincount`` で数える
         # （結果は同じ）。
         co = np.zeros(V, dtype=np.int64)

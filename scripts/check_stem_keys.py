@@ -3,7 +3,7 @@
 """
 check_stem_keys.py
 ==================
-``work_stem`` の鍵の作り方を静的に検査する。**0 埋めを忘れた鍵を探す。**
+``work_stem`` のキーの作り方を静的に検査する。**0 埋めを忘れたキーを探す。**
 
 なぜ要るのか
 ------------
@@ -16,7 +16,7 @@ check_stem_keys.py
 
     idx[f"{r['aozora_person_id']}_{r['aozora_work_id']}"] = r
 
-と素朴に書くと，``000119_1743`` という鍵ができる。トークンファイルの語幹は
+と素朴に書くと，``000119_1743`` というキーができる。トークンファイルの語幹は
 ``000119_001743`` なので**1件も引けない**。
 
 **そして，エラーは出ない。** ``dict.get`` は空振りしても例外を投げないので，
@@ -27,10 +27,10 @@ check_stem_keys.py
 
 検査すること
 ------------
-``[NG  ]`` 人物 ID と作品 ID を連結した鍵を作っているのに，
+``[NG  ]`` 人物 ID と作品 ID を連結したキーを作っているのに，
           **同じ式の中で ``zfill`` を呼んでいない**箇所。
 
-``[warn]`` 鍵を作っているが，``zfill(6)`` 以外の桁数を使っている箇所
+``[warn]`` キーを作っているが，``zfill(6)`` 以外の桁数を使っている箇所
           （綴りが揃わない）。
 
 使い方
@@ -48,7 +48,7 @@ import re
 
 OK, WARN, NG = '[ok  ]', '[warn]', '[NG  ]'
 
-# 人物 ID と作品 ID を連結して鍵を作っている式（f文字列でも連結でも拾う）
+# 人物 ID と作品 ID を連結してキーを作っている式（f文字列でも連結でも拾う）
 KEY_RE = re.compile(
     r"""f?['"][^'"]*\{\s*[A-Za-z_][\w.\[\]'"()]*\s*\}_\{\s*[A-Za-z_][\w.\[\]'"()]*\s*\}"""
 )
@@ -57,8 +57,8 @@ IDISH_RE = re.compile(r'person_id|work_id|\bpid\b|\bwid\b')
 ZFILL_RE = re.compile(r'zfill\(\s*(\d+)\s*\)')
 
 
-# 鍵として使われている印。辞書の添字・``get``・``keys`` への追加・
-# ファイル名の組み立て。**print の中身は表示であって鍵ではない**ので外す。
+# キーとして使われている印。辞書の添字・``get``・``keys`` への追加・
+# ファイル名の組み立て。**print の中身は表示であってキーではない**ので外す。
 USED_AS_KEY_RE = re.compile(
     r"""(\[\s*f?['"])|(\.get\(\s*f?['"])|(\bkeys\b)|(\bstem\b)|(\bname\s*=)"""
     r"""|(\bidx\b)|(\bindex\b)|(\bin\s+\w+\s*$)"""
@@ -112,8 +112,8 @@ def scan_text(text: str, label: str) -> tuple[int, int]:
         if not KEY_RE.search(line):
             continue
         if not USED_AS_KEY_RE.search(line) or DISPLAY_RE.search(line):
-            continue                        # 表示のための文字列は鍵ではない
-        # 鍵を作る式は複数行にまたがることがあるので前後も一緒に見る
+            continue                        # 表示のための文字列はキーではない
+        # キーを作る式は複数行にまたがることがあるので前後も一緒に見る
         window = '\n'.join(lines[max(0, i - 4):i + 3])
         if not IDISH_RE.search(window):
             continue
@@ -122,7 +122,7 @@ def scan_text(text: str, label: str) -> tuple[int, int]:
             ng += 1
             print(f'{NG} {label}:{i}')
             print(f'        {line.strip()[:110]}')
-            print('        ID を連結して鍵を作っているが zfill が無い。'
+            print('        ID を連結してキーを作っているが zfill が無い。'
                   '0 埋めの綴り違いで**1件も引けない**ことがある。')
         elif any(n != '6' for n in z):
             warn += 1
@@ -161,15 +161,15 @@ def main() -> int:
 
     print()
     if ng:
-        print(f'{NG} {n_files} ファイルを検査：0 埋めを忘れた鍵 {ng} 件')
-        print('       鍵は両方を 0 埋めして作ること。念のため索引そのままの'
+        print(f'{NG} {n_files} ファイルを検査：0 埋めを忘れたキー {ng} 件')
+        print('       キーは両方を 0 埋めして作ること。念のため索引そのままの'
               '綴りも登録しておくとよい:')
         print("         keys = [f'{pid.zfill(6)}_{wid.zfill(6)}', "
               "f'{pid}_{wid}', f'{pid.zfill(6)}_{wid}']")
         print('       突合できなかった件数を**必ず報告する**こと。'
               '黙って通すのがこの事故の本体である。')
     else:
-        print(f'{OK} {n_files} ファイルを検査：0 埋めを忘れた鍵は無い'
+        print(f'{OK} {n_files} ファイルを検査：0 埋めを忘れたキーは無い'
               + (f'（点検 {warn} 件）' if warn else ''))
     return 1 if ng else 0
 

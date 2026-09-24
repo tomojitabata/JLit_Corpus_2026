@@ -9,7 +9,7 @@ copy_notebooks.py
 notebooks/ の配布版を直接実行すると，出力が .ipynb に書き込まれて
 「手元で変更した」扱いになり，次の `git pull` が止まる。my_work/ はコースの
 リポジトリの .gitignore で除外してあるので，いくら実行・書き込みをしても
-pull は止まらない。my_work/ は自分の GitHub に控えを取る（setup_my_work.sh）。
+pull は止まらない。my_work/ は自分の GitHub にバックアップを取る（setup_my_work.sh）。
 
     python scripts/copy_notebooks.py            # まだ無いものをコピー
     python scripts/copy_notebooks.py --dry-run  # 何をするかだけ表示
@@ -19,7 +19,7 @@ pull は止まらない。my_work/ は自分の GitHub に控えを取る（setu
   - 自分のコピーを実行・編集した   → 自分のコピーはそのまま残し，
     新しい版を「01_corpus_design__新版_0924.ipynb」のような別名で置く
 
-課題の型（templates/StepN_report.md・final_report.md）も同じ規則で
+課題のテンプレート（templates/StepN_report.md・final_report.md）も同じ規則で
 my_work/results/ にコピーする。
 
 scripts/update.sh（教材の更新）の最後にも自動で呼ばれる。
@@ -38,7 +38,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / 'notebooks'
 DST = ROOT / 'my_work' / 'notebooks'
-TPL = ROOT / 'templates'                 # 課題の型（StepN_report.md・final_report.md）
+TPL = ROOT / 'templates'                 # 課題のテンプレート（StepN_report.md・final_report.md）
 TPL_DST = ROOT / 'my_work' / 'results'
 STATE_NAME = '.copied_from.json'         # コピーした時点の配布版・コピーのハッシュ
 
@@ -129,10 +129,10 @@ def main() -> int:
               '以後は新版で続けるとよい（自分の版は消さずに残してある）')
     print(f'       Jupyter では {DST.relative_to(ROOT)}/ のノートブックを開くこと（notebooks/ は配布版）')
     if tpls:
-        print(f'       課題は {TPL_DST.relative_to(ROOT)}/StepN_report.md（型）に書く（手順書 §5.3）')
+        print(f'       課題は {TPL_DST.relative_to(ROOT)}/StepN_report.md（テンプレート）に書く（手順書 §5.3）')
     if not a.dry_run and not (ROOT / 'my_work' / '.git').exists():
-        print('[NOTE] my_work/ の控えがまだ無い。bash scripts/setup_my_work.sh <GitHubのユーザ名> で'
-              '自分の GitHub に控えを作ること（手順書 §5）')
+        print('[NOTE] my_work/ のバックアップがまだ無い。bash scripts/setup_my_work.sh <GitHubのユーザ名> で'
+              '自分の GitHub にバックアップを作ること（手順書 §5）')
     return 0
 
 

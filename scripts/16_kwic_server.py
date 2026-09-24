@@ -16,8 +16,8 @@ KWIC コンコーダンサをブラウザで使う。**標準ライブラリだ�
 
 約束
 ----
-* **127.0.0.1 にしか結び付けない。** 研究室の他の機体からは見えない
-  （認証の無い簡易サーバなので，網に公開しないための仕様である）。``--host`` で
+* **127.0.0.1 でだけ待ち受ける。** 研究室の他のマシンからは見えない
+  （認証の無い簡易サーバなので，ネットワークに公開しないための仕様である）。``--host`` で
   変えられるが，変えるときは何を公開することになるかを自分で判断すること。
 * **語はすべて JSON で渡し，画面では ``textContent`` で入れる。**
   本文はコーパス由来の任意の文字列なので，HTML に文字列連結で差し込まない。
@@ -97,7 +97,7 @@ class Handler(BaseHTTPRequestHandler):
             elif u.path == '/api/meta':
                 self._json(self.kw.facets())
             elif u.path == '/api/whoami':
-                # 誰の，どの索引のサーバか。127.0.0.1 は機体の中の全ユーザーに
+                # 誰の，どの索引のサーバか。127.0.0.1 はマシンの中の全ユーザーに
                 # 共通なので，前の人がログアウトせずに離れる（ファストユーザ
                 # スイッチ）と，その人のサーバが同じポートに残っている。ノートブックは
                 # これを見て，自分のサーバでなければ別のポートを使う。
@@ -207,7 +207,7 @@ def export_html(kw: KwicIndex, res: dict, path: str | os.PathLike) -> Path:
     note = (f'検索式「{res["query"]}」／列 '
             f'{"語彙素" if res["stream"] == "lem" else "表層形"}／'
             f'総ヒット {res["total"]:,} 件のうち {res["shown"]:,} 件を表示'
-            + (f'／**{res["sample"]} 件に無作為間引き（種 {res["seed"]}）**'
+            + (f'／**{res["sample"]} 件に無作為間引き（シード {res["seed"]}）**'
                if res['sampled'] else '')
             + f'／辞書 {p.get("dictionary", "?")} '
               f'{p.get("dictionary_version", "")}／'
@@ -268,10 +268,10 @@ def main() -> int:
     ap.add_argument('--index', default=str(ROOT / 'data' / 'kwic'))
     ap.add_argument('--port', type=int, default=8765)
     ap.add_argument('--host', default='127.0.0.1',
-                    help='既定は 127.0.0.1（この機体からだけ見える）')
+                    help='既定は 127.0.0.1（このマシンからだけ見える）')
     ap.add_argument('--open', action='store_true', help='ブラウザを開く')
     ap.add_argument('--export', default=None, metavar='HTML',
-                    help='検索結果を HTML に落として終わる（サーバは立てない）')
+                    help='検索結果を HTML に落として終わる（サーバは起動しない）')
     ap.add_argument('--csv', default=None, metavar='CSV',
                     help='検索結果を CSV に落とす（--export と併用できる）')
     ap.add_argument('--query', default=None)
@@ -313,10 +313,10 @@ def main() -> int:
     url = f'http://{args.host}:{args.port}/'
     print(f'\n[serve] {url}   （終わるときは Ctrl-C）')
     if args.host == '127.0.0.1':
-        print('        この機体からだけ見える（認証の無い簡易サーバなので'
+        print('        このマシンからだけ見える（認証の無い簡易サーバなので'
               'これが既定である）。')
     else:
-        print(f'        ⚠ {args.host} に結び付けた。**同じ網の他の機体から'
+        print(f'        ⚠ {args.host} で待ち受けている。**同じネットワークの他のマシンから'
               '本文が読める**。何を公開することになるか確かめること。')
     if args.open:
         threading.Timer(0.6, lambda: webbrowser.open(url)).start()

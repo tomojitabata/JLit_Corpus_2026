@@ -12,7 +12,7 @@
 #   1. 手元で変わった配布ファイルを my_work/_backup/<日時>/ に退避し，配布版に戻す
 #   2. pull で新しく届くファイルと同名の「管理外ファイル」があれば，同じ所へ退避する
 #   3. GitHub の最新版に進める（fast-forward のみ。履歴は書き換えない）
-#   4. my_work/ を自分の GitHub の控えと揃え，copy_notebooks.py で
+#   4. my_work/ を自分の GitHub のバックアップと揃え，copy_notebooks.py で
 #      my_work/notebooks/ に新しいノートブックを揃える
 # を順に行う。**何も消さない**（退避先に必ず残る）。
 #
@@ -134,17 +134,17 @@ else
   fi
 fi
 
-# 3b. 自分の控え（my_work/）を GitHub から取ってくる（別の機体で作業した分）
+# 3b. 自分のバックアップ（my_work/）を GitHub から取ってくる（別のマシンで作業した分）
 if [ -d my_work/.git ] && git -C my_work remote get-url origin >/dev/null 2>&1; then
   if git -C my_work diff --quiet && git -C my_work diff --cached --quiet; then
     if git -C my_work pull -q --ff-only 2>/dev/null; then
-      echo "-- my_work/ を自分の GitHub の控えと揃えた"
+      echo "-- my_work/ を自分の GitHub のバックアップと揃えた"
     else
-      echo "[warn] my_work/ を控えと揃えられなかった（ネットワーク・認証，または別の機体の変更と食い違い）"
+      echo "[warn] my_work/ をバックアップと揃えられなかった（ネットワーク・認証，または別のマシンの変更と食い違い）"
       echo "       cd my_work && git pull で理由を見る"
     fi
   else
-    echo "[warn] my_work/ に控えていない変更があるので，控えからの取り込みは飛ばした"
+    echo "[warn] my_work/ にバックアップしていない変更があるので，バックアップからの取り込みは飛ばした"
   fi
 fi
 
@@ -163,14 +163,14 @@ fi
 if [ "${NBK}" != "0" ]; then
   echo "[NOTE] ${NBK} 件を ${BK}/ に退避した（消していない）。必要なら中身を確かめること"
 fi
-# 5. 自分の控え（my_work/）の状態を知らせる
+# 5. 自分のバックアップ（my_work/）の状態を知らせる
 if [ -d my_work/.git ]; then
   NCH="$(git -C my_work status --porcelain | wc -l | tr -d ' ')"
   if [ "${NCH}" != "0" ]; then
-    echo "[NOTE] my_work/ に，まだ控えていない変更が ${NCH} 件ある。作業の終わりに："
+    echo "[NOTE] my_work/ に，まだバックアップしていない変更が ${NCH} 件ある。作業の終わりに："
     echo "         cd my_work && git add -A && git commit -m \"Step N の作業\" && git push"
   fi
 else
-  echo "[NOTE] my_work/ の控えがまだ無い → bash scripts/setup_my_work.sh <GitHubのユーザ名>（手順書 §5）"
+  echo "[NOTE] my_work/ のバックアップがまだ無い → bash scripts/setup_my_work.sh <GitHubのユーザ名>（手順書 §5）"
 fi
 echo "[ OK ] 完了。Jupyter では my_work/notebooks/ のノートブックを開くこと"

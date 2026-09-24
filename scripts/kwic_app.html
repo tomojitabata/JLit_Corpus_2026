@@ -6,7 +6,7 @@
 <title>JLit KWIC コンコーダンサ</title>
 <!--
   画面。中身（索引と検索）は scripts/kwic_core.py，サーバは 16_kwic_server.py。
-  ● 外部の資源（CDN・フォント・JS 枠組み）は使わない。塞がれた機体でも開く。
+  ● 外部の資源（CDN・フォント・JS 枠組み）は使わない。塞がれたマシンでも開く。
   ● 本文はコーパス由来の任意の文字列なので，**必ず textContent で入れる**。
     文字列連結で HTML に差し込まない。
   ● 由来（辞書・版・索引の作成時刻）を画面の下に常に出す。
@@ -130,7 +130,7 @@ details.help code{background:#f3f2ec;padding:1px 5px;border-radius:4px}
       value="0" style="width:82px"> 件（0で全件）</label>
     <label class="f"><input id="nopunct" type="checkbox"> 句読点を外す</label>
     <label class="f"><input id="coll" type="checkbox" checked> 共起語も出す</label>
-    <label class="f">窓 <select id="collwin">
+    <label class="f">ウィンドウ <select id="collwin">
       <option>2</option><option>3</option><option selected>4</option>
       <option>5</option><option>8</option></select></label>
   </div>
@@ -337,7 +337,7 @@ function render(res) {
   const bl = (META && META.band_labels) || [];
   $('hits-h').textContent =
     `用例  ${num(res.total)} 件`
-    + (res.sampled ? `（うち ${num(res.sample)} 件に無作為間引き・種 ${res.seed}）` : '')
+    + (res.sampled ? `（うち ${num(res.sample)} 件に無作為間引き・シード ${res.seed}）` : '')
     + `／表示 ${num(res.shown)} 件・100万語あたり ${res.per_million}`
     + `／${res.elapsed_ms} ms`;
 
@@ -505,7 +505,7 @@ function saveHtml() {
   const note = `検索式「${LAST.query}」／列 `
     + (LAST.stream === 'lem' ? '語彙素' : '表層形')
     + `／総ヒット ${LAST.total} 件のうち ${LAST.shown} 件`
-    + (LAST.sampled ? `／${LAST.sample} 件に無作為間引き（種 ${LAST.seed}）` : '')
+    + (LAST.sampled ? `／${LAST.sample} 件に無作為間引き（シード ${LAST.seed}）` : '')
     + `／並べ替え ${LAST.sort}／前後 ${LAST.context} 語`
     + `／辞書 ${p.dictionary || '?'} ${p.dictionary_version || ''}`
     + `／索引 ${p.built_at || '?'} 作成`;

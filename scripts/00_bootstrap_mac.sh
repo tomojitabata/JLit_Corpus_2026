@@ -26,23 +26,23 @@
 #   * Apple Silicon なのにターミナルが Rosetta（Intel 互換）で動いているときは，
 #     ネイティブで実行し直す（Intel 用の Python が入って遅く・壊れやすくなるため）
 #   * 既存の仮想環境・JDK が別の CPU 用なら（移行アシスタントで引き継いだ場合など）
-#     控えに退避して作り直す
+#     バックアップに退避して作り直す
 #
 # 授業用 .zshrc（config/zshrc_jlit）
 #   append   ~/.zshrc_jlit に置き，~/.zshrc の末尾に読み込む1行を足す（自分の設定は残る）
-#   replace  ~/.zshrc を置き換える（元の ~/.zshrc は日付つきの控えに残す）
+#   replace  ~/.zshrc を置き換える（元の ~/.zshrc は日付つきのバックアップに残す）
 #   skip     何もしない
 #
 # 二つのモードの違いは**重い共有物をどこに置くか**だけである。
 #
 #   共用 iMac (--なし)      /Users/Shared/jlit
 #       macOS の /Users/Shared は admin 権限なしに全ユーザが読み書きできる。
-#       DH Lab の iMac は XCreds 認証でホームが機体ごとに別々なので，
+#       DH Lab の iMac は XCreds 認証でホームがマシンごとに別々なので，
 #       JDK・MALLET・UniDic・取得済みテクストをここに置いておくと，
 #       **同じマシンなら次回も，別のユーザでも**使い回せる。
 #
 #   自分の Mac (--personal)  ~/.jlit
-#       共有する相手がいないので自分のホームに置く。機体が1台なので，
+#       共有する相手がいないので自分のホームに置く。マシンが1台なので，
 #       一度入れれば以後は何もしなくてよい。
 #
 # どちらでも仮想環境は**リポジトリの親（作業フォルダ）**に作る。
@@ -152,6 +152,44 @@ skip() { printf '  [have] %s\n' "$1"; }
 warn() { printf '  [warn] %s\n' "$1"; }
 die()  { printf '  [ERR ] %s\n' "$1"; exit 1; }
 
+# ---- 共有ディレクトリ（同じマシンを複数のユーザーが順に使う） -------------------
+# /Users/Shared/jlit は，最初にセットアップした人の持ち物として作られる。
+# ふつうの権限（755）のままだと2人目以降が書けずに止まるので，/Users/Shared
+# そのものと同じ 1777（誰でも書けるが，他人のファイルは消せない）にしておく。
+# 辞書・JDK・MALLET は，他の人が書き換えられないよう読み取り専用（a+rX）で置く。
+share_dir() {   # $1: ディレクトリ。無ければ作り，自分の持ち物なら 1777 にする
+  mkdir -p "$1" 2>/dev/null || return 1
+  if [ "$KIND" = lab ] && [ -O "$1" ]; then chmod 1777 "$1" 2>/dev/null; fi
+  return 0
+}
+# 取得中のロック。前の人がファストユーザスイッチで離れ，その人の
+# セットアップが裏で動き続けていると，同じ辞書を2人が同時に展開してしまう。
+LOCKS=""
+release_locks() { local d; for d in $LOCKS; do rmdir "$d" 2>/dev/null; done; }
+trap release_locks EXIT
+take_lock() {   # $1: 名前。取れたら 0，別のユーザーが取得中なら 1
+  local d="$SHARED/.lock.$1"
+  if mkdir "$d" 2>/dev/null; then LOCKS="$LOCKS $d"; return 0; fi
+  # 2時間を超えたロックは，途中で止まった取得の残りとみなして外す
+  # （別のユーザーのロックは 1777 の下では消せないので，そのときは無視して進む）
+  if [ -n "$(find "$d" -maxdepth 0 -mmin +120 2>/dev/null)" ]; then
+    if rmdir "$d" 2>/dev/null && mkdir "$d" 2>/dev/null; then
+      LOCKS="$LOCKS $d"
+    else
+      warn "2時間以上前のロック ${d} が残っている（途中で止まった取得の残り）。無視して進む"
+    fi
+    return 0
+  fi
+  return 1
+}
+need_write() {  # $1: 何を入れるか。共有ディレクトリに書けなければ止める
+  [ -w "$SHARED" ] && return 0
+  die "$1 が ${SHARED} に無く，そこに書く権限も無い。このマシンで ${SHARED} を作った人に 00_bootstrap_mac.sh を再実行してもらうか（権限が直る），--personal を付けて実行すること"
+}
+busy() {        # $1: 何を, $2: ロックの名前
+  die "$1 は，このマシンの別のユーザーが取得中である（${SHARED}/.lock.${2}）。数分待ってから再実行すること（前の人がログアウトせずに離れ，その人のセットアップが裏で動いている可能性がある）"
+}
+
 # -----------------------------------------------------------------------------
 say "0. 環境の確認"
 printf '  マシン名        %s\n' "$(scutil --get ComputerName 2>/dev/null || hostname)"
@@ -195,13 +233,13 @@ fi
 if [ "$KIND" = lab ]; then
 cat <<'NOTE'
 
-  注意：DH Lab の iMac はホームが**機体ごとに別々**（XCreds 認証）。
-  この機体のホームは次回も残っているが，別の iMac にログインすると，
-  その機体の新しいホームから始まる（仮想環境も成果物もそこには無い）。
+  注意：DH Lab の iMac はホームが**マシンごとに別々**（XCreds 認証）。
+  このマシンのホームは次回も残っているが，別の iMac にログインすると，
+  そのマシンの新しいホームから始まる（仮想環境も成果物もそこには無い）。
     * 重い共有物（JDK・MALLET・UniDic・取得済みテクスト）はマシンごとに
       /Users/Shared/jlit に置く。同じマシンなら次回も，別の人でも使える
-    * 自分の成果物は Git で持ち運ぶ（別の機体で続きをするため）
-    * どの機体を使ったかを控えておくこと（上の「マシン名」）
+    * 自分の成果物は Git で持ち運ぶ（別のマシンで続きをするため）
+    * どのマシンを使ったかを控えておくこと（上の「マシン名」）
 NOTE
 else
 cat <<'NOTE'
@@ -229,8 +267,10 @@ if [ "$MODE" = check ]; then
   exit 0
 fi
 
-mkdir -p "$SHARED" 2>/dev/null || die "$SHARED を作れない。--personal を付けて実行すること"
-[ -w "$SHARED" ] || die "$SHARED に書けない。--personal を付けて実行すること"
+share_dir "$SHARED" || die "$SHARED を作れない。--personal を付けて実行すること"
+# 書けなくても止めない。JDK・MALLET・辞書がそろっていれば読むだけで足りる
+# （足りないものがあれば，それを入れる段で need_write が止める）。
+[ -w "$SHARED" ] || warn "${SHARED} には書けない（別のユーザーの持ち物）。そろっているものを読んで使う"
 
 # -----------------------------------------------------------------------------
 say "1. uv（Python の管理）"
@@ -315,13 +355,24 @@ fi
 if [ -d "$SHARED/jdk/Contents/Home" ]; then
   skip "JDK は既にある（${JDK_ARCH}）"
 else
+  need_write "JDK"
+  take_lock jdk || busy "JDK" jdk
   tmp="$(mktemp -d)"
   echo "  Temurin 21 (${JDK_ARCH}) を取得中（約 190 MB）…"
   if curl -L --fail -o "$tmp/jdk.tar.gz" "$JDK_URL"; then
-    mkdir -p "$SHARED/jdk"
     tar xzf "$tmp/jdk.tar.gz" -C "$tmp"
     src="$(find "$tmp" -maxdepth 2 -name 'Contents' -type d | head -1)"
-    [ -n "$src" ] && cp -R "$(dirname "$src")"/* "$SHARED/jdk/" && ok "JDK を展開した"
+    # 仮の名前で置いてから名前を変える（途中の状態を他の人に見せない）
+    part="$SHARED/.jdk.part.$$"
+    if [ -n "$src" ] && mkdir -p "$part" && cp -R "$(dirname "$src")"/* "$part/"; then
+      rm -rf "$SHARED/jdk" 2>/dev/null
+      if [ -e "$SHARED/jdk" ]; then
+        warn "壊れた ${SHARED}/jdk を消せない（別のユーザーの持ち物）。その人に消してもらうこと"
+      else
+        mv "$part" "$SHARED/jdk" && chmod -R a+rX "$SHARED/jdk" && ok "JDK を展開した"
+      fi
+    fi
+    rm -rf "$part" 2>/dev/null
   else
     warn "JDK を取得できなかった。Step 8 の MALLET が使えない。"
     warn "  代替：uv pip install tomotopy（Java 不要の LDA）を使い，レポートに明記する"
@@ -335,19 +386,32 @@ say "4. MALLET"
 if [ -x "$SHARED/mallet/bin/mallet" ]; then
   skip "MALLET は既にある"
 else
+  need_write "MALLET"
+  take_lock mallet || busy "MALLET" mallet
   tmp="$(mktemp -d)"
   if curl -L --fail -o "$tmp/mallet.tgz" "$MALLET_URL"; then
     tar xzf "$tmp/mallet.tgz" -C "$tmp"
     src="$(find "$tmp" -maxdepth 1 -type d -name 'Mallet-*' | head -1)"
-    [ -n "$src" ] && mv "$src" "$SHARED/mallet" && ok "MALLET を展開した"
     # 既定のヒープ 1 GB では本コーパス（約 600 万語）で足りない。
     # 搭載メモリの 1/4 を目安にする（16 GB なら 4 GB）。
-    if [ -f "$SHARED/mallet/bin/mallet" ]; then
+    if [ -n "$src" ] && [ -f "$src/bin/mallet" ]; then
       ram_gb=$(( $(sysctl -n hw.memsize 2>/dev/null || echo 8589934592) / 1073741824 ))
       heap=$(( ram_gb / 4 )); [ "$heap" -lt 2 ] && heap=2
-      /usr/bin/sed -i '' -E "s/^MEMORY=.*$/MEMORY=\"\\\${MALLET_MEMORY:-${heap}g}\"/" "$SHARED/mallet/bin/mallet" \
+      /usr/bin/sed -i '' -E "s/^MEMORY=.*$/MEMORY=\"\\\${MALLET_MEMORY:-${heap}g}\"/" "$src/bin/mallet" \
         && ok "MALLET のヒープを ${heap} GB にした（搭載 ${ram_gb} GB の 1/4。既定 1 GB では足りない）"
-      chmod +x "$SHARED/mallet/bin/mallet"
+      chmod +x "$src/bin/mallet"
+      # 仮の名前で置いてから名前を変える（途中の状態を他の人に見せない）
+      part="$SHARED/.mallet.part.$$"
+      rm -rf "$part" 2>/dev/null
+      if mv "$src" "$part"; then
+        rm -rf "$SHARED/mallet" 2>/dev/null
+        if [ -e "$SHARED/mallet" ]; then
+          warn "壊れた ${SHARED}/mallet を消せない（別のユーザーの持ち物）。その人に消してもらうこと"
+        else
+          mv "$part" "$SHARED/mallet" && chmod -R a+rX "$SHARED/mallet" && ok "MALLET を展開した"
+        fi
+      fi
+      rm -rf "$part" 2>/dev/null
     fi
   else
     warn "MALLET を取得できなかった"
@@ -368,6 +432,13 @@ fetch_dict() {
     skip "$label は既にある（$SHARED/${name}）"
     return 0
   fi
+  need_write "$label"
+  take_lock "$name" || busy "$label" "$name"
+  # ロックを取るまでの間に別の人が入れ終えていれば，それを使う
+  if [ -f "$SHARED/$name/dicrc" ] || [ -f "$SHARED/$name/sys.dic" ]; then
+    skip "$label は既にある（$SHARED/${name}）"
+    return 0
+  fi
   tmp="$(mktemp -d)"
   echo "  $label を取得中（約 1.7 GB。数分かかる）…"
   if curl -L --fail -o "$tmp/d.zip" "$url"; then
@@ -376,11 +447,22 @@ fetch_dict() {
     /usr/bin/unzip -q "$tmp/d.zip" -d "$tmp/x"
     src="$(find "$tmp/x" -maxdepth 3 -name 'sys.dic' | head -1)"
     if [ -n "$src" ]; then
-      mkdir -p "$SHARED/$name"
-      cp -R "$(dirname "$src")"/* "$SHARED/$name/"
-      ok "$label を $SHARED/$name に展開した（このマシンの全員が使える）"
-      rm -rf "$tmp"
-      return 0
+      # 仮の名前で置いてから名前を変える。展開の途中で別の人が見ても
+      # 「dicrc はあるが sys.dic が無い」といった半端な辞書を掴まない
+      local part="$SHARED/.$name.part.$$"
+      if mkdir -p "$part" && cp -R "$(dirname "$src")"/* "$part/"; then
+        rm -rf "$SHARED/$name" 2>/dev/null
+        if [ -e "$SHARED/$name" ]; then
+          warn "壊れた ${SHARED}/${name} を消せない（別のユーザーの持ち物）。その人に消してもらうこと"
+        else
+          mv "$part" "$SHARED/$name" && chmod -R a+rX "$SHARED/$name" \
+            && ok "$label を $SHARED/$name に展開した（このマシンの全員が使える）"
+        fi
+      fi
+      rm -rf "$part" "$tmp" 2>/dev/null
+      [ -f "$SHARED/$name/sys.dic" ] && return 0
+      warn "$label を $SHARED/$name に置けなかった"
+      return 1
     fi
     warn "$label の中身が想定と違う（sys.dic が見つからない）"
   else
@@ -413,7 +495,8 @@ fi
 
 # -----------------------------------------------------------------------------
 say "6. 環境変数のファイルを書く"
-cat > "$ENVFILE" <<EOF
+ENVNEW="$(mktemp)"
+cat > "$ENVNEW" <<EOF
 # JLit — このマシンの共有環境。作業前に source すること
 #   source $ENVFILE
 export JLIT_SHARED="$SHARED"
@@ -424,9 +507,21 @@ export JAVA_HOME="$SHARED/jdk/Contents/Home"
 export MALLET="$SHARED/mallet/bin/mallet"
 export PATH="\$JAVA_HOME/bin:\$HOME/.local/bin:\$PATH"
 EOF
-mkdir -p "$SHARED/aozora-cache"
+# env.sh の中身は誰が書いても同じ。同じなら書き直さない。別のユーザーの
+# 持ち物で書けなければ，自分用（~/.jlit/env.sh）に書く（授業用 .zshrc は両方を読む）
+if [ -f "$ENVFILE" ] && cmp -s "$ENVNEW" "$ENVFILE"; then
+  skip "${ENVFILE}（中身は同じ）"
+elif { [ -f "$ENVFILE" ] && [ -w "$ENVFILE" ]; } || { [ ! -f "$ENVFILE" ] && [ -w "$SHARED" ]; }; then
+  cp "$ENVNEW" "$ENVFILE" && chmod a+r "$ENVFILE" && ok "$ENVFILE を書いた"
+else
+  mkdir -p "$HOME/.jlit" && cp "$ENVNEW" "$HOME/.jlit/env.sh" \
+    && warn "$ENVFILE は別のユーザーの持ち物で書けないので，$HOME/.jlit/env.sh に書いた"
+  ENVFILE="$HOME/.jlit/env.sh"
+fi
+rm -f "$ENVNEW"
+# 青空文庫の XHTML の共有キャッシュは，誰が取得しても次の人が使えるよう 1777 にする
+share_dir "$SHARED/aozora-cache"
 chmod -R a+rX "$SHARED" 2>/dev/null
-ok "$ENVFILE を書いた"
 
 # Jupyter を env.sh 抜きで起動しても辞書・Java・MALLET が見えるように，
 # 同じ環境変数を 'Python (JLit)' カーネルの kernel.json に書き込む。
@@ -463,7 +558,7 @@ elif [ "$ZSHRC_MODE" = replace ]; then
     skip "~/.zshrc は既に授業用"
   else
     [ -f "$HOME/.zshrc" ] && cp "$HOME/.zshrc" "$HOME/.zshrc.bak.$(date +%Y%m%d%H%M)" \
-      && ok "元の ~/.zshrc を ~/.zshrc.bak.$(date +%Y%m%d%H%M) に控えた"
+      && ok "元の ~/.zshrc を ~/.zshrc.bak.$(date +%Y%m%d%H%M) にバックアップした"
     cp "$ZSRC" "$HOME/.zshrc" && ok "~/.zshrc を授業用に置き換えた"
   fi
 else
@@ -476,7 +571,7 @@ else
   else
     [ -f "$HOME/.zshrc" ] && cp "$HOME/.zshrc" "$HOME/.zshrc.bak.$(date +%Y%m%d%H%M)"
     printf '\n%s\n[ -f ~/.zshrc_jlit ] && source ~/.zshrc_jlit\n' "$MARK" >> "$HOME/.zshrc" \
-      && ok "~/.zshrc の末尾に読み込みの1行を足した（元は ~/.zshrc.bak.* に控えた）"
+      && ok "~/.zshrc の末尾に読み込みの1行を足した（元は ~/.zshrc.bak.* にバックアップした）"
   fi
 fi
 
@@ -506,8 +601,8 @@ cat <<EOF
 
 $([ "$KIND" = lab ] && cat <<'L'
 **初めての iMac に移ったら，このスクリプトをもう一度実行すること。**
-ホームは機体ごとに別々なので，その機体では新しいホームから始まる
-（この機体の作業はこの機体に残る）。成果物は Git で持ち運ぶこと。
+ホームはマシンごとに別々なので，そのマシンでは新しいホームから始まる
+（このマシンの作業はこのマシンに残る）。成果物は Git で持ち運ぶこと。
 L
 )
 --------------------------------------------------------------------------

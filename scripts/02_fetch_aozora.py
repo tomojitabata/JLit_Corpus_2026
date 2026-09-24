@@ -74,7 +74,7 @@ class FetchError(RuntimeError):
 def shared_cache(args) -> str:
     """XHTML の共有キャッシュの場所を返す。無ければ空文字。
 
-    DH Lab の iMac は XCreds 認証でホームが機体ごとに別々（共有されない）ため，
+    DH Lab の iMac は XCreds 認証でホームがマシンごとに別々（共有されない）ため，
     別のマシンに移るたびに 100 件超を取り直すことになる。青空文庫の
     サーバにも負荷をかけるので，**マシン内で共有できる場所**に
     キャッシュを置く。macOS の ``/Users/Shared`` は admin 権限なしに
@@ -422,7 +422,7 @@ def cmd_works(args) -> int:
             log.append((name, h, 'cached'))
             continue
         # 共有キャッシュにあれば青空文庫には取りに行かない。
-        # DH Lab の iMac はホームが機体ごとに別々（共有されない）ので，別のユーザや
+        # DH Lab の iMac はホームがマシンごとに別々（共有されない）ので，別のユーザや
         # 前の授業回で取得済みのものを使い回せると待ち時間が大きく減る。
         cached = os.path.join(cache, name) if cache else ''
         if cached and os.path.exists(cached) and not args.force:
@@ -443,7 +443,13 @@ def cmd_works(args) -> int:
             fh.write(blob)
         if cache:
             try:                      # 次の人のために共有キャッシュにも置く
-                shutil.copyfile(dest, os.path.join(cache, name))
+                # 仮の名前で書いてから名前を変える。別のユーザーが同時に
+                # 読んでも書きかけのファイルを掴まない。誰でも読めるようにする
+                final = os.path.join(cache, name)
+                part = f'{final}.part.{os.getpid()}'
+                shutil.copyfile(dest, part)
+                os.chmod(part, 0o644)
+                os.replace(part, final)
             except OSError as e:
                 print(f'  [warn] 共有キャッシュに書けない（{e}）。取得は成功している')
         yf, yt = year_from_shoshutsu(h['shoshutsu'])

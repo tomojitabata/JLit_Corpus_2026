@@ -12,7 +12,7 @@
 ``freq_matrix_mfw.csv``   最頻語 N 語 × 作品 の相対頻度行列（stylo と互換）
 ``work_profile.csv``      作品ごとの文体指標（TTR・平均文長・漢字率・会話率ほか）
 ``keyness_by_period.csv`` 時代ごとの特徴語（対数尤度比 G² と効果量，
-                          および**散らばり**の列 df_all_prop / dp_gries /
+                          および**散らばり（ディスパーション）**の列 df_all_prop / dp_gries /
                           top_work_share。culling と bursty 判定に使う）
 ``delta_matrix.csv``      Burrows's Delta 距離行列
 ``pca_coordinates.csv``   最頻語相対頻度の主成分得点（第1–4主成分）
@@ -62,7 +62,7 @@ def stem_keys(r: dict) -> list[str]:
     1件も引けない。**エラーは出ない。** period も year_first も空のまま
     図が描かれ，62 点が「初出年不明」の灰色になる（2026-09-22 に実際に
     起きた）。両方を 0 埋めして照合し，念のため索引そのままの綴りと
-    片側だけ 0 埋めした綴りも鍵に登録する。
+    片側だけ 0 埋めした綴りもキーに登録する。
     """
     keys = []
     fv = (r.get('file_v1') or '').strip()
@@ -166,9 +166,9 @@ def main() -> int:
             w = csv.writer(fh)
             w.writerow(['work_stem', 'reason'])
             for s in unmatched:
-                w.writerow([s, 'corpus_metadata に該当行がない（鍵の綴り違いを疑う）'])
+                w.writerow([s, 'corpus_metadata に該当行がない（キーの綴り違いを疑う）'])
         print(f'         一覧 → {dest}')
-        print('         鍵の綴りを疑うこと。作品 ID の 0 埋めの有無が'
+        print('         キーの綴りを疑うこと。作品 ID の 0 埋めの有無が'
               'メタデータ内で混在している。')
         print('         stem_keys() の説明を読み，'
               '00_extend_metadata.py で v3 を作り直すのが早い。')

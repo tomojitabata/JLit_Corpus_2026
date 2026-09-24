@@ -90,7 +90,7 @@ def calls_in_notebooks(nb_dir: Path, mentioned: set[str] | None = None
     """ノートブックごとの ``run_script`` 呼び出しと，渡している選択肢。
 
     ``mentioned`` を渡すと，``run_script`` 以外の呼び方（``subprocess.Popen``
-    でサーバを立てるなど）で**名前が出てくるスクリプト**も集める。
+    でサーバを起動するなど）で**名前が出てくるスクリプト**も集める。
     「誰も呼んでいない」の判定を間違えないため。
     """
     out: dict[str, list[tuple[str, list[str]]]] = {}

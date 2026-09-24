@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # scripts/setup_my_work.sh — 自分の作業フォルダ my_work/ を用意し，
-#                            自分の GitHub（private リポジトリ）に控えを取る
+#                            自分の GitHub（private リポジトリ）にバックアップを取る
 #
 #     cd ~/Documents/dh_project/JLit_Corpus_2026
 #     bash scripts/setup_my_work.sh <GitHubのユーザ名> [リポジトリ名]
@@ -12,10 +12,10 @@
 # このスクリプトがすること
 #   1. コースのリポジトリへの push を無効にする（教材には一切書き込まない）
 #   2. my_work/ を独立した git リポジトリにする。push 先は
-#      https://github.com/<ユーザ名>/<リポジトリ名>.git。そこに別の機体で作った
-#      控えがあれば，それを取ってくる（2台目以降の機体でも同じ1行でよい）
+#      https://github.com/<ユーザ名>/<リポジトリ名>.git。そこに別のマシンで作った
+#      バックアップがあれば，それを取ってくる（2台目以降のマシンでも同じ1行でよい）
 #   3. my_work/notebooks/ にノートブックを揃える
-#   4. .gitignore と，50 MB を超えるファイルを止める見張りを置く
+#   4. .gitignore と，50 MB を超えるファイルを止めるチェックを置く
 #   5. コミットして push する
 #
 # 何度実行してもよい（済んでいる手順は飛ばす）。
@@ -55,7 +55,7 @@ if [ "$(git remote get-url --push origin 2>/dev/null)" != "DISABLED" ]; then
   echo "-- コースのリポジトリへの push を無効にした"
 fi
 
-# ---- 2. my_work/ を git リポジトリにする（GitHub に控えがあれば取ってくる） ----
+# ---- 2. my_work/ を git リポジトリにする（GitHub にバックアップがあれば取ってくる） ----
 URL="https://github.com/${GHUSER}/${REPO}.git"
 mkdir -p my_work
 cd my_work || exit 1
@@ -63,12 +63,12 @@ if [ ! -d .git ]; then
   git init -q
   git symbolic-ref HEAD refs/heads/main
   git remote add origin "${URL}"
-  echo "-- my_work/ を git リポジトリにした。GitHub の控えを確かめる（ユーザ名とトークンを聞かれることがある）"
+  echo "-- my_work/ を git リポジトリにした。GitHub のバックアップを確かめる（ユーザ名とトークンを聞かれることがある）"
   if git fetch -q origin 2>/dev/null && git rev-parse -q --verify origin/main >/dev/null; then
-    # 別の機体で作った控えがある → それを取ってくる（こちらの同名ファイルは控えの版になる）
+    # 別のマシンで作ったバックアップがある → それを取ってくる（こちらの同名ファイルはバックアップの版になる）
     git checkout -q -f -B main origin/main
     git branch -q --set-upstream-to=origin/main main
-    echo "-- GitHub の控え（${URL}）を取ってきた"
+    echo "-- GitHub のバックアップ（${URL}）を取ってきた"
   fi
 fi
 CUR="$(git config --get remote.origin.url)"
@@ -100,11 +100,11 @@ for c in "${ROOT}/../.venv/bin/python" "${ROOT}/../.venv/Scripts/python.exe" pyt
 done
 [ -n "${PY}" ] && "${PY}" scripts/copy_notebooks.py | grep -v '^\[NOTE\]'
 
-# ---- 4. 控えの設定（.gitignore・README・大きいファイルの見張り） ------------
+# ---- 4. バックアップの設定（.gitignore・README・大きいファイルのチェック） ------------
 cd my_work || exit 1
 if [ ! -f .gitignore ]; then
   cat > .gitignore <<'EOF'
-# 大きいもの・作り直せるものは控えに入れない（GitHub は 1 ファイル 100 MB まで）
+# 大きいもの・作り直せるものはバックアップに入れない（GitHub は 1 ファイル 100 MB まで）
 *.model
 *.npy
 *.mallet
@@ -119,7 +119,7 @@ if [ ! -f README.md ]; then
   cat > README.md <<EOF
 # ${REPO}
 
-JLit_Corpus_2026（テクスト分析論）の自分の作業の控え。
+JLit_Corpus_2026（テクスト分析論）の自分の作業のバックアップ。
 
 - \`notebooks/\` … 実行したノートブック（配布版のコピー）
 - \`results/\`   … 図（SVG）・表・レポート原稿
@@ -132,13 +132,13 @@ HOOK=.git/hooks/pre-commit
 if [ ! -f "${HOOK}" ]; then
   cat > "${HOOK}" <<'EOF'
 #!/bin/bash
-# setup_my_work.sh が置いた見張り：50 MB を超えるファイルのコミットを止める
+# setup_my_work.sh が置いたチェック：50 MB を超えるファイルのコミットを止める
 fail=0
 while IFS= read -r -d '' f; do
   [ -f "$f" ] || continue
   s=$(wc -c < "$f" | tr -d ' ')
   if [ "$s" -gt 52428800 ]; then
-    [ "$fail" = 0 ] && echo "[ERR ] 50 MB を超えるファイルは控えに入れない（GitHub の上限は 100 MB）:"
+    [ "$fail" = 0 ] && echo "[ERR ] 50 MB を超えるファイルはバックアップに入れない（GitHub の上限は 100 MB）:"
     echo "         $f ($((s / 1048576)) MB)"
     fail=1
   fi
@@ -153,15 +153,15 @@ fi
 
 git add -A
 if ! git diff --cached --quiet; then
-  git commit -q -m "作業フォルダの控え（$(date +%Y-%m-%d)）" && echo "-- コミットした"
+  git commit -q -m "作業フォルダのバックアップ（$(date +%Y-%m-%d)）" && echo "-- コミットした"
 fi
 
 # ---- 5. 自分の GitHub へ push する -------------------------------------------
 echo "-- ${URL} へ push する（初回はユーザ名とトークンを聞かれる。§5.2）"
 if git push -u origin main; then
-  echo "[ OK ] 控えができた: ${URL}"
+  echo "[ OK ] バックアップができた: ${URL}"
   echo "       作業の終わりに：cd my_work && git add -A && git commit -m \"Step N の作業\" && git push"
-  echo "       別の機体では，教材を clone してから同じ1行：bash scripts/setup_my_work.sh ${GHUSER} ${REPO}"
+  echo "       別のマシンでは，教材を clone してから同じ1行：bash scripts/setup_my_work.sh ${GHUSER} ${REPO}"
 else
   echo "[ERR ] push できなかった。よくある原因："
   echo "       1) GitHub に ${REPO} という空の private リポジトリを作っていない"
