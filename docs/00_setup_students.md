@@ -38,7 +38,8 @@ stat: 手元の大きさ: stat: No such file or directory
 分からなくなるので，**うまくいかないときは1行ずつ貼る**こと。
 
 （注釈を後ろに書けるようにしたい場合は `setopt interactive_comments` を
-実行する。スクリプトファイルの中では最初からコメントとして扱われるので，
+実行する。§1.5 の授業用 `.zshrc` を入れれば，最初からそうなっている。
+スクリプトファイルの中では最初からコメントとして扱われるので，
 この問題は対話的に使うときだけ起きる。）
 
 **もう一つ。行の継続は `\` 1文字である。** `\\` と2つ重なっていると，
@@ -150,6 +151,32 @@ python3 ~/Documents/dh_project/JLit_Corpus_2026/scripts/check_unidic_dir.py /Use
 **展開先を Dropbox・iCloud の中にしないこと**（同期と競合して壊れる）。
 `unzip` が失敗するときは `docs/dictionary_comparison.md` §9 に手順がある。
 
+### 1.5 シェルの設定（授業用 `.zshrc`）
+
+ターミナルの設定ファイル `~/.zshrc` を，授業用のもの（`config/zshrc_jlit`）に
+揃える。これで次のことが自動で行われる。
+
+- 辞書・Java・MALLET の環境変数（`env.sh`）を読み込む
+- **`jlit` と打つだけで**，仮想環境が有効になりリポジトリに移動する
+- `jl`（または `jn`）で JupyterLab が起動する
+- 行の後ろの `#` がコメントになる（§1.0）。プロンプトに git のブランチ名が出る
+
+セットアップ（§2.2 / §3.2）が終わったあと，リポジトリで次の3行を実行する。
+今の `~/.zshrc` があれば日付つきで控えを残してから置き換える。
+
+```bash
+[ -f ~/.zshrc ] && cp ~/.zshrc ~/.zshrc.bak.$(date +%Y%m%d)
+cp config/zshrc_jlit ~/.zshrc
+exec zsh
+```
+
+自分で追加した設定がある場合は，控え（`~/.zshrc.bak.日付`）から必要な行だけを
+`~/.zshrc` の末尾に書き足す。**`pip freeze > requirements.txt` のような別名は
+入れないこと**（リポジトリの `requirements.txt` を上書きしてしまう）。
+
+⚠ 共用 iMac ではホームが機体ごとに分かれる（§1.1）。**機体を移ったら，
+この3行ももう一度実行する。**
+
 ---
 
 ## 2. A：DH Lab 共用 iMac
@@ -192,18 +219,21 @@ bash scripts/00_bootstrap_mac.sh
 
 ### 2.3 毎回の作業開始
 
+授業用 `.zshrc`（§1.5）を入れていれば，ターミナルを開いて
+
+```bash
+jlit
+```
+
+と打つだけでよい。入れていない場合は次の3行を打つ。
+
 ```bash
 source /Users/Shared/jlit/env.sh
 source ~/Documents/dh_project/.venv/bin/activate
 cd ~/Documents/dh_project/JLit_Corpus_2026
 ```
 
-プロンプト頭に `(.venv)` が付けば有効。毎回打つのが面倒なら `~/.zshrc` の末尾に
-次の1行を足してもよい（**そのマシンにだけ**効く）。
-
-```bash
-[ -f /Users/Shared/jlit/env.sh ] && . /Users/Shared/jlit/env.sh
-```
+プロンプト頭に `(.venv)` が付けば有効。
 
 ### 2.4 別の機体に移ったとき
 
@@ -211,10 +241,14 @@ cd ~/Documents/dh_project/JLit_Corpus_2026
 mkdir -p ~/Documents/dh_project && cd ~/Documents/dh_project
 git clone https://github.com/tomojitabata/JLit_Corpus_2026.git && cd JLit_Corpus_2026
 bash scripts/00_bootstrap_mac.sh
+[ -f ~/.zshrc ] && cp ~/.zshrc ~/.zshrc.bak.$(date +%Y%m%d)
+cp config/zshrc_jlit ~/.zshrc
+exec zsh
 ```
 
 その機体で誰かが既にセットアップしていれば，JDK・MALLET・UniDic は
-`[have]` で飛ばされ，仮想環境を作るだけで済む。
+`[have]` で飛ばされ，仮想環境を作るだけで済む。後半の3行は §1.5 の
+授業用 `.zshrc` で，ホームが機体ごとに分かれるので移るたびに入れ直す。
 
 ---
 
@@ -251,14 +285,15 @@ bash scripts/00_bootstrap_mac.sh --personal
 
 ### 3.3 毎回の作業開始
 
+授業用 `.zshrc`（§1.5）を入れていれば `jlit` の1語でよい。入れていない場合は
+
 ```bash
 source ~/.jlit/env.sh
 source ~/Documents/dh_project/.venv/bin/activate
 cd ~/Documents/dh_project/JLit_Corpus_2026
 ```
 
-`~/.zshrc` に `[ -f ~/.jlit/env.sh ] && . ~/.jlit/env.sh` を足しておけば
-1行目は不要になる。ホームは消えないので，**設定はこの一度だけでよい。**
+ホームは消えないので，`.zshrc` の設定は**この一度だけでよい**。
 
 ### 3.4 自分の Mac を使う人への注意
 

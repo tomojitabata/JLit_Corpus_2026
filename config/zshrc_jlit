@@ -1,0 +1,91 @@
+# ==============================================================================
+# OSAKA UNIVERSITY DIGITAL HUMANITIES — macOS .zshrc (Apple Silicon / Intel)
+# JLit_Corpus_2026 の受講生用。使い方は docs/00_setup_students.md §1.5
+#
+#   [ -f ~/.zshrc ] && cp ~/.zshrc ~/.zshrc.bak.$(date +%Y%m%d)
+#   cp config/zshrc_jlit ~/.zshrc
+#   exec zsh
+#
+# 共用 iMac ではホームが機体ごとに分かれるので，機体を移るたびに上の3行を実行する。
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. SHELL BEHAVIOUR
+# ------------------------------------------------------------------------------
+setopt interactive_comments   # '#' starts a comment at the prompt too
+setopt PROMPT_SUBST           # needed for ${vcs_info_msg_0_} in PROMPT
+
+# History (the home directory exists only on the machine you logged in to)
+HISTSIZE=10000
+SAVEHIST=10000
+HISTFILE=~/.zsh_history
+setopt appendhistory sharehistory
+
+# Prompt: user@host, directory, git branch
+autoload -Uz vcs_info add-zsh-hook
+add-zsh-hook precmd vcs_info
+zstyle ':vcs_info:git:*' formats '(%b)'
+PROMPT='%F{cyan}%n%f@%F{green}%m%f %F{yellow}%~%f %F{magenta}${vcs_info_msg_0_}%f$ '
+
+# ------------------------------------------------------------------------------
+# 2. PATH
+# ------------------------------------------------------------------------------
+# Homebrew: /opt/homebrew (Apple Silicon) or /usr/local (Intel), if present
+for _b in /opt/homebrew/bin/brew /usr/local/bin/brew; do
+  [[ -x $_b ]] && { eval "$($_b shellenv)"; break; }
+done
+unset _b
+
+typeset -U path PATH
+path=(
+  $HOME/.local/bin(N-/)                       # uv
+  /opt/homebrew/bin(N-/)
+  /usr/local/bin(N-/)
+  /Library/TeX/texbin(N-/)                    # MacTeX (version-independent)
+  $path
+  /opt/X11/bin(N-/)
+)
+
+# ------------------------------------------------------------------------------
+# 3. JLIT COURSE ENVIRONMENT (dictionary, Java, MALLET, virtual environment)
+# ------------------------------------------------------------------------------
+# Read after PATH so that JAVA_HOME/bin comes before /usr/bin/java.
+# Shared iMac: /Users/Shared/jlit ; own Mac (--personal): ~/.jlit
+for _e in /Users/Shared/jlit/env.sh ~/.jlit/env.sh; do
+  [[ -f $_e ]] && { source $_e; break; }
+done
+unset _e
+
+JLIT_PROJECT=~/Documents/dh_project
+# Start work: activate the course environment and go to the repository
+alias jlit="source $JLIT_PROJECT/.venv/bin/activate && cd $JLIT_PROJECT/JLit_Corpus_2026"
+alias deact="deactivate"
+
+# ------------------------------------------------------------------------------
+# 4. JUPYTER
+# ------------------------------------------------------------------------------
+alias jl="jupyter lab"
+alias jn="jupyter lab"        # the classic Notebook is not installed
+
+# ------------------------------------------------------------------------------
+# 5. TEXT PROCESSING
+# ------------------------------------------------------------------------------
+alias charcount="wc -m"                       # characters (UTF-8 locale below)
+alias searchcorpus="grep -in --color=auto"
+alias formatjson="python3 -m json.tool"
+# Note: 'wc -w' counts space-separated words; it is meaningless for
+# unsegmented Japanese. Use the tokenised files in data/tokens/ instead.
+
+# ------------------------------------------------------------------------------
+# 6. QUALITY OF LIFE
+# ------------------------------------------------------------------------------
+alias ls="ls -G"
+alias ll="ls -lahG"
+alias ..="cd .."
+alias ...="cd ../.."
+
+# ------------------------------------------------------------------------------
+# 7. LOCALE
+# ------------------------------------------------------------------------------
+export LANG=ja_JP.UTF-8
+export LC_CTYPE=ja_JP.UTF-8

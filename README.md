@@ -80,7 +80,8 @@ JLit_Corpus_2026/
 ├── config/
 │   ├── pipeline.yaml            全工程の設定。これが「何をどう数えたか」の記録
 │   ├── corpus_manifest.tsv      取得する作品（現行64点＋増補候補39点）
-│   └── stopwords_ja.txt         292語。書誌由来の語（底本・入力・校正…）を含む
+│   ├── stopwords_ja.txt         292語。書誌由来の語（底本・入力・校正…）を含む
+│   └── zshrc_jlit               受講生用の ~/.zshrc（docs/00_setup_students.md §1.5）
 ├── docs/
 │   ├── 00_setup_students.md     受講生の環境構築（macOS 27 / Windows 11）
 │   ├── syllabus_8_lectures.md   講義計画（教員用）
