@@ -2,11 +2,11 @@
 # OSAKA UNIVERSITY DIGITAL HUMANITIES — macOS .zshrc (Apple Silicon / Intel)
 # JLit_Corpus_2026 の受講生用。使い方は docs/00_setup_students.md §1.5
 #
-#   [ -f ~/.zshrc ] && cp ~/.zshrc ~/.zshrc.bak.$(date +%Y%m%d)
-#   cp config/zshrc_jlit ~/.zshrc
-#   exec zsh
-#
-# 共用 iMac ではホームが機体ごとに分かれるので，機体を移るたびに上の3行を実行する。
+# scripts/00_bootstrap_mac.sh が自動で入れる（既定は ~/.zshrc_jlit に置き，
+# ~/.zshrc の末尾から読み込む）。Apple Silicon と Intel のどちらでも同じ
+# ファイルで動く（Homebrew の場所などは下で判定する）。
+# 共用 iMac ではホームが機体ごとに分かれるので，機体を移ったら
+# 00_bootstrap_mac.sh をもう一度実行する。
 # ==============================================================================
 
 # ------------------------------------------------------------------------------
@@ -26,6 +26,13 @@ autoload -Uz vcs_info add-zsh-hook
 add-zsh-hook precmd vcs_info
 zstyle ':vcs_info:git:*' formats '(%b)'
 PROMPT='%F{cyan}%n%f@%F{green}%m%f %F{yellow}%~%f %F{magenta}${vcs_info_msg_0_}%f$ '
+
+# Apple Silicon なのに Rosetta（Intel 互換）で動いているターミナルを知らせる。
+# このまま作業すると Intel 用の Python やパッケージが混ざる
+if [[ "$(sysctl -n hw.optional.arm64 2>/dev/null)" == 1 && "$(uname -m)" == x86_64 ]]; then
+  print -P "%F{red}[warn] このターミナルは Rosetta（Intel 互換）で動いている。%f"
+  print    "       ターミナル.app の「情報を見る」で「Rosetta を使用して開く」を外すこと。"
+fi
 
 # ------------------------------------------------------------------------------
 # 2. PATH

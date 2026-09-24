@@ -275,6 +275,38 @@ def check_font():
         'macOS は Hiragino Sans が既定。Linux は fonts-noto-cjk を導入')
 
 
+def check_arch():
+    """CPU と，この Python がその CPU 用かを確かめる。
+
+    Apple Silicon でもターミナルが Rosetta で動いていると，Intel 用の Python と
+    パッケージが入る。動くが遅く，numba・llvmlite などで壊れやすい。
+    """
+    if sys.platform != 'darwin':
+        return
+    try:
+        hw_arm = subprocess.run(['sysctl', '-n', 'hw.optional.arm64'], capture_output=True,
+                                text=True, timeout=5).stdout.strip() == '1'
+    except Exception:                                           # noqa: BLE001
+        hw_arm = platform.machine() == 'arm64'
+    hw = 'arm64' if hw_arm else 'x86_64'
+    py = platform.machine()
+    label = 'Apple Silicon' if hw == 'arm64' else 'Intel'
+    if py == hw:
+        add(OK, 'CPU', f'{label}（{hw}）・Python も {py} 用')
+    else:
+        add(WARN, 'CPU', f'{label}（{hw}）なのに Python は {py} 用（Rosetta）',
+            'Rosetta を外したターミナルで bash scripts/00_bootstrap_mac.sh を実行し直す'
+            '（別の CPU 用の仮想環境は自動で退避して作り直す）')
+    if hw == 'x86_64':
+        try:
+            import numba  # noqa: F401
+            import llvmlite
+            add(OK, 'numba / llvmlite（Intel）', f'llvmlite {llvmlite.__version__}')
+        except Exception as e:                                  # noqa: BLE001
+            add(WARN, 'numba / llvmlite（Intel）', f'読み込めない: {type(e).__name__}',
+                'bash scripts/00_bootstrap_mac.sh を実行し直す（Intel 用の版に固定して入れる）')
+
+
 def check_encoding():
     enc = sys.stdout.encoding or ''
     lvl = OK if 'utf' in enc.lower() else WARN
@@ -375,6 +407,7 @@ def main() -> int:
         add(WARN, '環境変数', f'{loaded} が読み込まれていなかった（点検では代わりに読み込んだ）',
             f'ターミナルでは source {loaded}。Jupyter では Python (JLit) カーネルを選ぶこと')
     check_machine()
+    check_arch()
     check_python()
     check_encoding()
     for name, imp, req in [('jupyterlab', 'jupyterlab', True),

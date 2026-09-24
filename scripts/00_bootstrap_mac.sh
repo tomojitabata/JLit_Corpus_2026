@@ -16,6 +16,22 @@
 #   bash scripts/00_bootstrap_mac.sh --personal  # 自分の Mac
 #   bash scripts/00_bootstrap_mac.sh --check     # 何もせず現状だけ表示
 #   bash scripts/00_bootstrap_mac.sh --with-bungo # 検算用の近代文語辞書も入れる
+#   --zshrc=append（既定）|replace|skip        # 授業用 .zshrc の入れ方（下記）
+#
+# **CPU（Apple Silicon／Intel）は自動で判定する。** 持ち込みの Mac には両方ある。
+#   * JDK は機種に合った版を取る（aarch64／x64）
+#   * Intel では umap-learn が使う numba・llvmlite を Intel 用の最後の版に固定する
+#     （llvmlite の Intel 用 wheel は 0.45.1 が最後。固定しないとソースからの
+#      ビルドに回って失敗する）
+#   * Apple Silicon なのにターミナルが Rosetta（Intel 互換）で動いているときは，
+#     ネイティブで実行し直す（Intel 用の Python が入って遅く・壊れやすくなるため）
+#   * 既存の仮想環境・JDK が別の CPU 用なら（移行アシスタントで引き継いだ場合など）
+#     控えに退避して作り直す
+#
+# 授業用 .zshrc（config/zshrc_jlit）
+#   append   ~/.zshrc_jlit に置き，~/.zshrc の末尾に読み込む1行を足す（自分の設定は残る）
+#   replace  ~/.zshrc を置き換える（元の ~/.zshrc は日付つきの控えに残す）
+#   skip     何もしない
 #
 # 二つのモードの違いは**重い共有物をどこに置くか**だけである。
 #
@@ -48,13 +64,29 @@
 #   set -u のもとで "VAR?: unbound variable" で止まる（2026-09-23 に2度起きた）。
 set -uo pipefail
 
-# CPU に応じて JDK を選ぶ。Apple Silicon は aarch64，Intel Mac は x64。
-# 持ち込みの MacBook には Intel 機も残っているので決め打ちにしない。
-case "$(uname -m)" in
-  arm64|aarch64) JDK_ARCH="aarch64" ;;
-  x86_64)        JDK_ARCH="x64" ;;
-  *)             JDK_ARCH="" ;;
+# ---- CPU の判定 -------------------------------------------------------------
+# uname -m は「いま動いているプロセスの」CPU を返す。Apple Silicon でも
+# ターミナルが Rosetta で動いていると x86_64 と答えるので，機械そのものは
+# hw.optional.arm64 で見る。
+RUN_ARCH="$(uname -m)"
+HW_ARCH="$RUN_ARCH"
+[ "$(sysctl -n hw.optional.arm64 2>/dev/null)" = "1" ] && HW_ARCH="arm64"
+if [ "$HW_ARCH" = arm64 ] && [ "$RUN_ARCH" != arm64 ]; then
+  if [ -z "${JLIT_REEXEC:-}" ] && command -v arch >/dev/null 2>&1; then
+    echo "  [note] ターミナルが Rosetta（Intel 互換）で動いている。Apple Silicon ネイティブで実行し直す"
+    JLIT_REEXEC=1 exec arch -arm64 /bin/bash "$0" "$@"
+  fi
+  echo "  [ERR ] Apple Silicon の Mac で，Rosetta（Intel 互換）のまま動いている。"
+  echo "         ターミナル.app の「情報を見る」で「Rosetta を使用して開く」を外して開き直すこと。"
+  exit 1
+fi
+case "$HW_ARCH" in
+  arm64|aarch64) HW_ARCH="arm64";  JDK_ARCH="aarch64"; ARCH_LABEL="Apple Silicon（arm64）" ;;
+  x86_64)        JDK_ARCH="x64";    ARCH_LABEL="Intel（x86_64）" ;;
+  *)             JDK_ARCH="";       ARCH_LABEL="不明（${HW_ARCH}）" ;;
 esac
+# Intel で固定する版（llvmlite の Intel 用 wheel は 0.45.1 が最後。numba 0.62.1 と組）
+INTEL_PINS=("numba==0.62.1" "llvmlite==0.45.1" "numpy<2.4")
 # ファイル名を固定すると版が上がったとたんに 404 になるので，
 # Adoptium の API に最新の GA 版を返させる。
 JDK_URL="https://api.adoptium.net/v3/binary/latest/21/ga/mac/${JDK_ARCH}/jdk/hotspot/normal/eclipse"
@@ -82,8 +114,10 @@ MODE="run"
 KIND="lab"                     # lab = 共用 iMac ／ personal = 自分の Mac
 SHARED="/Users/Shared/jlit"
 WITH_BUNGO="no"                # 検算用の近代文語UniDic も入れるか
+ZSHRC_MODE="append"            # 授業用 .zshrc の入れ方
 for a in "$@"; do
   case "$a" in
+    --zshrc=append|--zshrc=replace|--zshrc=skip) ZSHRC_MODE="${a#--zshrc=}" ;;
     --personal|--home) KIND="personal"; SHARED="$HOME/.jlit" ;;
     --check) MODE="check" ;;
     --with-bungo) WITH_BUNGO="yes" ;;
@@ -126,7 +160,8 @@ printf '  ホスト名        %s\n' "$(hostname -s)"
 # ここが未定義変数エラーになる。id にも聞けるようにしておく。
 printf '  ユーザ          %s\n' "${USER:-$(id -un)}"
 printf '  ホーム          %s\n' "$HOME"
-printf '  macOS           %s (%s)\n' "$(sw_vers -productVersion)" "$(uname -m)"
+printf '  macOS           %s\n' "$(sw_vers -productVersion)"
+printf '  CPU             %s\n' "$ARCH_LABEL"
 printf '  空き容量        %s\n' "$(df -h / | awk 'NR==2{print $4}')"
 printf '  共有ディレクトリ %s\n' "$SHARED"
 printf '  リポジトリ      %s\n' "$ROOT"
@@ -222,8 +257,18 @@ else
     && ok "$PROJECT を uv のプロジェクトにした（pyproject.toml）" \
     || warn "pyproject.toml を作れなかった（uv add は使えない。uv pip install --python を使う）"
 fi
+# 既存の仮想環境が別の CPU 用なら退避して作り直す（移行アシスタントで
+# Intel 機から Apple Silicon 機へ引き継いだ場合など。消さずに名前を変える）
 if [ -x "$PY" ]; then
-  skip "仮想環境は既にある（${VENV}）"
+  VENV_ARCH="$("$PY" -c 'import platform; print(platform.machine())' 2>/dev/null)"
+  if [ -n "$VENV_ARCH" ] && [ "$VENV_ARCH" != "$HW_ARCH" ]; then
+    bak="${VENV}.${VENV_ARCH}.$(date +%Y%m%d%H%M)"
+    mv "$VENV" "$bak" \
+      && warn "既存の仮想環境は ${VENV_ARCH} 用だった。${bak} に退避して作り直す（不要なら消してよい）"
+  fi
+fi
+if [ -x "$PY" ]; then
+  skip "仮想環境は既にある（${VENV}，${HW_ARCH}）"
 else
   uv venv --python 3.12 "$VENV" || die "仮想環境を作れない"
   ok "仮想環境を作った（${VENV}，Python 3.12）"
@@ -231,8 +276,22 @@ fi
 # 旧い置き方（リポジトリ/.venv）が残っていれば知らせる
 [ -d "$ROOT/.venv" ] && [ "$ROOT/.venv" != "$VENV" ] \
   && warn "旧い仮想環境 $ROOT/.venv が残っている。使わないので消してよい"
-uv pip install --python "$PY" -r requirements.txt \
-  || die "パッケージの導入に失敗。requirements.txt を確認すること"
+if [ "$HW_ARCH" = x86_64 ]; then
+  # Intel：新しい llvmlite は Intel 用 wheel が無く，ソースからのビルドに回って
+  # 失敗する。使える最後の組み合わせを先に入れ，requirements.txt にも同じ制約を掛ける。
+  echo "  Intel Mac なので numba・llvmlite・numpy の版を固定する: ${INTEL_PINS[*]}"
+  CONSTRAINTS="$(mktemp)"
+  printf '%s\n' "${INTEL_PINS[@]}" > "$CONSTRAINTS"
+  uv pip install --python "$PY" --only-binary :all: "${INTEL_PINS[@]}" \
+    || die "Intel 用の numba・llvmlite を入れられない（wheel が無い）。出力をそのまま担当者に見せること"
+  uv pip install --python "$PY" -c "$CONSTRAINTS" -r requirements.txt \
+    || die "パッケージの導入に失敗。requirements.txt を確認すること"
+  rm -f "$CONSTRAINTS"
+  ok "Intel 用に固定した版で入れた（numpy は 2.3 系）"
+else
+  uv pip install --python "$PY" -r requirements.txt \
+    || die "パッケージの導入に失敗。requirements.txt を確認すること"
+fi
 uv pip install --python "$PY" ipykernel >/dev/null 2>&1
 "$PY" -m ipykernel install --user --name jlit \
   --display-name "Python (JLit)" >/dev/null 2>&1 \
@@ -240,8 +299,20 @@ uv pip install --python "$PY" ipykernel >/dev/null 2>&1
 
 # -----------------------------------------------------------------------------
 say "3. JDK（MALLET が Java を要る。admin 権限は使わない）"
+# 既存の JDK が別の CPU 用なら退避して取り直す
+JAVA_BIN="$SHARED/jdk/Contents/Home/bin/java"
+if [ -x "$JAVA_BIN" ]; then
+  JDK_FILE="$(file -b "$JAVA_BIN" 2>/dev/null)"
+  case "$HW_ARCH:$JDK_FILE" in
+    arm64:*arm64*|x86_64:*x86_64*) : ;;
+    *) if [ -w "$SHARED" ]; then
+         bak="$SHARED/jdk.old.$(date +%Y%m%d%H%M)"
+         mv "$SHARED/jdk" "$bak" && warn "既存の JDK はこの CPU 用ではなかった（${JDK_FILE}）。${bak} に退避して取り直す"
+       fi ;;
+  esac
+fi
 if [ -d "$SHARED/jdk/Contents/Home" ]; then
-  skip "JDK は既にある"
+  skip "JDK は既にある（${JDK_ARCH}）"
 else
   tmp="$(mktemp -d)"
   echo "  Temurin 21 (${JDK_ARCH}) を取得中（約 190 MB）…"
@@ -379,6 +450,36 @@ json.dump(spec, open(f, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
 PY
 
 # -----------------------------------------------------------------------------
+say "6b. 授業用のシェル設定（.zshrc。--zshrc=${ZSHRC_MODE}）"
+ZSRC="$ROOT/config/zshrc_jlit"
+MARK='# JLit 授業用（00_bootstrap_mac.sh が追加）'
+if [ ! -f "$ZSRC" ]; then
+  warn "$ZSRC が無い。git pull してから実行し直すこと"
+elif [ "$ZSHRC_MODE" = skip ]; then
+  skip ".zshrc は変更しない（--zshrc=skip）"
+elif [ "$ZSHRC_MODE" = replace ]; then
+  if [ -f "$HOME/.zshrc" ] && cmp -s "$ZSRC" "$HOME/.zshrc"; then
+    skip "~/.zshrc は既に授業用"
+  else
+    [ -f "$HOME/.zshrc" ] && cp "$HOME/.zshrc" "$HOME/.zshrc.bak.$(date +%Y%m%d%H%M)" \
+      && ok "元の ~/.zshrc を ~/.zshrc.bak.$(date +%Y%m%d%H%M) に控えた"
+    cp "$ZSRC" "$HOME/.zshrc" && ok "~/.zshrc を授業用に置き換えた"
+  fi
+else
+  # append：授業用の設定は ~/.zshrc_jlit に置き，~/.zshrc からは1行で読む。
+  # 自分の設定（anaconda・pyenv など）は残る。授業用が後に読まれるので PATH と
+  # JAVA_HOME は授業用が優先される。
+  cp "$ZSRC" "$HOME/.zshrc_jlit" && ok "~/.zshrc_jlit を置いた（${ARCH_LABEL} 用の Homebrew の場所も自動で判定する）"
+  if grep -qF '.zshrc_jlit' "$HOME/.zshrc" 2>/dev/null; then
+    skip "~/.zshrc は既に ~/.zshrc_jlit を読み込んでいる"
+  else
+    [ -f "$HOME/.zshrc" ] && cp "$HOME/.zshrc" "$HOME/.zshrc.bak.$(date +%Y%m%d%H%M)"
+    printf '\n%s\n[ -f ~/.zshrc_jlit ] && source ~/.zshrc_jlit\n' "$MARK" >> "$HOME/.zshrc" \
+      && ok "~/.zshrc の末尾に読み込みの1行を足した（元は ~/.zshrc.bak.* に控えた）"
+  fi
+fi
+
+# -----------------------------------------------------------------------------
 say "7. 確認"
 # shellcheck disable=SC1090
 . "$ENVFILE"
@@ -387,19 +488,20 @@ say "7. 確認"
 cat <<EOF
 
 --------------------------------------------------------------------------
-次からは，作業の前にこの3行を実行する。
+このターミナルで一度だけ  exec zsh  を実行する（新しい設定を読み込む）。
+次からは，ターミナルを開いて
+
+    jlit          ← 仮想環境を有効にしてリポジトリへ移動する
+    jl            ← JupyterLab を起動する（カーネルは Python (JLit)）
+
+（--zshrc=skip のときは，代わりに次の3行を打つ）
 
     source $ENVFILE
     source $VENV/bin/activate
     cd $ROOT
 
-Jupyter は上の3行のあとに jupyter lab で起動し，カーネルは Python (JLit) を選ぶ。
 パッケージを足すときはリポジトリの中で uv add <名前>（$PROJECT の .venv に入る）。
 **uv sync は使わないこと**（requirements.txt で入れたものが消える）。
-
-毎回打つのが面倒なら ~/.zshrc の末尾に次を足してもよい（このマシンだけ）。
-
-    [ -f $ENVFILE ] && . $ENVFILE
 
 $([ "$KIND" = lab ] && cat <<'L'
 **別の iMac に移ったら，このスクリプトをもう一度実行すること。**

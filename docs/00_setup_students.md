@@ -151,31 +151,54 @@ python3 ~/Documents/dh_project/JLit_Corpus_2026/scripts/check_unidic_dir.py /Use
 **展開先を Dropbox・iCloud の中にしないこと**（同期と競合して壊れる）。
 `unzip` が失敗するときは `docs/dictionary_comparison.md` §9 に手順がある。
 
-### 1.5 シェルの設定（授業用 `.zshrc`）
+### 1.5 CPU の自動判定と授業用 `.zshrc`
 
-ターミナルの設定ファイル `~/.zshrc` を，授業用のもの（`config/zshrc_jlit`）に
-揃える。これで次のことが自動で行われる。
+持ち込みの Mac には **Apple Silicon（M シリーズ）と Intel** の両方がある。
+`00_bootstrap_mac.sh` は最初に CPU を判定し，その機械に合うものを入れる。
+受講生が機種を意識して手順を変える必要はない。
+
+| | Apple Silicon | Intel |
+|---|---|---|
+| JDK | aarch64 版 | x64 版 |
+| numba・llvmlite（UMAP 用） | 最新版 | Intel 用の最後の版に**自動で固定**（numba 0.62.1・llvmlite 0.45.1・numpy 2.3 系） |
+| Homebrew の場所（`.zshrc`） | `/opt/homebrew` | `/usr/local` |
+
+さらに次の2つも自動で処理する。
+
+- **Apple Silicon なのにターミナルが Rosetta（Intel 互換）で動いている**ときは，
+  ネイティブで実行し直す。Rosetta のままだと Intel 用の Python が入り，遅く壊れやすい
+- **既存の仮想環境や JDK が別の CPU 用**（移行アシスタントで Intel 機から引き継いだ
+  場合など）なら，消さずに名前を変えて退避し，作り直す
+
+**授業用 `.zshrc`（`config/zshrc_jlit`）も同じスクリプトが入れる。**
+既定では `~/.zshrc_jlit` に置き，今の `~/.zshrc` の末尾に読み込む1行を足す。
+自分の設定（anaconda・pyenv など）はそのまま残る（元の `~/.zshrc` は
+`~/.zshrc.bak.日時` に控える）。これで次のことができるようになる。
 
 - 辞書・Java・MALLET の環境変数（`env.sh`）を読み込む
 - **`jlit` と打つだけで**，仮想環境が有効になりリポジトリに移動する
 - `jl`（または `jn`）で JupyterLab が起動する
 - 行の後ろの `#` がコメントになる（§1.0）。プロンプトに git のブランチ名が出る
+- Rosetta で動いているターミナルを警告する
 
-セットアップ（§2.2 / §3.2）が終わったあと，リポジトリで次の3行を実行する。
-今の `~/.zshrc` があれば日付つきで控えを残してから置き換える。
+セットアップの後，**そのターミナルで一度だけ `exec zsh`** を実行すると反映される。
+
+入れ方は `--zshrc=` で変えられる。
 
 ```bash
-[ -f ~/.zshrc ] && cp ~/.zshrc ~/.zshrc.bak.$(date +%Y%m%d)
-cp config/zshrc_jlit ~/.zshrc
-exec zsh
+# 既定：~/.zshrc_jlit を置き，~/.zshrc から読み込む
+bash scripts/00_bootstrap_mac.sh --zshrc=append
+# ~/.zshrc を授業用に置き換える（元は控えに残る）
+bash scripts/00_bootstrap_mac.sh --zshrc=replace
+# .zshrc に触らない
+bash scripts/00_bootstrap_mac.sh --zshrc=skip
 ```
 
-自分で追加した設定がある場合は，控え（`~/.zshrc.bak.日付`）から必要な行だけを
-`~/.zshrc` の末尾に書き足す。**`pip freeze > requirements.txt` のような別名は
-入れないこと**（リポジトリの `requirements.txt` を上書きしてしまう）。
+⚠ **`pip freeze > requirements.txt` のような別名を自分の `.zshrc` に入れないこと**
+（リポジトリの `requirements.txt` を上書きしてしまう）。
 
-⚠ 共用 iMac ではホームが機体ごとに分かれる（§1.1）。**機体を移ったら，
-この3行ももう一度実行する。**
+⚠ 共用 iMac ではホームが機体ごとに分かれる（§1.1）。機体を移ったら
+`00_bootstrap_mac.sh` をもう一度実行すれば，`.zshrc` も入り直す。
 
 ---
 
@@ -202,9 +225,11 @@ bash scripts/00_bootstrap_mac.sh
 
 これ 1 本で次を行う。**`sudo` は一度も要求されない。**
 
+0. **CPU を判定する**（Apple Silicon／Intel。§1.5）
 1. `uv` を `~/.local/bin` に導入（既にあれば飛ばす）
 2. `~/Documents/dh_project` を uv のプロジェクトにし（`pyproject.toml`），
    `~/Documents/dh_project/.venv` を作って `requirements.txt` のパッケージを入れる
+   （Intel では numba・llvmlite の版を自動で固定する）
 3. Jupyter カーネル「Python (JLit)」を登録
 4. JDK 21 を `/Users/Shared/jlit/jdk` に展開（既にあれば飛ばす）
 5. MALLET を `/Users/Shared/jlit/mallet` に展開し，**ヒープを搭載メモリの 1/4 に設定**
@@ -213,7 +238,10 @@ bash scripts/00_bootstrap_mac.sh
    `/Users/Shared/jlit/unidic-novel-v202512` に展開し，
    `check_unidic_dir.py` で本当に読めるかを確かめる
 7. `/Users/Shared/jlit/env.sh` を書く（`JLIT_UNIDIC_DIR` は 6 を指す）
-8. `00_env_check.py` を実行して結果を表示
+8. 授業用 `.zshrc` を入れる（§1.5）
+9. `00_env_check.py` を実行して結果を表示
+
+終わったら，そのターミナルで一度だけ `exec zsh` を実行する。
 
 **2回目以降はほとんどが `[have]` で飛ばされ，5 分ほどで終わる。**
 
@@ -241,14 +269,11 @@ cd ~/Documents/dh_project/JLit_Corpus_2026
 mkdir -p ~/Documents/dh_project && cd ~/Documents/dh_project
 git clone https://github.com/tomojitabata/JLit_Corpus_2026.git && cd JLit_Corpus_2026
 bash scripts/00_bootstrap_mac.sh
-[ -f ~/.zshrc ] && cp ~/.zshrc ~/.zshrc.bak.$(date +%Y%m%d)
-cp config/zshrc_jlit ~/.zshrc
 exec zsh
 ```
 
 その機体で誰かが既にセットアップしていれば，JDK・MALLET・UniDic は
-`[have]` で飛ばされ，仮想環境を作るだけで済む。後半の3行は §1.5 の
-授業用 `.zshrc` で，ホームが機体ごとに分かれるので移るたびに入れ直す。
+`[have]` で飛ばされ，仮想環境と授業用 `.zshrc` を作るだけで済む。
 
 ---
 
@@ -269,7 +294,9 @@ xcode-select -p
 
 `xcode-select --install`（コマンドラインツール）だけは入れておくこと。
 Git とコンパイラが入る。ダイアログが出たら「インストール」を押す。
-Intel Mac でも動く（スクリプトが CPU を見て適切な JDK を選ぶ）。
+Intel Mac でも動く。スクリプトが CPU を判定し，JDK と numba・llvmlite を
+その機種に合わせて入れる（§1.5）。**Apple Silicon の Mac では，ターミナルを
+Rosetta で開かないこと**（`uname -m` が `x86_64` と出たら Rosetta で動いている）。
 
 ### 3.2 セットアップ
 
@@ -490,7 +517,9 @@ jupyter lab
 | `uv sync` のあと fugashi などが消えた | `uv sync` は `pyproject.toml` に無いものを消す | **`uv sync` は使わない。** `bash scripts/00_bootstrap_mac.sh` で入れ直す |
 | `umap.UMAP` が無いというエラー | PyPI の `umap`（別物）が入っている | `uv remove umap` してから `uv add umap-learn`。`umap.__file__` が `umap/umap_.py` を指すこと |
 | UMAP の初回だけ十数秒止まる | numba の JIT | 正常。2回目から速い。書けない機体では `NUMBA_CACHE_DIR` を自分の領域に向ける |
-| **`Failed to build llvmlite` / `LLVM version is 20, llvmlite only officially supports 22`** | **Intel Mac**。llvmlite の x86_64 wheel は 0.45.1 が最後で，新しい版はソースからビルドしに行く | 版を固定：`uv pip install --python "<sys.executable>" --only-binary :all: "numba==0.62.1" "llvmlite==0.45.1" "numpy<2.4" umap-learn` |
+| **`Failed to build llvmlite` / `LLVM version is 20, llvmlite only officially supports 22`** | **Intel Mac**。llvmlite の x86_64 wheel は 0.45.1 が最後で，新しい版はソースからビルドしに行く | `bash scripts/00_bootstrap_mac.sh` を実行し直す（Intel なら版を自動で固定する，§1.5）。手で入れるなら：`uv pip install --python "<sys.executable>" --only-binary :all: "numba==0.62.1" "llvmlite==0.45.1" "numpy<2.4" umap-learn` |
+| `00_env_check.py` の CPU 欄が「Python は x86_64 用（Rosetta）」 | Apple Silicon でターミナルを Rosetta で開いた／Intel 機から移行した仮想環境 | Rosetta を外したターミナルで `bash scripts/00_bootstrap_mac.sh` を実行し直す（別の CPU 用の仮想環境は自動で退避して作り直す） |
+| ターミナルを開くと `[warn] このターミナルは Rosetta…` | 同上（授業用 `.zshrc` が警告している） | ターミナル.app を選んで「情報を見る」→「Rosetta を使用して開く」を外し，開き直す |
 | Java がどうしても入らない | ネットワーク制限など | `uv pip install tomotopy` で LDA を代替し，**レポートに明記する** |
 
 ---

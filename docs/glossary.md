@@ -1642,6 +1642,9 @@ ALL CHECKS PASS）。形容詞と副詞の対は色覚差 7.6 で 6–8 の下�
 
 > ### ⚠ Intel Mac（x86_64）は版を固定する（2026-09-22 に実際に起きた）
 >
+> いまは `00_bootstrap_mac.sh` が CPU を判定し，Intel なら下の固定を**自動で**行う
+> （`docs/00_setup_students.md` §1.5）。以下は仕組みと，手で入れるときの説明である。
+>
 > `llvmlite` の macOS **x86_64** wheel は **0.45.1 が最後**で，0.46 以降は
 > Apple Silicon（arm64）だけになった。版を固定せずに `umap-learn` を入れると，
 > uv/pip は最新の `llvmlite 0.49` を**ソースからビルド**しに行き，

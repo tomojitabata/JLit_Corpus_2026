@@ -54,6 +54,8 @@ gensim>=4.3
 #    `umap.UMAP` が無いと言われる。
 # ⚠ numba を伴うので，numpy の版と噛み合わないと import 自体が落ちる。
 # ⚠ **Intel Mac（x86_64）は版を固定すること。**
+#    scripts/00_bootstrap_mac.sh は CPU を判定し，Intel なら下の固定を自動で行う
+#    （-c で制約を掛けてからこのファイルを入れる）。手で入れるときだけ下を読む。
 #    llvmlite の macOS x86_64 wheel は **0.45.1 が最後**で，0.46 以降は
 #    arm64 のみ。固定せずに入れると llvmlite をソースからビルドしに行き，
 #    Homebrew の LLVM と版が合わずに失敗する（llvmlite 0.49 は LLVM 22 を
