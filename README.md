@@ -159,7 +159,7 @@ python scripts/00_env_check.py          # ALL OK を確認
 ```
 
 `00_bootstrap_mac.sh` は **sudo を一度も使わない**（uv・Temurin の tar.gz・
-MALLET の tar.gz を展開するだけ）。共用 iMac ではホームがマシンをまたがないため，
+MALLET の tar.gz を展開するだけ）。共用 iMac ではホームが機体ごとに別々（共有されない）ため，
 JDK・MALLET・UniDic・取得済みテクストを `/Users/Shared/jlit` に置き，
 同じ機体なら次回も別のユーザでも使い回せるようにしている。
 

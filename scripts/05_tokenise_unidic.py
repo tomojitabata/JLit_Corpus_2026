@@ -86,7 +86,7 @@ v1 コーパスの再現性の欠如は「どの辞書のどの語形で数え�
 依存
 ----
     pip install fugashi
-    # 辞書（本番）: NINJAL から入手して展開する。約 1 GB
+    # 辞書（本番）: NINJAL から入手して展開する。zip で約 1.7 GB
     #   https://clrd.ninjal.ac.jp/unidic_archive/2512/unidic-novel-v202512.zip
     #   展開したら必ず検査する:
     #     python3 scripts/check_unidic_dir.py /Users/Shared/jlit/unidic-novel-v202512
@@ -180,7 +180,7 @@ def identify_dict(path: str) -> tuple[str, str]:
 def dict_fingerprint(path: str) -> str:
     """同名の別物を区別するための指紋。``sys.dic`` の大きさを使う。
 
-    ハッシュは 1 GB を読むので遅い。大きさだけでも「別の版に替わった」
+    ハッシュは辞書全体を読むので遅い。大きさだけでも「別の版に替わった」
     ことは検出できる。
     """
     p = os.path.join(path, 'sys.dic')
@@ -193,7 +193,7 @@ def dict_fingerprint(path: str) -> str:
 def resolve_dicdir(dicdir: str | None) -> tuple[str, str]:
     """使う辞書の場所と，どこから見つけたかを返す。
 
-    DH Lab の iMac はホームがマシンをまたがないので，UniDic（約 1 GB）を
+    DH Lab の iMac はホームが機体ごとに別々（共有されない）ので，UniDic（zip で約 1.7 GB）を
     各ユーザの仮想環境に入れると，人数 × マシン数だけ複製ができる。
     そこで **マシン内で共有できる** ``/Users/Shared/jlit`` を先に見に行く。
     admin 権限は要らない。

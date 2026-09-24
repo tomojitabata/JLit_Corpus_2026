@@ -434,7 +434,7 @@ https://clrd.ninjal.ac.jp/unidic_archive/2512/unidic-novel-v202512.zip
 
 - Dropbox は容量の大きいファイルを**オンラインのみ**の代替ファイルとして
   置くことがある。実体が無いので展開は当然失敗する
-- 1 GB の辞書を Dropbox 内に展開すると**数万ファイルの同期**が始まり，
+- 約 1.7 GB の辞書を Dropbox 内に展開すると**数万ファイルの同期**が始まり，
   展開中のファイルが差し替えられて途中で壊れる
 
 zip は `~/Downloads` に置き，展開先は **`/Users/Shared/jlit/`**（同期対象外・
