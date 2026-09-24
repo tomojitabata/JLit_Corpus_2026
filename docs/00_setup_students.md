@@ -79,6 +79,10 @@ DH Lab の iMac は **XCreds** で認証する。どの機体にもログイン�
   `my_work/` を push しておき，移った先で pull するのがいちばん確実である（§5）
 - 初めての機体に移ったら §2 のスクリプトをもう一度実行する（その機体で誰かが
   既に済ませていれば，辞書などは共有されているので 5 分ほどで済む）
+- **作業の終わりは必ずログアウトする**（アップルメニュー → ログアウト）。
+  ログイン画面に切り替えるだけ（ファストユーザスイッチ）では，自分の Jupyter・
+  KWIC の画面・計算中の処理（word2vec や MALLET）が裏で動き続け，次にその機体を
+  使う人の処理が遅くなる
 
 ### 1.2 admin 権限は使わない
 
@@ -546,6 +550,9 @@ git commit -m "Step 2 の作業"
 git push
 ```
 
+push が済んだら，共用 iMac では**ログアウト**する（§1.1。ログイン画面への切り替えだけでは
+自分の処理が裏で動き続ける）。
+
 `update.sh` は最後に，`my_work/` に控えていない変更が残っていれば知らせる。
 
 ### 5.5 図は SVG で
@@ -652,11 +659,15 @@ bash scripts/update.sh
 | `UnicodeDecodeError`（Windows） | CP932 で読んでいる | §4.4 の `PYTHONUTF8=1` |
 | 青空文庫の取得が遅い | 1 秒/件の間隔を守っている | 正常。共有キャッシュがあれば2回目から一瞬で済む |
 | Jupyter のカーネルが違う | 既定カーネルを見ている | `Kernel → Change Kernel` で `Python (JLit)` |
-| **KWIC の画面が開かない** | サーバが立っていない／港（ポート）が使われている | `my_work/results/kwic_server.log` を見る。`Address already in use` なら Step 3 の `PORT` を 8766, 8767 … に変える（共用 iMac では各自別の番号） |
+| **KWIC の画面が開かない** | サーバが立っていない／ポートが使われている | `my_work/results/kwic_server.log` を見る。`Address already in use` なら，まず前に立てたサーバが残っていないか確かめる（Step 3 の「止める」セル）。それでも駄目なら `PORT` を 8766 などに変える（機体ごとに別なので，隣の人と番号を分ける必要はない） |
 | `git pull` が `Your local changes to the following files would be overwritten by merge` で止まる | 配布版の `notebooks/*.ipynb` を直接開いて実行した（出力がファイルに書き込まれた） | `bash scripts/update.sh`（退避してから更新する，§6.1）。以後は `my_work/notebooks/` のコピーを開く |
 | `git pull` が `untracked working tree files would be overwritten` で止まる | 新しく配られるファイルと同名のファイルを手で置いていた | 同上。`update.sh` が `my_work/_backup/<日時>/` へ退避する |
 | `git push` が `'DISABLED' does not appear to be a git repository` で止まる | コースのリポジトリで push した（無効にしてある） | 正常。自分の作業は `cd my_work` してから push する（§5.4） |
 | `my_work` の push で `Authentication failed` / `Invalid username or token` | パスワードの欄に GitHub のパスワードを入れた／トークンの期限切れ・権限不足 | §5.1 のトークンを入れる。作り直すときは Contents を Read and write に |
+| 共用 iMac で処理が極端に遅い | 前にその機体を使った人がログアウトせずに離れ，その人の処理（word2vec・MALLET など）が裏で動いている | TA に伝える。自分は作業の終わりに必ずログアウトする（§1.1） |
+| KWIC のセルが「ポート番号 8765 は別のもの（前の人のサーバなど）が使っているので，ポート番号 8766 を使う」と出す | 前の人の KWIC のサーバが残っている | 正常。自分の索引のサーバを別のポートで立てている。表示されたリンクを使う |
+| `00_bootstrap_mac.sh` が「… が /Users/Shared/jlit に無く，そこに書く権限も無い」で止まる | その機体の `/Users/Shared/jlit` が旧い版のスクリプトで作られ，他の人が書けない権限になっている | 作った人（または TA）がその機体で `00_bootstrap_mac.sh` を再実行すると権限が直る。急ぐときは `--personal` を付けて実行する |
+| `00_bootstrap_mac.sh` が「別のユーザーが取得中である」で止まる | 前の人のセットアップが裏で動いている（ログアウトせずに離れた） | 数分待って再実行する。2時間以上前の目印は自動で無視される |
 | 途中から `my_work` の push・pull が `Authentication failed` になった | トークンの有効期限が切れた（§5.1） | GitHub で同じ設定のトークンを作り直し，保存済みの古いトークンを消す：`printf "protocol=https\nhost=github.com\n\n" \| git credential reject`。次の push でユーザ名と新しいトークンを入れる |
 | `my_work` の push で `Repository not found` | GitHub に `jlit-work` を作っていない／ユーザ名の綴り違い | §5.1 の 2。`cd my_work && git remote -v` で push 先を確かめる |
 | `[ERR ] 50 MB を超えるファイルは控えに入れない` | モデルなど大きい生成物をコミットしようとした | 表示のとおり `git restore --staged` で外す。作り直せるものは控えに入れない |

@@ -36,6 +36,7 @@ KWIC コンコーダンサをブラウザで使う。**標準ライブラリだ�
 from __future__ import annotations
 
 import argparse
+import getpass
 import html
 import json
 import os
@@ -95,6 +96,12 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(200, APP.read_bytes(), 'text/html; charset=utf-8')
             elif u.path == '/api/meta':
                 self._json(self.kw.facets())
+            elif u.path == '/api/whoami':
+                # 誰の，どの索引のサーバか。127.0.0.1 は機体の中の全ユーザーに
+                # 共通なので，前の人がログアウトせずに離れる（ファストユーザ
+                # スイッチ）と，その人のサーバが同じポートに残っている。ノートブックは
+                # これを見て，自分のサーバでなければ別のポートを使う。
+                self._json({'user': self.owner, 'index': self.index_path})
             elif u.path == '/api/passage':
                 self._json(self.kw.passage(
                     int(q.get('pos', ['0'])[0]),
@@ -300,6 +307,8 @@ def main() -> int:
     if not APP.exists():
         sys.exit(f'画面のファイルが無い: {APP}')
     Handler.kw = kw
+    Handler.owner = getpass.getuser()
+    Handler.index_path = os.path.realpath(args.index)
     httpd = ThreadingHTTPServer((args.host, args.port), Handler)
     url = f'http://{args.host}:{args.port}/'
     print(f'\n[serve] {url}   （終わるときは Ctrl-C）')

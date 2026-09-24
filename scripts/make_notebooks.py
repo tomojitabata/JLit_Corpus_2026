@@ -2770,16 +2770,18 @@ if need(TOK/'tsv', 'このステップの 05_tokenise_unidic.py のセルを先�
 ⚠ サーバは **127.0.0.1 にしか結び付けない**（この機体からしか見えない）。
 認証の無い簡易サーバなので，学内のネットワークに公開しないための仕様である。127.0.0.1 は
 機体ごとに別のものなので，DH ラボの iMac で隣の人と同じ `PORT`（8765）を
-使っても衝突しない。`PORT` を変える必要があるのは，同じ機体で 8765 を
-別のプログラムが使っているとき（下のセルが `[NG  ] 港 8765 は別の何かが
-使っている` と出したとき）だけである。"""),
+使っても衝突しない。ただし，前にその機体を使った人がログアウトせずに離れる
+（ファストユーザスイッチ）と，その人のサーバが 8765 に残っていることがある。
+下のセルは**自分の索引のサーバかどうかを確かめ**，違えば 8766, 8767, … の
+空いているポートを自動で使う。`PORT` を手で変える必要はない。"""),
  ('code', r'''# ---- 画面を立てる ----------------------------------------------------
-# **港（ポート）が開くまで待ってからリンクを出す。** 待たずにリンクを出すと，
+# **ポートが開くまで待ってからリンクを出す。** 待たずにリンクを出すと，
 # 索引を読んでいる最中にクリックして「サーバに接続できません」になる
 # （実際にそうなった）。立ち上がらなかったときは記録をその場に出す。
 import socket, subprocess, sys, time, urllib.request
 from IPython.display import display, HTML
-PORT = 8765          # ふつうは変えない。「別の何かが使っている」と出たときだけ 8766 などに
+import getpass, json, os
+PORT0 = 8765         # 既定のポート番号。使われていれば 8766, 8767, … の空きを自動で使う
 KWIC_LOG = OUT/'kwic_server.log'
 KWIC_PID = OUT/'kwic_server.pid'
 
@@ -2790,13 +2792,25 @@ def port_open(port, host='127.0.0.1', timeout=0.4):
     except OSError:
         return False
 
-def is_kwic(port):
-    """その港で応えているのが KWIC の画面かどうか。"""
+def mine(port):
+    """そのポートのサーバが「自分の，この索引の」KWIC かどうか。
+
+    127.0.0.1 は機体の中の全ユーザーに共通なので，前の人のサーバ
+    （ログアウトせずに離れた人のもの）が残っていることがある。"""
     try:
-        with urllib.request.urlopen(f'http://127.0.0.1:{port}/', timeout=2) as r:
-            return 'JLit KWIC' in r.read(4000).decode('utf-8', 'replace')
+        with urllib.request.urlopen(f'http://127.0.0.1:{port}/api/whoami', timeout=2) as r:
+            w = json.loads(r.read().decode('utf-8'))
+        return (w.get('user') == getpass.getuser()
+                and w.get('index') == os.path.realpath(KW))
     except Exception:                                        # noqa: BLE001
         return False
+
+# 自分のサーバが既に立っていればそれを使い，無ければ最初の空いているポートを使う
+PORTS = range(PORT0, PORT0 + 20)
+PORT = next((p for p in PORTS if port_open(p) and mine(p)), None)
+REUSE = PORT is not None
+if PORT is None:
+    PORT = next((p for p in PORTS if not port_open(p)), None)
 
 def show_link(port):
     display(HTML(f'<p style="font-size:1.05em">'
@@ -2805,21 +2819,21 @@ def show_link(port):
     print('リンクが開かないときは，ブラウザに '
           f'http://127.0.0.1:{port}/ を直接入れること。')
 
-if port_open(PORT) and is_kwic(PORT):
-    # 前に立てたもの（カーネル再起動の前のものを含む）をそのまま使う
-    print(f'[info ] すでに立っている（港 {PORT}）。止めるには下のセル。')
+if REUSE:
+    # 前に立てた自分のもの（カーネル再起動の前のものを含む）をそのまま使う
+    print(f'[info ] すでに立っている（ポート番号 {PORT}）。止めるには下のセル。')
     show_link(PORT)
 elif not (KW/'kwic_index.json').exists():
     print(f'[NG  ] 索引が無い: {KW}')
     print('       上の「索引を作る」セルを先に実行すること。')
-elif port_open(PORT):
-    # 自分の過程ではない何かが港を使っている（前回の残り・別のプログラム）
-    print(f'[NG  ] 港 {PORT} は**別の何か**が使っている。')
-    print(f'       http://127.0.0.1:{PORT}/ を開いて，KWIC の画面なら'
-          'それを使えばよい。')
-    print('       違うものが出るなら PORT を 8766 などに変えてこのセルを'
-          '実行し直す。')
+elif PORT is None:
+    print(f'[NG  ] ポート番号 {PORTS.start}–{PORTS.stop - 1} がすべて使われている。')
+    print('       前の人のサーバが残っている可能性がある。いったんログアウトして'
+          'ログインし直すか，TA に相談すること。')
 else:
+    if PORT != PORT0:
+        print(f'[info ] ポート番号 {PORT0} は別のもの（前の人のサーバなど）が使っているので，'
+              f'ポート番号 {PORT} を使う。')
     # -u: 出力を溜めずに記録へ書く（溜めると動いていても記録が空に見える）
     # start_new_session: カーネルの中断・再起動に巻き込まれないようにする
     with open(KWIC_LOG, 'w', encoding='utf-8') as _log:
@@ -2845,7 +2859,7 @@ else:
         print('-' * 60)
         print(KWIC_LOG.read_text(encoding='utf-8')[-2000:] or '（記録が空）')
         print('-' * 60)
-        print('よくある原因: 索引が無い／港が使われている／'
+        print('よくある原因: 索引が無い／ポートが使われている／'
               'Python が別の環境（sys.executable を確かめる）。')
         print(f'       sys.executable = {sys.executable}')
     else:
