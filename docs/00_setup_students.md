@@ -75,8 +75,8 @@ DH Lab の iMac は **XCreds** で認証する。どの機体にもログイン�
 - **どの機体を使ったかを控えておく。** 本体に貼ってあるラベル番号（例 2021-03）を
   メモし，`00_env_check.py` が毎回表示するマシン名もレポートに書く。
   できるだけ同じ機体を使うと，環境構築をやり直さずに済む
-- **成果物は Git で持ち運ぶ。** 別の機体で続きをするには，Git で受け渡すのが
-  いちばん確実である（§5）
+- **自分の作業は自分の GitHub に控える。** 別の機体で続きをするには，
+  `my_work/` を push しておき，移った先で pull するのがいちばん確実である（§5）
 - 初めての機体に移ったら §2 のスクリプトをもう一度実行する（その機体で誰かが
   既に済ませていれば，辞書などは共有されているので 5 分ほどで済む）
 
@@ -279,6 +279,9 @@ mkdir -p ~/Documents/dh_project && cd ~/Documents/dh_project
 git clone https://github.com/tomojitabata/JLit_Corpus_2026.git && cd JLit_Corpus_2026
 bash scripts/00_bootstrap_mac.sh
 exec zsh
+# 自分の控え（my_work/）を GitHub から取ってくる（§5.2）
+cd ~/Documents/dh_project/JLit_Corpus_2026
+bash scripts/setup_my_work.sh <GitHubのユーザ名>
 ```
 
 その機体で誰かが既にセットアップしていれば，JDK・MALLET・UniDic は
@@ -419,38 +422,124 @@ PowerShell を開き直してから作業する。これを設定しないと
 
 ---
 
-## 5. 成果物を Git で持ち運ぶ
+## 5. 3つの置き場 — 教材・自分の控え・課題の提出
 
-共用 iMac のホームは機体ごとに別々である（§1.1）。ホームに置いた成果物は
-消えないが，**その機体でしか見えない**。別の機体や自分の Mac で続きをするために，
-**成果物は必ず Git に入れて push すること。** push しておけば，どの機体からでも
-`git pull` で取り出せ，機体の故障や再設定にも備えられる。
+この授業では，置き場を**役割ごとに3つ**に分ける。混ぜないこと。
 
-### 5.1 初回だけ
+| 置き場 | 置くもの | 受講生がすること |
+|---|---|---|
+| **コースのリポジトリ**（GitHub：`tomojitabata/JLit_Corpus_2026`） | 教材一式（スクリプト・配布版ノートブック・手順書） | clone と `bash scripts/update.sh` **だけ**。**push はしない**（できないように設定される） |
+| **自分の控え**（自分の GitHub の private リポジトリ。例 `jlit-work`） | `my_work/` — 自分が実行したノートブック・図・表・原稿 | 作業の終わりに push。別の機体・自分の Mac では pull |
+| **Zulip**（`dh-uosaka.zulipchat.com`）の非公開チャネル **2026年度テクスト分析論B** | 各 Step の課題・最終リポート・授業の連絡 | トピック「Step 1」…「Step 8」に投稿し，他の受講生の投稿を読む |
+
+```
+~/Documents/dh_project/JLit_Corpus_2026/   ← コースのリポジトリ（pull だけ）
+├── notebooks/            配布版（開かない）
+├── scripts/  docs/  config/  metadata/
+├── data/                 生成物（どこにも push しない）
+└── my_work/              ← 自分の控え（独立した git。自分の GitHub へ push）
+    ├── notebooks/        実行するノートブック（配布版のコピー）
+    ├── results/          図（SVG）・表・原稿（save_fig() の書き出し先）
+    └── _backup/          update.sh の退避先（控えには入れない）
+```
+
+なぜ分けるのか：
+
+- **教材は全員で同じものを使う。** 受講生が教材に書き込めると，誰かの変更が
+  全員に配られてしまう。コースのリポジトリへの push は `update.sh` と
+  `setup_my_work.sh` が無効にする（`git push` しても手元で止まる）。
+- **共用 iMac のホームは機体ごとに別々である**（§1.1）。自分の作業を
+  自分の GitHub に控えておけば，どの機体・自分の Mac からでも続きができ，
+  機体の故障や再設定にも備えられる。
+- **課題は Zulip で読み合う。** 同じトピックに全員の提出と講評が並ぶので，
+  他の人のやり方から学べる。チャネルは今年度の受講生・TA・教員にしか見えない。
+
+### 5.1 初回だけ（1）— GitHub のアカウント・空のリポジトリ・トークン
+
+画面の文言は GitHub の更新で変わることがある。
+
+1. <https://github.com> でアカウントを作る（大学のメールアドレスでよい）。
+2. 右上の「＋」→ **New repository**。名前は `jlit-work`，**Private** を選ぶ。
+   README・.gitignore・ライセンスは**付けない**（空のまま作る）。
+3. **トークン**（パスワードの代わり）を作る。
+   Settings → Developer settings → Personal access tokens → **Fine-grained tokens**
+   → Generate new token。
+   - Repository access：**Only select repositories** → `jlit-work`
+   - Permissions：**Contents** を **Read and write**
+   - 有効期限：学期の終わりまで
+
+   表示された `github_pat_…` をコピーしておく。**この画面を閉じると二度と表示されない。**
+
+GitHub は git の操作でパスワードを受け付けない。**パスワードを聞かれたら
+トークンを貼る。**
+
+### 5.2 初回だけ（2）— `my_work/` を作って控えを取る
 
 ```bash
 git config --global user.name  "<氏名またはローマ字>"
-git config --global user.email "<大学のメールアドレス>"
+git config --global user.email "<GitHub に登録したメールアドレス>"
+cd ~/Documents/dh_project/JLit_Corpus_2026
+bash scripts/setup_my_work.sh <GitHubのユーザ名>
 ```
 
-### 5.2 毎回の作業終わりに
+`Username` には GitHub のユーザ名，`Password` には**トークン**を入れる。
+macOS のキーチェーンに保存されるので，同じ機体では2回目から聞かれない
+（共用 iMac はホームが機体ごとなので，初めての機体ではもう一度入れる）。
+
+Windows（§4）では，Git for Windows に付いてくる **Git Bash** で同じ行を実行する
+（`update.sh` も同じ）。
+
+`[ OK ] 控えができた` と出れば完了。`setup_my_work.sh` は
+
+1. コースのリポジトリへの push を無効にし，
+2. `my_work/` を独立した git リポジトリにして，push 先を自分の `jlit-work` にし，
+3. `my_work/notebooks/` にノートブックをコピーし，
+4. 大きいファイル（モデルなど。50 MB 超）を控えに入れないよう見張りを置いて，
+5. 最初の push をする。
+
+**別の機体・自分の Mac に移ったとき**も，教材を clone（§2.4）してから
+同じ1行を実行する。GitHub の控えがあれば，それを取ってくる。
+
+### 5.3 課題の提出（Zulip）
+
+- 初回の授業で，Zulip の組織 `dh-uosaka.zulipchat.com` とチャネル
+  **2026年度テクスト分析論B** に招待する。参加したら，左のチャネル一覧に
+  このチャネルが見えることを確かめる（見えなければ申し出ること）。
+- 各 Step の課題は，チャネル **2026年度テクスト分析論B** の
+  トピック **「Step 1」…「Step 8」** に投稿する。
+  - **本文はメッセージにそのまま書く。** Markdown（見出し・箇条書き・表）が使える。
+  - **図（SVG）と表（CSV）は添付する**（クリップの印，またはドラッグ）。
+    SVG は画面に表示されないことがあるので，本文にも図の要点を1〜2行書く。
+  - **再提出は元の投稿を直さず，同じトピックに新しく投稿する。**
+    投稿の時刻が提出の記録になる。
+- 最終リポートはトピック **「最終リポート」** に投稿する。
+- 他の受講生の投稿も読める。質問・気づきは同じトピックで返信する。
+- `data/` の生成物やモデルは**添付しない**（1ファイルの大きさに上限がある）。
+  課題のもとになったファイルは `my_work/` に置き，控えを push しておく。
+
+### 5.4 毎回の作業の流れ
 
 ```bash
-cd ~/Documents/dh_project/JLit_Corpus_2026
-git add results/<自分の名前>
-git commit -m "Step 2: 外字の復元を確認"
+# 始め：教材と自分の控えを最新にする（§6.1）
+jlit
+bash scripts/update.sh
+jupyter lab
+```
+
+```bash
+# 終わり：自分の控えを GitHub に送る
+cd ~/Documents/dh_project/JLit_Corpus_2026/my_work
+git add -A
+git commit -m "Step 2 の作業"
 git push
 ```
 
-`data/` はリポジトリに入れない（`.gitignore` で除外済み）。
-生成し直せるものを Git に入れると，リポジトリがすぐ数 GB になる。
-**入れるのは `results/<自分の名前>/` だけ**——図（SVG）・レポート・
-自分が書いたノートブックである。
+`update.sh` は最後に，`my_work/` に控えていない変更が残っていれば知らせる。
 
-### 5.3 図は SVG で
+### 5.5 図は SVG で
 
-`save_fig()` が既定で SVG を書き出す。SVG はテキストなので Git の差分が取れ，
-拡大しても劣化しない。PNG を手で保存しないこと。
+`save_fig()` が既定で SVG を `my_work/results/` に書き出す。SVG はテキストなので
+Git の差分が取れ，拡大しても劣化しない。PNG を手で保存しないこと。
 
 ---
 
@@ -464,6 +553,8 @@ source ~/Documents/dh_project/.venv/bin/activate
 cd ~/Documents/dh_project/JLit_Corpus_2026
 # ALL OK を確認
 python scripts/00_env_check.py
+# 自分の作業フォルダ my_work/ と控えを用意する（初回のみ。§5.2）
+bash scripts/setup_my_work.sh <GitHubのユーザ名>
 jupyter lab
 ```
 
@@ -472,14 +563,46 @@ jupyter lab
 $HOME\Documents\dh_project\.venv\Scripts\Activate.ps1
 cd $HOME\Documents\dh_project\JLit_Corpus_2026
 python scripts\00_env_check.py
+python scripts\copy_notebooks.py
 jupyter lab
 ```
 
 **`jupyter lab` はリポジトリ（`dh_project/JLit_Corpus_2026`）で起動すること。**
 別の場所（古いコピーなど）で起動すると，そちらのスクリプトが動く。
-ブラウザが開いたら `notebooks/01_corpus_design.ipynb` から順に進む。
+ブラウザが開いたら **`my_work/notebooks/01_corpus_design.ipynb`** から順に進む。
+**`notebooks/` は配布版なので開かない。** 配布版を実行すると出力が `.ipynb` に
+書き込まれ，次の `git pull` が「Your local changes … would be overwritten」で止まる。
+`my_work/` はコースのリポジトリの `.gitignore` で除外してあるので，いくら実行・編集してもよい
+（うっかり配布版を開くと，最初のセルが `[注意]` を出す）。
 カーネルが **Python (JLit)** になっていることを確認すること
 （右上に表示される。違っていたら `Kernel → Change Kernel`）。
+
+### 6.1 教材の更新（毎回の授業のはじめに）
+
+**毎回の授業のはじめに**，素の `git pull` ではなく次の1行で取り込む。
+
+```bash
+cd ~/Documents/dh_project/JLit_Corpus_2026
+bash scripts/update.sh
+```
+
+`update.sh` は次の順に動く。**何も消さない。**
+
+0. コースのリポジトリへの push を無効にする（済んでいれば何もしない）
+1. 手元で変わった配布ファイル（うっかり実行した `notebooks/*.ipynb` など）を
+   `my_work/_backup/<日時>/` に退避し，配布版に戻す
+2. 新しく配られるファイルと同名の手元ファイルがあれば，同じ所へ退避する
+3. GitHub の最新版に進める
+4. `my_work/` を自分の GitHub の控えと揃え（別の機体で作業した分を取り込む），
+   `copy_notebooks.py` で `my_work/notebooks/` を揃える。新しいステップのノートブックは
+   そのままコピーされる。**教員が直したノートブックについては**
+   - 自分のコピーに手を付けていなければ，新しい版で置き換える
+   - 実行・編集していれば，**自分の版は残し**，新しい版を
+     `08_topic_modelling__新版_0924.ipynb` のような別名で置く
+
+何が起きるかを先に見たいときは `bash scripts/update.sh --dry-run`。
+
+### 6.2 起動時の確認
 
 `00_env_check.py` は次を表示する。
 
@@ -497,7 +620,7 @@ jupyter lab
 
 | 症状 | 原因 | 対処 |
 |---|---|---|
-| 前回の作業が見当たらない（共用 iMac） | 前回とは別の機体にログインした（作業は前回の機体のホームに残っている） | §1.1。控えた機体名を確かめ，前回の機体に移るか，push してあれば `git pull` で取り出す |
+| 前回の作業が見当たらない（共用 iMac） | 前回とは別の機体にログインした（作業は前回の機体のホームに残っている） | §1.1。控えた機体名を確かめ，前回の機体に移るか，`my_work/` を push してあれば `bash scripts/setup_my_work.sh <ユーザ名>` で取り出す |
 | `uv: command not found` | PATH に `~/.local/bin` が無い | 端末を開き直す。または `export PATH="$HOME/.local/bin:$PATH"` |
 | `ModuleNotFoundError: fugashi` | 仮想環境が有効でない | `source ~/Documents/dh_project/.venv/bin/activate` |
 | `[ERR ] リポジトリが作業フォルダ dh_project の中にない` | `~/Documents` などに直接 clone した | 表示される手順で `~/Documents/dh_project` の中に clone し直す |
@@ -517,8 +640,14 @@ jupyter lab
 | `UnicodeDecodeError`（Windows） | CP932 で読んでいる | §4.4 の `PYTHONUTF8=1` |
 | 青空文庫の取得が遅い | 1 秒/件の間隔を守っている | 正常。共有キャッシュがあれば2回目から一瞬で済む |
 | Jupyter のカーネルが違う | 既定カーネルを見ている | `Kernel → Change Kernel` で `Python (JLit)` |
-| **KWIC の画面が開かない** | サーバが立っていない／港（ポート）が使われている | `results/<自分>/kwic_server.log` を見る。`Address already in use` なら Step 3 の `PORT` を 8766, 8767 … に変える（共用 iMac では各自別の番号） |
-| `git pull` で `corpus_metadata_v3.csv` が衝突する | 旧い版のスクリプトで配布版を上書きした | `git checkout -- metadata/` で配布版に戻してから pull。いまの版は `_local.csv` に書く |
+| **KWIC の画面が開かない** | サーバが立っていない／港（ポート）が使われている | `my_work/results/kwic_server.log` を見る。`Address already in use` なら Step 3 の `PORT` を 8766, 8767 … に変える（共用 iMac では各自別の番号） |
+| `git pull` が `Your local changes to the following files would be overwritten by merge` で止まる | 配布版の `notebooks/*.ipynb` を直接開いて実行した（出力がファイルに書き込まれた） | `bash scripts/update.sh`（退避してから更新する，§6.1）。以後は `my_work/notebooks/` のコピーを開く |
+| `git pull` が `untracked working tree files would be overwritten` で止まる | 新しく配られるファイルと同名のファイルを手で置いていた | 同上。`update.sh` が `my_work/_backup/<日時>/` へ退避する |
+| `git push` が `'DISABLED' does not appear to be a git repository` で止まる | コースのリポジトリで push した（無効にしてある） | 正常。自分の作業は `cd my_work` してから push する（§5.4） |
+| `my_work` の push で `Authentication failed` / `Invalid username or token` | パスワードの欄に GitHub のパスワードを入れた／トークンの期限切れ・権限不足 | §5.1 のトークンを入れる。作り直すときは Contents を Read and write に |
+| `my_work` の push で `Repository not found` | GitHub に `jlit-work` を作っていない／ユーザ名の綴り違い | §5.1 の 2。`cd my_work && git remote -v` で push 先を確かめる |
+| `[ERR ] 50 MB を超えるファイルは控えに入れない` | モデルなど大きい生成物をコミットしようとした | 表示のとおり `git restore --staged` で外す。作り直せるものは控えに入れない |
+| `git pull` で `corpus_metadata_v3.csv` が衝突する | 旧い版のスクリプトで配布版を上書きした | `bash scripts/update.sh`（上書きされた版は退避される）。いまの版は `_local.csv` に書く |
 | KWIC の画面が「サーバに接続できません」（セルは `[ok  ] 立った` と出た） | 続けて「止める」のセルまで実行した，またはカーネルを止めた | 「画面を立てる」のセルをもう一度実行する。いまの版では「止める」は `STOP_KWIC = True` にしたときだけ止める |
 | KWIC が `索引が無い` と言う | `15_kwic_index.py` を走らせていない | Step 3 §5.5 の索引のセルを実行する。05 を走らせ直したら索引も作り直す |
 | KWIC の用例の著者が「（メタデータ無し）」 | その作品がメタデータに無い | 自分の版 `metadata/corpus_metadata_v3_local.csv` に行を足す（配布版 `corpus_metadata_v3.csv` は編集しない）。**出典の出ない用例は証拠にならない** |
@@ -540,8 +669,10 @@ jupyter lab
 
 - [ ] `python scripts/00_env_check.py` が `ALL OK` を返す
 - [ ] 表示された**マシン名を控えた**（共用 iMac の場合）
-- [ ] `notebooks/01_corpus_design.ipynb` が最後まで実行できる
-- [ ] `results/<自分の名前>/` に図が 1 枚（**SVG**）出力されている
-- [ ] その図を含めて `git push` できた
+- [ ] `my_work/notebooks/01_corpus_design.ipynb`（自分用のコピー）が最後まで実行できる
+- [ ] `bash scripts/update.sh` が `[ OK ] 完了` で終わる
+- [ ] `my_work/results/` に図が 1 枚（**SVG**）出力されている
+- [ ] `setup_my_work.sh` で自分の GitHub（`jlit-work`）に控えを作り，その図を含めて push できた
+- [ ] Zulip のチャネル **2026年度テクスト分析論B** が見え，トピック「Step 1」に課題を投稿した
 - [ ] `save_fig()` が書いた SVG をブラウザで開き，日本語が読めることを確認した
 - [ ] `docs/glossary.md` の **Step 0・Step 1** に目を通し，確認問題を解いた

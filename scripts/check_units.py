@@ -188,7 +188,7 @@ def main() -> int:
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--dir', default=str(ROOT / 'scripts'))
     ap.add_argument('--notebooks', default=str(ROOT / 'notebooks'))
-    ap.add_argument('--results', default=str(ROOT / 'results'))
+    ap.add_argument('--results', default=str(ROOT / 'my_work' / 'results'))
     ap.add_argument('--no-notebooks', action='store_true',
                     help='生成されたノートブックは見ない（生成器だけ見る）')
     ap.add_argument('--quiet', action='store_true')

@@ -168,11 +168,20 @@ def cmd_report(args) -> None:
 
     # メタデータ別の平均トピック確率
     def by(field: str, fname: str):
-        groups = defaultdict(list)
+        # 値が空のチャンク（06 の突合漏れ）は集計に入れない。空文字のまま
+        # 1つの群にすると，時代の表に名前の無い行ができ，作図で落ちる。
+        groups, blank = defaultdict(list), 0
         for i, cid in enumerate(ids):
             r = idx.get(cid)
             if r:
-                groups[r.get(field, 'unknown')].append(M[i])
+                g = (r.get(field) or '').strip()
+                if not g:
+                    blank += 1
+                    continue
+                groups[g].append(M[i])
+        if blank:
+            print(f'  [warn] {fname}: {field} が空のチャンク {blank:,} 件を集計から外した'
+                  '（06 の meta_unmatched.csv を確認すること）')
         labs = sorted(groups)
         with open(os.path.join(o, fname), 'w', newline='', encoding='utf-8-sig') as fh:
             w = csv.writer(fh)

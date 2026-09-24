@@ -30,7 +30,7 @@ KWIC コンコーダンサをブラウザで使う。**標準ライブラリだ�
 ``--export`` を付けると，与えた検索式の結果を**そのまま読める HTML**に
 落とす（授業の配布・レポートの付録用。サーバは要らない）。
 
-    python3 scripts/16_kwic_server.py --export results/student/kwic_汽車.html \\
+    python3 scripts/16_kwic_server.py --export my_work/results/kwic_汽車.html \\
         --query 汽車 --stream lemma --limit 200
 """
 from __future__ import annotations

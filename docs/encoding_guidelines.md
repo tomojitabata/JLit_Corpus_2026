@@ -288,7 +288,7 @@ UniDic の `lemma` は異表記（噓／嘘，云う／言う）を統合する�
 
 | ファイル | 内容 | 用途 |
 |---|---|---|
-| `tokens_lemma/` | 全品詞の語彙素 | 文体計量・埋め込み |
+| `tokens_lemma/` | 全品詞の語彙素 | 文体計量・word embedding |
 | `tokens_surface/` | 表層形 | 表記の変化を扱うとき |
 | `tokens_content/` | 名詞・動詞・形容詞・副詞の語彙素 | トピックモデル |
 

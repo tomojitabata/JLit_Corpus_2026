@@ -33,7 +33,7 @@ UniDic の素性には似た語形が何種類もあり，どれを分析単位�
 出力
 ----
 ``tsv/<id>.tsv``          1行1形態素。surface, lemma_key, pos1..4, cType, cForm, goshu ほか
-``tokens_lemma/<id>.txt`` 語彙素キーの空白区切り列（トピックモデル・埋め込み用）
+``tokens_lemma/<id>.txt`` 語彙素キーの空白区切り列（トピックモデル・word embedding 用）
 ``tokens_surface/<id>.txt`` 表層形の空白区切り列（文体計量用）
 ``tokens_content/<id>.txt`` 内容語（名詞・動詞・形容詞・副詞）の語彙素のみ
 

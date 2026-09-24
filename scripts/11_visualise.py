@@ -208,7 +208,7 @@ def fig_semantic_change(w2v_dir, out, topn=12):
                         .replace('6_', '') for c in step_cols],
                        rotation=25, ha='right', fontsize=8)
     ax.set_ylabel('隣接スライス間のコサイン距離')
-    ax.set_title('語義の変化量（Procrustes 整列後）')
+    ax.set_title('語義の変化量（Procrustes アラインメント後）')
     ax.legend(frameon=False, ncol=3, fontsize=8)
     ax.spines[['top', 'right']].set_visible(False)
     ax.grid(axis='y', alpha=.25)

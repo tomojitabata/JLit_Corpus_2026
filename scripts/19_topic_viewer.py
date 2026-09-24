@@ -34,9 +34,9 @@
 使い方
 ------
     python3 scripts/19_topic_viewer.py \\
-        --model 名詞・動詞・形容詞=results/student/mallet_nva \\
-        --model 内容語すべて=results/student/mallet \\
-        --out results/student/topic_viewer.html
+        --model 名詞・動詞・形容詞=my_work/results/mallet_nva \\
+        --model 内容語すべて=my_work/results/mallet \\
+        --out my_work/results/topic_viewer.html
 """
 from __future__ import annotations
 
@@ -537,7 +537,7 @@ def main() -> int:
                     help='各トピックから持っておく語の数（多いほど λ を下げたときに正確）')
     ap.add_argument('--min-count', type=int, default=3,
                     help='モデル内の度数がこれ未満の語はビューアに入れない')
-    ap.add_argument('--out', default=os.path.join(ROOT, 'results', 'student', 'topic_viewer.html'))
+    ap.add_argument('--out', default=os.path.join(ROOT, 'my_work', 'results', 'topic_viewer.html'))
     args = ap.parse_args()
 
     meta = load_meta(args.meta or default_meta())

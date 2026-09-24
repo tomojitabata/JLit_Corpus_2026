@@ -31,6 +31,46 @@ def add(level, name, detail='', fix=''):
     results.append((level, name, detail, fix))
 
 
+
+def _git(args, cwd):
+    import subprocess
+    try:
+        r = subprocess.run(['git'] + args, cwd=cwd, capture_output=True, text=True, timeout=10)
+        return r.stdout.strip() if r.returncode == 0 else None
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+
+def check_git_roles(here: str) -> None:
+    """コースの clone は pull だけ，自分の作業は my_work/ から自分の GitHub へ（手順書 §5）。"""
+    if not os.path.isdir(os.path.join(here, '.git')):
+        return
+    if 'Dropbox' in here:            # 教員のマスターは対象外
+        return
+    push = _git(['remote', 'get-url', '--push', 'origin'], here)
+    if push and push != 'DISABLED':
+        add(WARN, 'コースへの push', f'有効のまま（{push}）',
+            'bash scripts/update.sh を実行する（コースへの push を無効にする）')
+    else:
+        add(OK, 'コースへの push', '無効（教材には書き込まない）')
+    mw = os.path.join(here, 'my_work')
+    if not os.path.isdir(os.path.join(mw, '.git')):
+        add(WARN, '作業の控え（my_work/）', 'まだ git になっていない',
+            'bash scripts/setup_my_work.sh <GitHubのユーザ名>（手順書 §5.2）')
+        return
+    url = _git(['remote', 'get-url', 'origin'], mw)
+    if not url:
+        add(WARN, '作業の控え（my_work/）', 'push 先が無い',
+            'bash scripts/setup_my_work.sh <GitHubのユーザ名>')
+    elif 'tomojitabata/JLit_Corpus_2026' in url:
+        add(NG, '作業の控え（my_work/）', f'push 先がコースのリポジトリになっている（{url}）',
+            'cd my_work && git remote set-url origin https://github.com/<自分>/jlit-work.git')
+    else:
+        dirty = _git(['status', '--porcelain'], mw)
+        n = len(dirty.splitlines()) if dirty else 0
+        add(OK, '作業の控え（my_work/）',
+            url + ('' if not n else f'（控えていない変更 {n} 件：作業の終わりに push）'))
+
 def check_python():
     v = sys.version_info
     ok = (v.major, v.minor) >= (3, 10)
@@ -386,16 +426,17 @@ def check_workspace():
     if not os.path.isfile(os.path.join(proj, 'pyproject.toml')) and not IS_WIN:
         add(WARN, 'uv のプロジェクト', f'{proj}/pyproject.toml が無い（uv add の行き先が定まらない）',
             'bash scripts/00_bootstrap_mac.sh を実行する')
-    w = os.path.join(here, 'results')
+    w = os.path.join(here, 'my_work', 'results')
     try:
         os.makedirs(w, exist_ok=True)
         t = os.path.join(w, '.writetest')
         open(t, 'w').close()
         os.remove(t)
-        add(OK, 'results/ への書き込み', w)
+        add(OK, 'my_work/results/ への書き込み', w)
     except OSError as e:
-        add(NG, 'results/ への書き込み', str(e),
+        add(NG, 'my_work/results/ への書き込み', str(e),
             '共用機では自分のホーム以下にリポジトリを複製して作業すること')
+    check_git_roles(here)
 
 
 def main() -> int:

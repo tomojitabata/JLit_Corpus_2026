@@ -92,7 +92,8 @@ JLit_Corpus_2026/
 │   ├── corpus_metadata_v2.xlsx  7シート（凡例／メタデータ／変更点／診断／代表性／増補候補／コードブック）
 │   ├── expansion_candidates.csv 増補候補41件（優先度つき）
 │   └── diagnostics_v1.csv       v1 全64ファイルの実測値
-├── notebooks/                   全8ステップの講義ノートブック
+├── notebooks/                   全8ステップの講義ノートブック（配布版。受講生は直接開かない）
+├── my_work/                     受講生の作業フォルダ（独立した git。受講生自身の GitHub に控える）
 ├── scripts/
 │   ├── 00_bootstrap_mac.sh      macOS セットアップ（共用 iMac／自分の Mac）
 │   ├── 00_env_check.py          環境チェック
@@ -105,8 +106,8 @@ JLit_Corpus_2026/
 │   ├── 05_tokenise_unidic.py    UniDic 短単位解析
 │   ├── 06_build_datasets.py     チャンク分割・語彙統計
 │   ├── 07_descriptive_stats.py  MFW・Delta・PCA・特徴語
-│   ├── 08_word2vec_diachronic.py  通時埋め込み＋Procrustes 整列
-│   ├── 09_doc2vec.py            作品埋め込み・交絡の分離
+│   ├── 08_word2vec_diachronic.py  通時的 word embeddings＋Procrustes アラインメント
+│   ├── 09_doc2vec.py            作品の document vectors・交絡の分離
 │   ├── 10_mallet.py             MALLET LDA
 │   ├── 11_visualise.py          作図
 │   ├── 15_kwic_index.py         KWIC の索引づくり（TSV → data/kwic）
@@ -120,10 +121,13 @@ JLit_Corpus_2026/
 │   ├── kwic_app.html            KWIC の画面（外部資源を使わない1枚）
 │   ├── 99_validate.py           健全性検査（重複・外字・奥付・踊り字・メタデータ）
 │   ├── make_notebooks.py        ノートブック生成
+│   ├── copy_notebooks.py        配布版を my_work/notebooks/ にコピー（教員が直した版は別名で置く）
+│   ├── setup_my_work.sh         my_work/ を git にし，受講生自身の GitHub に控えを作る
+│   ├── update.sh                受講生用の安全な git pull（手元の変更を退避・コースへの push を無効化）
 │   ├── find_unclosed_quotes.py  閉じ括弧のない「の検出
 │   └── lib/aozora.py            外字復元・踊り字展開の中核
 ├── data/                        生成物（git 管理外）
-├── results/                     分析結果（受講生ごとのサブフォルダ）
+├── results/                     旧い出力先（使わない。いまは my_work/results/）
 └── logs/                        実行記録
 ```
 
@@ -286,7 +290,7 @@ python scripts/16_kwic_server.py --open
 
 # 結果をそのまま配れる HTML／CSV に落とす（サーバは要らない）
 python scripts/16_kwic_server.py --query 汽車 --stream lemma \
-  --export results/student/kwic_汽車.html --csv results/student/kwic_汽車.csv
+  --export my_work/results/kwic_汽車.html --csv my_work/results/kwic_汽車.csv
 ```
 
 **語彙素と表層形を切り替えて**検索でき（`L:`／`S:` で項ごとに混ぜられる），

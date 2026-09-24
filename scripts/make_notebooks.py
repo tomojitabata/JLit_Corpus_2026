@@ -16,6 +16,13 @@ import json
 import os
 
 # --------------------------------------------------------------------------
+# 課題の提出先（年度ごとに書き換える）。md セルの {ZULIP_ORG} / {ZULIP_CHANNEL}
+# は build() で置き換える。手順書 docs/00_setup_students.md §5.3 と揃えること。
+# --------------------------------------------------------------------------
+ZULIP_ORG = 'dh-uosaka.zulipchat.com'
+ZULIP_CHANNEL = '2026年度テクスト分析論B'
+
+# --------------------------------------------------------------------------
 # 共通のセル
 # --------------------------------------------------------------------------
 PREAMBLE = r'''# ---- 共通の準備（毎回このセルから実行する）----------------------------
@@ -32,12 +39,15 @@ from matplotlib.colors import LinearSegmentedColormap
 
 warnings.filterwarnings('ignore', category=FutureWarning)
 
-# リポジトリのルートを自動で探す（notebooks/ から1つ上）
+# リポジトリのルートを自動で探す（my_work/notebooks/ でも notebooks/ でも，上へたどる）
 ROOT = Path.cwd()
 while not (ROOT / 'config' / 'pipeline.yaml').exists() and ROOT != ROOT.parent:
     ROOT = ROOT.parent
 sys.path.insert(0, str(ROOT / 'scripts'))
 print('ROOT =', ROOT)
+if Path.cwd().resolve() == (ROOT / 'notebooks').resolve():
+    print('[注意] 配布版（notebooks/）を直接開いている。実行すると次の git pull が止まる。\n'
+          '       python scripts/copy_notebooks.py でコピーを作り，my_work/notebooks/ の方を開くこと。')
 
 # 日本語フォント（□ にならないように）
 for cand in ['Hiragino Sans', 'Yu Gothic', 'Meiryo',
@@ -1392,8 +1402,6 @@ def run_script(script, *args, tail=4000):
     return r
 
 
-# 自分の作業フォルダ（共用 iMac では必ず自分の名前で作ること）
-ME = os.environ.get('JLIT_USER', 'student')
 # 使うメタデータ。増補分（45点）を含む v3 があればそちらを優先する。
 # v2 は v1 の 64 点しか無いので，増補後のコーパスで v2 を使うと
 # 突合が外れて period も genre も空になる（Step 3 で v3 を作る）。
@@ -1405,7 +1413,9 @@ for _m in ('corpus_metadata_v3_local.csv', 'corpus_metadata_v3.csv',
     if META.exists():
         break
 
-OUT = ROOT / 'results' / ME
+# 図・表の書き出し先は自分の作業フォルダ my_work/results/。my_work/ は
+# コースのリポジトリの外扱い（.gitignore）で，自分の GitHub に控えを取る。
+OUT = ROOT / 'my_work' / 'results'
 OUT.mkdir(parents=True, exist_ok=True)
 print('OUT  =', OUT)
 '''
@@ -1492,7 +1502,7 @@ DH Lab の iMac は XCreds 認証で，**ホームは機体ごとに別々**で�
 故障ではなく，そういう仕組みである。
 
 - 本体のラベル番号（例 2021-03）と，出力の先頭に出る**マシン名をレポートに控える**
-- 成果物は毎回 `git push` して持ち運ぶ（`docs/00_setup_students.md` §5）
+- 自分の作業（`my_work/`）は毎回，自分の GitHub に push して持ち運ぶ（`docs/00_setup_students.md` §5）
 - 機体を移ったら上のスクリプトを再実行する。JDK・UniDic などは
   `/Users/Shared/jlit` に残っているので，その機体で誰かが済ませていれば
   仮想環境を作るだけで終わる'''),
@@ -1574,7 +1584,7 @@ ax.spines[['top','right']].set_visible(False); ax.grid(axis='y', alpha=.25)
 fig.tight_layout(); save_fig(fig, 'Step1_period_balance'); plt.show()'''),
  ('md', r'''### 図は SVG で保存する
 
-`save_fig()` は図を **SVG（ベクタ形式）**で `results/<自分の名前>/` に書き出す。
+`save_fig()` は図を **SVG（ベクタ形式）**で `my_work/results/` に書き出す。
 PNG ではない。理由は3つ。
 
 1. **拡大しても劣化しない。** PNG は画素の並びなので，スライドで投影したり
@@ -1858,7 +1868,10 @@ else:
     need(CORPUS_V1, 'v1 コーパスの場所を環境変数 JLIT_CORPUS_V1 で指定すること')'''),
  ('md', r'''## 6. このステップの課題
 
-`results/<自分の名前>/Step1_report.md` に次を書いて提出する（600–1000字）。
+**提出先**：Zulip（{ZULIP_ORG}）の非公開チャネル **{ZULIP_CHANNEL}** ＞ トピック **Step 1**。
+本文はメッセージにそのまま書き（Markdown が使える），図（SVG）と表は添付する。再提出は元の投稿を直さず，同じトピックに新しく投稿する（手順書 §5.3）。
+
+次を書いて提出する（600–1000字）。
 
 1. このコーパスで**最も深刻な偏り**はどれか。作品数と語数の両方を根拠に述べよ。
 2. その偏りは，どんな研究上の問いを**不可能にする**か。具体的に1つ挙げよ。
@@ -1873,7 +1886,7 @@ else:
 - `00_env_check.py` が `ALL OK` を返す（Python・UniDic・MALLET・日本語フォント）
 - 表示された**マシン名を控えた**（共用 iMac の場合）
 - `save_fig()` で SVG を書き出し，ブラウザで開いて日本語が読めることを確認した
-- その図を含めて `git push` できた
+- その図を含めて `my_work/` を自分の GitHub に push できた（`setup_my_work.sh`）
 - v1 の偏りを示す図を自分で1枚作った
 - 3つの重大な欠陥を自分の手で再発見した
 - `docs/representativeness_report.md` を通読した
@@ -2256,6 +2269,9 @@ if rows:
     show(ends, caption='会話文比率の上位8件と下位8件',
          fmt={'会話文比率':'{:.1%}'})'''),
  ('md', r'''## 5. このステップの課題
+
+**提出先**：Zulip（{ZULIP_ORG}）の非公開チャネル **{ZULIP_CHANNEL}** ＞ トピック **Step 2**。
+本文はメッセージにそのまま書き（Markdown が使える），図（SVG）と表は添付する。再提出は元の投稿を直さず，同じトピックに新しく投稿する（手順書 §5.3）。
 
 1. `config/corpus_manifest.tsv` の未解決行を最低3つ解決し，直した行を報告せよ。
 2. v1 で `※` になっていた箇所を **3つ**選び，青空文庫の原文から復元した文字と，
@@ -2705,7 +2721,7 @@ if need(p, '先に 06_build_datasets.py のセルを実行すること'):
  ('md', r"""## 5.5 KWIC コンコーダンサ — **テクストに戻る道具** ★★
 
 数えたあとに本文へ戻れなければ，数えたことに意味は無い。**分析の最後の砦は
-"back to texts" である。** 頻度表や埋め込みは問いを作る道具で，答えは本文にある。
+"back to texts" である。** 頻度表や word embedding は問いを作る道具で，答えは本文にある。
 
 そこで，いま作った解析結果（`data/tokens/tsv`）から**索引**を作り，
 ブラウザで使える KWIC コンコーダンサを立てる。
@@ -2916,6 +2932,9 @@ Step 1 で見た3つの重大な欠陥（重複・外字欠落・奥付混入）
                '--out', OUT/'Step3_validation.csv')'''),
  ('md', r'''## 7. このステップの課題
 
+**提出先**：Zulip（{ZULIP_ORG}）の非公開チャネル **{ZULIP_CHANNEL}** ＞ トピック **Step 3**。
+本文はメッセージにそのまま書き（Markdown が使える），図（SVG）と表は添付する。再提出は元の投稿を直さず，同じトピックに新しく投稿する（手順書 §5.3）。
+
 1. 未知語率が高い上位3ファイルについて，**理由を特定**し，対処案を書け。
 2. `lemma-policy` を `surface` と `mixed` で切り替え，
    同一作品の異なり語数がどれだけ変わるかを報告せよ。
@@ -2954,7 +2973,7 @@ L(4, '記述統計と文体計量 — MFW・Delta・PCA・特徴語', [
 1. 最頻語（MFW）による文体計量の考え方を説明できる
 2. Burrows's Delta を自分で実装・解釈できる
 3. 対数尤度比による特徴語抽出ができ，その限界を言える
-4. **埋め込みに進む前に，頻度で何が見えるかを確定させる**
+4. **word embedding に進む前に，頻度で何が見えるかを確定させる**
 
 ## 導入：なぜ最頻語なのか
 
@@ -3043,7 +3062,7 @@ Delta の手順は三つしかない。
 **作品X が誰の作品かは 2.3 まで見ないこと。**'''),
  ('md', r'''### 2.1 Excel で手計算する
 
-次のセルが `results/<自分>/Step4_delta_manual.xlsx` を作る。Excel（Numbers・
+次のセルが `my_work/results/Step4_delta_manual.xlsx` を作る。Excel（Numbers・
 LibreOffice でもよい）で開き，`説明` シートから順に見ていく。
 
 - **最頻語・平均・標準偏差は既知の作品だけから決める。** 作品X に物差しを
@@ -3588,7 +3607,7 @@ HTML は**その SVG をそのまま埋め込んでいる**（描き直してい
 - 「SVG を保存」から静止版を取り出せる
 
 外部の JavaScript ライブラリは使っていない。**ネットワークが塞がれた機体でも
-ブラウザで開ける**（`open results/student/Step4_keyness_dispersion.html`）。'''),
+ブラウザで開ける**（`open my_work/results/Step4_keyness_dispersion.html`）。'''),
  ('code', r'''p = OUT/'descriptive'/'keyness_by_period.csv'
 if need(p, 'この分析のスクリプトを走らせるセルを先に実行すること'):
     ky = read_table(p)
@@ -3729,6 +3748,9 @@ for t in tsvs:
 print('\n→ 全件で作り直して 07_descriptive_stats.py にかけ直すのが課題。')'''),
  ('md', r'''## 5. このステップの課題
 
+**提出先**：Zulip（{ZULIP_ORG}）の非公開チャネル **{ZULIP_CHANNEL}** ＞ トピック **Step 4**。
+本文はメッセージにそのまま書き（Markdown が使える），図（SVG）と表は添付する。再提出は元の投稿を直さず，同じトピックに新しく投稿する（手順書 §5.3）。
+
 1. TTR・Guiraud R・Yule K・エントロピーを作品長に対してプロットし，
    **通時比較に使うならどれか**を根拠とともに選べ。
 2. Delta の最近傍一致率（作家 / 時代 / ジャンル）を報告し，
@@ -3756,15 +3778,15 @@ print('\n→ 全件で作り直して 07_descriptive_stats.py にかけ直すの
 ])
 
 # ==========================================================================
-L(5, 'word2vec の原理 — 分布仮説から埋め込みへ', [
- ('md', r'''# Step 5 word2vec の原理 — 分布仮説から埋め込みへ
+L(5, 'word2vec の原理 — 分布仮説から word embedding へ', [
+ ('md', r'''# Step 5 word2vec の原理 — 分布仮説から word embedding へ
 
 ## このステップの到達目標
 
 1. 分布仮説と共起行列から word2vec までの流れを説明できる
 2. ハイパーパラメータ（window / dim / min_count / sg）の意味と影響を言える
-3. 近傍語・類推・クラスタリングで埋め込みを点検できる
-4. **埋め込みが不安定になる条件**を知り，結果を過信しない
+3. 近傍語・類推・クラスタリングで word embedding を点検できる
+4. **word embedding が不安定になる条件**を知り，結果を過信しない
 
 ## 導入：分布仮説
 
@@ -3772,7 +3794,7 @@ L(5, 'word2vec の原理 — 分布仮説から埋め込みへ', [
 
 語の意味は，その語が現れる文脈の分布で近似できる。これが分布仮説である。
 word2vec はこの仮説を，**文脈語を予測する浅いニューラルネットの重み**として
-実装したものにすぎない。学習が終わったあとに残る重み行列が「埋め込み」である。
+実装したものにすぎない。学習が終わったあとに残る重み行列が word embedding である。
 
 ### 2つの学習方式
 
@@ -3794,7 +3816,7 @@ word2vec はこの仮説を，**文脈語を予測する浅いニューラルネ
 
 word2vec に入る前に，**素朴な共起行列＋PPMI＋SVD** で同じことをやる。
 Levy & Goldberg (2014) が示したとおり，両者は数学的に近い関係にある。
-手で作ると，埋め込みが魔法ではないことが分かる。'''),
+手で作ると，word embedding が魔法ではないことが分かる。'''),
  ('code', r'''DS  = ROOT/'data'/'datasets'
 TOK = ROOT/'data'/'tokens'
 docs = [f.read_text(encoding='utf-8').split()
@@ -3875,7 +3897,7 @@ print('狭い窓は統語的に置き換えられる語（品詞が同じ語）�
  ('md', r'''### 演習 2 — 安定性の検査（重要）
 
 **乱数の種を変えると近傍語は変わる。** Antoniak & Mimno (2018) は，
-小規模コーパスでは埋め込みの近傍が実験ごとに大きく揺れることを示した。
+小規模コーパスでは word embedding の近傍が実験ごとに大きく揺れることを示した。
 
 種を **10 回**（`SEEDS` = 11, 22, …, 111）変えて学習し，近傍の**一致率**を
 測る。一致率が低い語について「意味が変化した」と論じてはいけない。
@@ -3912,7 +3934,7 @@ ax.scatter(stab.freq, stab.jaccard, s=60, color=PALETTE[0], zorder=3)
 ax.set_xscale('log'); ax.set_xlabel('コーパス頻度（対数）')
 ax.set_ylabel(f'近傍の一致率（Jaccard, {len(runs)}試行）')
 ax.axhline(.3, color=PALETTE[5], ls='--', lw=1)
-ax.set_title('頻度が低い語ほど埋め込みは不安定になる')
+ax.set_title('頻度が低い語ほど word embedding は不安定になる')
 ax.spines[['top','right']].set_visible(False)
 fig.tight_layout()
 label_points(ax, stab.freq, stab.jaccard, stab.term, fontsize=9)
@@ -4082,7 +4104,7 @@ print(subprocess.run([sys.executable, str(ROOT/'scripts'/'check_umap.py')],
 
 ### この図が見せようとしていること — 文法と意味の二重構造
 
-埋め込みは「意味の似た語が近くに来る」と説明されがちだが，実際に学習して
+word embedding は「意味の似た語が近くに来る」と説明されがちだが，実際に学習して
 いるのは**文脈の似た語が近くに来る**ことである。文脈が似ていれば
 
 - **文法的にも似る**（同じ位置に立てる語＝品詞が揃う）
@@ -4735,6 +4757,9 @@ print('**2つの表を並べて読むこと。** 品詞でも差が出て，同�
    同じ結論が言えるかを確かめよ。言えないなら，その結論は図の癖である。"""),
  ('md', r'''## 5. このステップの課題
 
+**提出先**：Zulip（{ZULIP_ORG}）の非公開チャネル **{ZULIP_CHANNEL}** ＞ トピック **Step 5**。
+本文はメッセージにそのまま書き（Markdown が使える），図（SVG）と表は添付する。再提出は元の投稿を直さず，同じトピックに新しく投稿する（手順書 §5.3）。
+
 1. 共起行列＋PPMI＋SVD と word2vec の近傍を5語について比較し，
    違いを記述せよ。**どちらが良いかではなく，何が違うか**を書く。
 2. `window` と `min_count` を変えた3条件で，同じ語の近傍表を作れ。
@@ -4753,13 +4778,13 @@ print('**2つの表を並べて読むこと。** 品詞でも差が出て，同�
 ])
 
 # ==========================================================================
-L(6, '通時的word2vec — 時代スライスとProcrustes整列', [
- ('md', r'''# Step 6 通時的 word2vec — 時代スライスと Procrustes 整列
+L(6, '通時的 word2vec — 時代スライスと Procrustes アラインメント', [
+ ('md', r'''# Step 6 通時的 word2vec — 時代スライスと Procrustes アラインメント
 
 ## このステップの到達目標
 
-1. 独立に学習した埋め込みが**そのままでは比較できない**理由を説明できる
-2. 直交 Procrustes 変換による整列を実装・実行できる
+1. 独立に学習した word embeddings が**そのままでは比較できない**理由を説明できる
+2. 直交 Procrustes 変換によるアラインメントを実装・実行できる
 3. 意味変化の指標を計算し，交絡（語彙量・作家）を統制できる
 4. 検出された「変化」が本物かを検証する手順を持つ
 
@@ -4785,7 +4810,7 @@ word2vec の目的関数は**回転に対して不変**である。
 - Dubossarsky et al. (2017) Outta control: laws of semantic change and inherent biases. *EMNLP*.
 '''),
  ('code', PREAMBLE),
- ('md', r'''## 1. Procrustes 整列を手で実装する
+ ('md', r'''## 1. Procrustes アラインメントを手で実装する
 
 まず小さな例で，回転してもコサインが変わらないことを確かめる。'''),
  ('code', r'''rng = np.random.default_rng(0)
@@ -4796,13 +4821,13 @@ B = A @ Q                                          # A を回転しただけ
 def cos(a,b): return float(a@b/(np.linalg.norm(a)*np.linalg.norm(b)))
 print('同じ2語の内部的なコサイン（A空間）:', round(cos(A[0],A[1]),4))
 print('同じ2語の内部的なコサイン（B空間）:', round(cos(B[0],B[1]),4), '← 不変')
-print('A と B の「同じ語」のコサイン        :', round(cos(A[0],B[0]),4), '← 無意味')
+print('A と B の「同じ語」のコサイン          :', round(cos(A[0],B[0]),4), '← 無意味')
 
 def procrustes(base, other):
     U,_,Vt = np.linalg.svd(other.T @ base)
     return U @ Vt
 R = procrustes(A, B)
-print('整列後の「同じ語」のコサイン        :', round(cos(A[0], (B@R)[0]),4), '← 回復')'''),
+print('アラインメント後の「同じ語」のコサイン :', round(cos(A[0], (B@R)[0]),4), '← 回復')'''),
  ('md', r'''## 2. 時代スライスの設計
 
 スライスの切り方は**結果を決める**。本コーパスの制約を思い出す。
@@ -4888,7 +4913,7 @@ print(f'\nスライスに使うチャンク {len(sl):,} / {len(ci):,} 件'
 
 彼らは，**語をランダムにシャッフルした「偽の時系列」でも
 意味変化の法則（頻度が高い語ほど変化しない等）が再現されてしまう**ことを示した。
-つまり，観測された「法則」の多くは埋め込みの統計的性質の産物である。
+つまり，観測された「法則」の多くは word embedding の統計的性質の産物である。
 
 したがって最低限，次を統制する。
 
@@ -5081,6 +5106,9 @@ def kwic(word, width=28, limit=12, period_prefix=None):
 kwic('自由')'''),
  ('md', r'''## 5. このステップの課題
 
+**提出先**：Zulip（{ZULIP_ORG}）の非公開チャネル **{ZULIP_CHANNEL}** ＞ トピック **Step 6**。
+本文はメッセージにそのまま書き（Markdown が使える），図（SVG）と表は添付する。再提出は元の投稿を直さず，同じトピックに新しく投稿する（手順書 §5.3）。
+
 1. 4スライスと2スライスの両方で実行し，結果の頑健性を比較せよ。
 2. **対照条件（シャッフル）の図を必ず添付**し，そこから言えることを述べよ。
 3. 自分の5語について，drift・近傍語・KWIC の3点セットで報告せよ。
@@ -5088,7 +5116,7 @@ kwic('自由')'''),
 
 ### このステップの到達点（次へ進む条件）
 
-- 時代スライスごとのモデルを学習し，Procrustes で整列できた
+- 時代スライスごとのモデルを学習し，Procrustes でアラインメントできた
 - **シャッフル対照**を実行し，本物の変化量と比較した図がある
 - 変化が大きいと出た語について，KWIC で原文を確認した
 - スライス間の語数の偏りを `--balance` で吸収した
@@ -5102,9 +5130,9 @@ L(7, 'doc2vec — 作品の表現と交絡の分離', [
 ## このステップの到達目標
 
 1. Paragraph Vector（PV-DM / PV-DBOW）の考え方を説明できる
-2. 作品埋め込みを作り，メタデータとの関係を定量化できる
+2. 作品の document vectors を作り，メタデータとの関係を定量化できる
 3. **作家効果と時代効果を分離する**手続きを実行できる
-4. 埋め込みとメタデータの関係を分類・回帰で評価できる
+4. document vectors とメタデータの関係を分類・回帰で評価できる
 
 ## 導入：文書をベクトルにする3つの道
 
@@ -5138,9 +5166,9 @@ run_script('09_doc2vec.py', '--chunks', DS/'chunks',
 
 `category_effects.csv` は，**同一カテゴリ内の平均類似度**と
 **異カテゴリ間の平均類似度**の差を示す。差が大きい軸ほど，
-埋め込みがその軸を強く捉えている。
+document vector がその軸を強く捉えている。
 
-**作家（`author_ja`）が最大なら要注意。** その埋め込みが測っているのは
+**作家（`author_ja`）が最大なら要注意。** その document vector が測っているのは
 主として「誰が書いたか」であり，時代の主張には統制が要る。'''),
  ('code', r'''p = D2V/'category_effects.csv'
 if need(p, '09_doc2vec.py を先に走らせること'):
@@ -5211,7 +5239,7 @@ if need(p, '09_doc2vec.py を先に走らせること'):
           '独立に存在する。** 0 近くまで落ちるなら，見ていたのは作家である。')'''),
  ('md', r'''## 3. 分類による評価 — 交差検証
 
-「埋め込みは時代を予測できるか」を，**作家を跨いだ交差検証**で測る。
+「document vector は時代を予測できるか」を，**作家を跨いだ交差検証**で測る。
 
 重要なのは **GroupKFold で作家をグループにする**ことである。
 同じ作家の作品が訓練とテストに分かれていると，
@@ -5413,6 +5441,9 @@ if need(p, '09_doc2vec.py を先に走らせること'):
                                  '文体の階層', '最近傍の作家', '同じ作家か'])
     plt.show()'''),
  ('md', r'''## 5. このステップの課題
+
+**提出先**：Zulip（{ZULIP_ORG}）の非公開チャネル **{ZULIP_CHANNEL}** ＞ トピック **Step 7**。
+本文はメッセージにそのまま書き（Markdown が使える），図（SVG）と表は添付する。再提出は元の投稿を直さず，同じトピックに新しく投稿する（手順書 §5.3）。
 
 1. `dm=0`（PV-DBOW）と `dm=1`（PV-DM）で学習し，カテゴリ効果を比較せよ。
 2. 作家中心化の前後で `period` の効果がどう変わるか報告せよ。
@@ -5874,6 +5905,9 @@ if len(names) >= 2:
               '2つの空間が別のものを測っている**ことを示す。原文で確かめること。')'''),
  ('md', r'''## 6. 最終課題（レポート 4000–6000字）
 
+**提出先**：Zulip（{ZULIP_ORG}）の非公開チャネル **{ZULIP_CHANNEL}** ＞ トピック **最終リポート**。
+本文はメッセージにそのまま書き（Markdown が使える），図（SVG）と表は添付する。再提出は元の投稿を直さず，同じトピックに新しく投稿する（手順書 §5.3）。
+
 次の構成で提出する。
 
 ### 1. 問いの設定
@@ -5928,6 +5962,9 @@ def build(lesson: dict) -> dict:
             src = (head + '\n\n> **用語の予習・復習**: `docs/glossary.md` の '
                    f'Step {lesson["n"]} を参照。'
                    'キーワードを見て自分で説明してみてから読むこと。\n' + rest)
+        if kind == 'md':
+            src = (src.replace('{ZULIP_ORG}', ZULIP_ORG)
+                      .replace('{ZULIP_CHANNEL}', ZULIP_CHANNEL))
         lines = src.splitlines(keepends=True)
         if kind == 'md':
             cells.append({'cell_type': 'markdown', 'metadata': {}, 'source': lines})

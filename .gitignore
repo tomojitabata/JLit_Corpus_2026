@@ -10,6 +10,10 @@ data/kwic/
 metadata/*_local*.csv
 results/*/
 !results/README.txt
+# 受講生の作業フォルダ（独立した git リポジトリ。受講生自身の GitHub に控えを取る。
+# scripts/setup_my_work.sh が作る）と，その試行版の置き場
+my_work/
+my_notebooks/
 __pycache__/
 *.pyc
 .ipynb_checkpoints/

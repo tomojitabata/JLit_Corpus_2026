@@ -3,17 +3,17 @@
 """
 08_word2vec_diachronic.py
 =========================
-通時的 word2vec。時代スライスごとに埋め込みを学習し，直交 Procrustes 変換で
-共通空間へ整列させて，語の意味変化を測る。
+通時的 word2vec。時代スライスごとに word embeddings を学習し，直交 Procrustes 変換で
+共通空間へアラインメントして，語の意味変化を測る。
 
 方法
 ----
 1. **全体モデル**（``all``）を学習し，語彙と初期値の基準を作る。
 2. 時代スライスごとにモデルを学習する。初期値を全体モデルで揃えることで，
    同一語のベクトルが偶然かけ離れるのを防ぐ（Kim et al. 2014 の初期化継承）。
-3. 直近スライスを基準に **直交 Procrustes 変換**で整列する
+3. 直近スライスを基準に **直交 Procrustes 変換**でアラインメントする
    （Hamilton, Leskovec & Jurafsky 2016）。回転のみを許し距離構造を保つ。
-4. 整列後の空間で，語ごとに隣接時代間のコサイン距離 ``1 - cos`` を計算する。
+4. アラインメント後の空間で，語ごとに隣接時代間のコサイン距離 ``1 - cos`` を計算する。
    これが意味変化の度合いになる。
 
 統制すべき交絡
@@ -38,7 +38,7 @@
 ``w2v_provenance.json``         設定と**使った種の並び**
 ``w2v_all.model``               全体モデル
 ``w2v_<スライス>.model``        スライス別モデル（**第1試行のもの**）
-``aligned_*``                   整列後のベクトル・語彙・スライス名（第1試行）
+``aligned_*``                   アラインメント後のベクトル・語彙・スライス名（第1試行）
 ==============================  ==========================================
 
 使い方
@@ -145,7 +145,7 @@ def main() -> int:
                          '時間がないときは 1 にして，**報告にそう書く**')
     ap.add_argument('--min-slice-tokens', type=int, default=50_000,
                     help='この語数に満たないスライスは学習しない。'
-                         '小さすぎるスライスの埋め込みは解釈に耐えないため')
+                         '小さすぎるスライスの word embeddings は解釈に耐えないため')
     ap.add_argument('--seed', type=int, default=11,
                     help='単発（--runs 1）のときの種。既定 11')
     ap.add_argument('--seeds', type=int, nargs='*', default=None,
@@ -277,7 +277,7 @@ def main() -> int:
                 ntok = sum(len(x) for x in sents_by[s])
                 print(f'  [fit ] {s:<24} {ntok:>10,}語 語彙{len(m.wv):>7,}')
 
-        # ---- Procrustes 整列 ----------------------------------------------
+        # ---- Procrustes アラインメント ------------------------------------
         cm = set(models[anchor].wv.index_to_key)
         for k in keys:
             cm &= set(models[k].wv.index_to_key)

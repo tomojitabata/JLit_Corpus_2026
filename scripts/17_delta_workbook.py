@@ -34,7 +34,7 @@ Delta は三つの手順しかない。
 ------
     python3 scripts/17_delta_workbook.py \\
         --tokens data/tokens/tokens_lemma \\
-        --out results/student/Step4_delta_manual.xlsx
+        --out my_work/results/Step4_delta_manual.xlsx
 
     # 作品を変える（「作家:題」をカンマで区切る。題は title_aozora）
     python3 scripts/17_delta_workbook.py --mfw 30 \\
@@ -125,7 +125,7 @@ def main() -> int:
                     help='既知の作品（作家:題 をカンマ区切り。各作家2点を推奨）')
     ap.add_argument('--mfw', type=int, default=50, help='最頻語の数')
     ap.add_argument('--label', default='作品X', help='問題のテクストの表示名')
-    ap.add_argument('--out', default=os.path.join(ROOT, 'results', 'student',
+    ap.add_argument('--out', default=os.path.join(ROOT, 'my_work', 'results',
                                                   'Step4_delta_manual.xlsx'))
     args = ap.parse_args()
 
