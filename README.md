@@ -93,6 +93,7 @@ JLit_Corpus_2026/
 │   ├── expansion_candidates.csv 増補候補41件（優先度つき）
 │   └── diagnostics_v1.csv       v1 全64ファイルの実測値
 ├── notebooks/                   全8ステップの講義ノートブック（配布版。受講生は直接開かない）
+├── templates/                   課題の型（StepN_report.md・final_report.md。make_notebooks.py が生成）
 ├── my_work/                     受講生の作業フォルダ（独立した git。受講生自身の GitHub に控える）
 ├── scripts/
 │   ├── 00_bootstrap_mac.sh      macOS セットアップ（共用 iMac／自分の Mac）

@@ -19,6 +19,9 @@ pull は止まらない。my_work/ は自分の GitHub に控えを取る（setu
   - 自分のコピーを実行・編集した   → 自分のコピーはそのまま残し，
     新しい版を「01_corpus_design__新版_0924.ipynb」のような別名で置く
 
+課題の型（templates/StepN_report.md・final_report.md）も同じ規則で
+my_work/results/ にコピーする。
+
 scripts/update.sh（教材の更新）の最後にも自動で呼ばれる。
 標準ライブラリだけで動く（仮想環境の外の python3 でもよい）。
 """
@@ -35,18 +38,71 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / 'notebooks'
 DST = ROOT / 'my_work' / 'notebooks'
-STATE = DST / '.copied_from.json'     # コピーした時点の配布版・コピーのハッシュ
+TPL = ROOT / 'templates'                 # 課題の型（StepN_report.md・final_report.md）
+TPL_DST = ROOT / 'my_work' / 'results'
+STATE_NAME = '.copied_from.json'         # コピーした時点の配布版・コピーのハッシュ
 
 
 def sha(p: Path) -> str:
     return hashlib.sha256(p.read_bytes()).hexdigest()
 
 
-def load_state() -> dict:
+def sync(srcs: list[Path], dst: Path, dry: bool, stamp: str) -> tuple[int, int, int, int]:
+    """配布版 srcs を dst に揃える。自分で手を入れたコピーは上書きしない。"""
+    state_path = dst / STATE_NAME
     try:
-        return json.loads(STATE.read_text(encoding='utf-8'))
+        state = json.loads(state_path.read_text(encoding='utf-8'))
     except (OSError, ValueError):
-        return {}
+        state = {}
+    if not dry:
+        dst.mkdir(parents=True, exist_ok=True)
+
+    n_new = n_upd = n_side = n_same = 0
+    for s in srcs:
+        d = dst / s.name
+        h_src = sha(s)
+        rec = state.get(s.name, {})
+
+        if not d.exists():
+            action, n_new = 'コピー', n_new + 1
+            target = d
+        elif rec.get('src') == h_src:
+            n_same += 1
+            continue                          # 配布版は変わっていない
+        elif not rec and sha(d) == h_src:
+            n_same += 1                       # 記録は無いが中身は配布版と同一
+            if not dry:
+                state[s.name] = {'src': h_src, 'dst': h_src}
+            continue
+        elif rec and rec.get('dst') == sha(d):
+            action, n_upd = '更新（未編集のコピーを新しい版で置換）', n_upd + 1
+            target = d
+        else:
+            # 自分のコピーを実行・編集している（または記録が無い）→ 残す
+            target = dst / f'{s.stem}__新版_{stamp}{s.suffix}'
+            k = 2
+            while target.exists():
+                target = dst / f'{s.stem}__新版_{stamp}_{k}{s.suffix}'
+                k += 1
+            action, n_side = f'新版を別名で置く → {target.name}', n_side + 1
+
+        print(f'  {s.name:34s} {action}')
+        if dry:
+            continue
+        shutil.copy2(s, target)
+        if target == d:
+            state[s.name] = {'src': h_src, 'dst': sha(d)}
+        else:
+            # 新版は別名で置いた。自分のコピーの記録は「最新の配布版を受け取り済み」にする
+            state[s.name] = {'src': h_src, 'dst': rec.get('dst', '')}
+
+    if not dry:
+        state_path.write_text(json.dumps(state, ensure_ascii=False, indent=1),
+                              encoding='utf-8')
+    rel = dst.relative_to(ROOT)
+    print(f'[ OK ] {rel}/ : 新規 {n_new} ・更新 {n_upd} ・別名で新版 {n_side} ・変化なし {n_same}'
+          + ('（--dry-run）' if dry else ''))
+    return n_new, n_upd, n_side, n_same
 
 
 def main() -> int:
@@ -61,62 +117,19 @@ def main() -> int:
     if not srcs:
         print(f'[ERR ] {SRC} にノートブックが無い')
         return 1
-
-    state = load_state()
     stamp = dt.date.today().strftime('%m%d')
-    if not a.dry_run:
-        DST.mkdir(parents=True, exist_ok=True)
 
-    n_new = n_upd = n_side = n_same = 0
-    for s in srcs:
-        d = DST / s.name
-        h_src = sha(s)
-        rec = state.get(s.name, {})
+    side = sync(srcs, DST, a.dry_run, stamp)[2]
+    tpls = sorted(TPL.glob('*.md')) if TPL.is_dir() else []
+    if tpls:
+        side += sync(tpls, TPL_DST, a.dry_run, stamp)[2]
 
-        if not d.exists():
-            action, n_new = 'コピー', n_new + 1
-            target = d
-        elif rec.get('src') == h_src:
-            n_same += 1
-            continue                          # 配布版は変わっていない
-        elif not rec and sha(d) == h_src:
-            n_same += 1                       # 記録は無いが中身は配布版と同一
-            if not a.dry_run:
-                state[s.name] = {'src': h_src, 'dst': h_src}
-            continue
-        elif rec and rec.get('dst') == sha(d):
-            action, n_upd = '更新（未編集のコピーを新しい版で置換）', n_upd + 1
-            target = d
-        else:
-            # 自分のコピーを実行・編集している（または記録が無い）→ 残す
-            target = DST / f'{s.stem}__新版_{stamp}{s.suffix}'
-            k = 2
-            while target.exists():
-                target = DST / f'{s.stem}__新版_{stamp}_{k}{s.suffix}'
-                k += 1
-            action, n_side = f'新版を別名で置く → {target.name}', n_side + 1
-
-        print(f'  {s.name:34s} {action}')
-        if a.dry_run:
-            continue
-        shutil.copy2(s, target)
-        if target == d:
-            state[s.name] = {'src': h_src, 'dst': sha(d)}
-        else:
-            # 新版は別名で置いた。自分のコピーの記録は「最新の配布版を受け取り済み」にする
-            state[s.name] = {'src': h_src, 'dst': rec.get('dst', '')}
-
-    if not a.dry_run:
-        STATE.write_text(json.dumps(state, ensure_ascii=False, indent=1),
-                         encoding='utf-8')
-
-    rel = DST.relative_to(ROOT)
-    print(f'[ OK ] {rel}/ : 新規 {n_new} ・更新 {n_upd} ・別名で新版 {n_side} ・変化なし {n_same}'
-          + ('（--dry-run）' if a.dry_run else ''))
-    if n_side:
+    if side:
         print('       「__新版_」の付いたファイルが教員の直した版。自分の版と見比べ，'
               '以後は新版で続けるとよい（自分の版は消さずに残してある）')
-    print(f'       Jupyter では {rel}/ のノートブックを開くこと（notebooks/ は配布版）')
+    print(f'       Jupyter では {DST.relative_to(ROOT)}/ のノートブックを開くこと（notebooks/ は配布版）')
+    if tpls:
+        print(f'       課題は {TPL_DST.relative_to(ROOT)}/StepN_report.md（型）に書く（手順書 §5.3）')
     if not a.dry_run and not (ROOT / 'my_work' / '.git').exists():
         print('[NOTE] my_work/ の控えがまだ無い。bash scripts/setup_my_work.sh <GitHubのユーザ名> で'
               '自分の GitHub に控えを作ること（手順書 §5）')

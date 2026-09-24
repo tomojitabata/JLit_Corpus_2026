@@ -171,7 +171,8 @@ Jupyter で開いて実行するのは必ず `my_work/notebooks/` の方。配�
   控えがあれば取ってくる。50 MB を超えるファイルのコミットを止める見張りも置く
 - `python scripts/copy_notebooks.py` — まだ無いノートブックを `my_work/notebooks/` にコピーする。
   教員が直した版は，自分のコピーが未編集なら置き換え，編集済みなら
-  `__新版_<月日>` を付けた別名で置く（自分の版は消さない）
+  `__新版_<月日>` を付けた別名で置く（自分の版は消さない）。課題の型
+  （`templates/StepN_report.md`・`final_report.md`）も同じ規則で `my_work/results/` に置く
 - `bash scripts/update.sh` — **素の `git pull` の代わりに，毎回の授業のはじめに使う。**
   手元で変わった配布ファイルと，新しく届くファイルと同名の手元ファイルを
   `my_work/_backup/<日時>/` に退避してから最新版に進め，`my_work/` を控えと揃え，

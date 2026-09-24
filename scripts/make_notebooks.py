@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 
 # --------------------------------------------------------------------------
 # 課題の提出先（年度ごとに書き換える）。md セルの {ZULIP_ORG} / {ZULIP_CHANNEL}
@@ -1868,10 +1869,12 @@ else:
     need(CORPUS_V1, 'v1 コーパスの場所を環境変数 JLIT_CORPUS_V1 で指定すること')'''),
  ('md', r'''## 6. このステップの課題
 
-**提出先**：Zulip（{ZULIP_ORG}）の非公開チャネル **{ZULIP_CHANNEL}** ＞ トピック **Step 1**。
-本文はメッセージにそのまま書き（Markdown が使える），図（SVG）と表は添付する。再提出は元の投稿を直さず，同じトピックに新しく投稿する（手順書 §5.3）。
+次の設問への答えを，型 `my_work/results/Step1_report.md` に書いて提出する（**全体で600–1000字程度**。図表と「再現のための情報」は字数に含めない）。
 
-次を書いて提出する（全体で600–1000字程度）。
+- **提出先**：Zulip（{ZULIP_ORG}）の非公開チャネル **{ZULIP_CHANNEL}** ＞ トピック **Step 1**
+- 型の中身をメッセージに貼り付け，図（SVG）・表（CSV）は**同じメッセージに添付**する（1人1通）
+- 図は番号で言及し（図1），**図を見なくても論旨が追えるように**書く（SVG は Zulip で表示されないことがある）
+- 再提出は元の投稿を直さず，同じトピックに新しく投稿する（手順書 §5.3）
 
 1. このコーパスで**最も深刻な偏り**はどれか。作品数と語数の両方を根拠に述べること。
 2. その偏りは，どんな研究上の問いを**不可能にする**か。具体的に1つ挙げること。
@@ -2270,8 +2273,12 @@ if rows:
          fmt={'会話文比率':'{:.1%}'})'''),
  ('md', r'''## 5. このステップの課題
 
-**提出先**：Zulip（{ZULIP_ORG}）の非公開チャネル **{ZULIP_CHANNEL}** ＞ トピック **Step 2**。
-本文はメッセージにそのまま書き（Markdown が使える），図（SVG）と表は添付する。再提出は元の投稿を直さず，同じトピックに新しく投稿する（手順書 §5.3）。
+次の設問への答えを，型 `my_work/results/Step2_report.md` に書いて提出する（**全体で600–1000字程度**。図表と「再現のための情報」は字数に含めない）。
+
+- **提出先**：Zulip（{ZULIP_ORG}）の非公開チャネル **{ZULIP_CHANNEL}** ＞ トピック **Step 2**
+- 型の中身をメッセージに貼り付け，図（SVG）・表（CSV）は**同じメッセージに添付**する（1人1通）
+- 図は番号で言及し（図1），**図を見なくても論旨が追えるように**書く（SVG は Zulip で表示されないことがある）
+- 再提出は元の投稿を直さず，同じトピックに新しく投稿する（手順書 §5.3）
 
 1. `config/corpus_manifest.tsv` の未解決行を最低3つ解決し，直した行を報告すること。
 2. v1 で `※` になっていた箇所を **3つ**選び，青空文庫の原文から復元した文字と，
@@ -2932,8 +2939,12 @@ Step 1 で見た3つの重大な欠陥（重複・外字欠落・奥付混入）
                '--out', OUT/'Step3_validation.csv')'''),
  ('md', r'''## 7. このステップの課題
 
-**提出先**：Zulip（{ZULIP_ORG}）の非公開チャネル **{ZULIP_CHANNEL}** ＞ トピック **Step 3**。
-本文はメッセージにそのまま書き（Markdown が使える），図（SVG）と表は添付する。再提出は元の投稿を直さず，同じトピックに新しく投稿する（手順書 §5.3）。
+次の設問への答えを，型 `my_work/results/Step3_report.md` に書いて提出する（**全体で600–1000字程度**。図表と「再現のための情報」は字数に含めない）。
+
+- **提出先**：Zulip（{ZULIP_ORG}）の非公開チャネル **{ZULIP_CHANNEL}** ＞ トピック **Step 3**
+- 型の中身をメッセージに貼り付け，図（SVG）・表（CSV）は**同じメッセージに添付**する（1人1通）
+- 図は番号で言及し（図1），**図を見なくても論旨が追えるように**書く（SVG は Zulip で表示されないことがある）
+- 再提出は元の投稿を直さず，同じトピックに新しく投稿する（手順書 §5.3）
 
 1. 未知語率が高い上位3ファイルについて，**理由を特定**し，対処案を書くこと。
 2. `lemma-policy` を `surface` と `mixed` で切り替え，
@@ -3748,8 +3759,12 @@ for t in tsvs:
 print('\n→ 全件で作り直して 07_descriptive_stats.py にかけ直すのが課題。')'''),
  ('md', r'''## 5. このステップの課題
 
-**提出先**：Zulip（{ZULIP_ORG}）の非公開チャネル **{ZULIP_CHANNEL}** ＞ トピック **Step 4**。
-本文はメッセージにそのまま書き（Markdown が使える），図（SVG）と表は添付する。再提出は元の投稿を直さず，同じトピックに新しく投稿する（手順書 §5.3）。
+次の設問への答えを，型 `my_work/results/Step4_report.md` に書いて提出する（**全体で600–1000字程度**。図表と「再現のための情報」は字数に含めない）。
+
+- **提出先**：Zulip（{ZULIP_ORG}）の非公開チャネル **{ZULIP_CHANNEL}** ＞ トピック **Step 4**
+- 型の中身をメッセージに貼り付け，図（SVG）・表（CSV）は**同じメッセージに添付**する（1人1通）
+- 図は番号で言及し（図1），**図を見なくても論旨が追えるように**書く（SVG は Zulip で表示されないことがある）
+- 再提出は元の投稿を直さず，同じトピックに新しく投稿する（手順書 §5.3）
 
 1. TTR・Guiraud R・Yule K・エントロピーを作品長に対してプロットし，
    **通時比較に使うならどれか**を根拠とともに選ぶこと。
@@ -4757,8 +4772,12 @@ print('**2つの表を並べて読むこと。** 品詞でも差が出て，同�
    同じ結論が言えるかを確かめよ。言えないなら，その結論は図の癖である。"""),
  ('md', r'''## 5. このステップの課題
 
-**提出先**：Zulip（{ZULIP_ORG}）の非公開チャネル **{ZULIP_CHANNEL}** ＞ トピック **Step 5**。
-本文はメッセージにそのまま書き（Markdown が使える），図（SVG）と表は添付する。再提出は元の投稿を直さず，同じトピックに新しく投稿する（手順書 §5.3）。
+次の設問への答えを，型 `my_work/results/Step5_report.md` に書いて提出する（**全体で600–1000字程度**。図表と「再現のための情報」は字数に含めない）。
+
+- **提出先**：Zulip（{ZULIP_ORG}）の非公開チャネル **{ZULIP_CHANNEL}** ＞ トピック **Step 5**
+- 型の中身をメッセージに貼り付け，図（SVG）・表（CSV）は**同じメッセージに添付**する（1人1通）
+- 図は番号で言及し（図1），**図を見なくても論旨が追えるように**書く（SVG は Zulip で表示されないことがある）
+- 再提出は元の投稿を直さず，同じトピックに新しく投稿する（手順書 §5.3）
 
 1. 共起行列＋PPMI＋SVD と word2vec の近傍を5語について比較し，
    違いを記述すること。**どちらが良いかではなく，何が違うか**を書く。
@@ -5106,8 +5125,12 @@ def kwic(word, width=28, limit=12, period_prefix=None):
 kwic('自由')'''),
  ('md', r'''## 5. このステップの課題
 
-**提出先**：Zulip（{ZULIP_ORG}）の非公開チャネル **{ZULIP_CHANNEL}** ＞ トピック **Step 6**。
-本文はメッセージにそのまま書き（Markdown が使える），図（SVG）と表は添付する。再提出は元の投稿を直さず，同じトピックに新しく投稿する（手順書 §5.3）。
+次の設問への答えを，型 `my_work/results/Step6_report.md` に書いて提出する（**全体で600–1000字程度**。図表と「再現のための情報」は字数に含めない）。
+
+- **提出先**：Zulip（{ZULIP_ORG}）の非公開チャネル **{ZULIP_CHANNEL}** ＞ トピック **Step 6**
+- 型の中身をメッセージに貼り付け，図（SVG）・表（CSV）は**同じメッセージに添付**する（1人1通）
+- 図は番号で言及し（図1），**図を見なくても論旨が追えるように**書く（SVG は Zulip で表示されないことがある）
+- 再提出は元の投稿を直さず，同じトピックに新しく投稿する（手順書 §5.3）
 
 1. 4スライスと2スライスの両方で実行し，結果の頑健性を比較すること。
 2. **対照条件（シャッフル）の図を必ず添付**し，そこから言えることを述べること。
@@ -5442,8 +5465,12 @@ if need(p, '09_doc2vec.py を先に走らせること'):
     plt.show()'''),
  ('md', r'''## 5. このステップの課題
 
-**提出先**：Zulip（{ZULIP_ORG}）の非公開チャネル **{ZULIP_CHANNEL}** ＞ トピック **Step 7**。
-本文はメッセージにそのまま書き（Markdown が使える），図（SVG）と表は添付する。再提出は元の投稿を直さず，同じトピックに新しく投稿する（手順書 §5.3）。
+次の設問への答えを，型 `my_work/results/Step7_report.md` に書いて提出する（**全体で600–1000字程度**。図表と「再現のための情報」は字数に含めない）。
+
+- **提出先**：Zulip（{ZULIP_ORG}）の非公開チャネル **{ZULIP_CHANNEL}** ＞ トピック **Step 7**
+- 型の中身をメッセージに貼り付け，図（SVG）・表（CSV）は**同じメッセージに添付**する（1人1通）
+- 図は番号で言及し（図1），**図を見なくても論旨が追えるように**書く（SVG は Zulip で表示されないことがある）
+- 再提出は元の投稿を直さず，同じトピックに新しく投稿する（手順書 §5.3）
 
 1. `dm=0`（PV-DBOW）と `dm=1`（PV-DM）で学習し，カテゴリ効果を比較すること。
 2. 作家中心化の前後で `period` の効果がどう変わるか報告すること。
@@ -5903,12 +5930,17 @@ if len(names) >= 2:
              caption=f'{a} と {b} で最もよく一致する作品', fmt={'ρ':'{:+.3f}'})
         print('食い違う作品は，**どちらの空間が正しいかではなく，'
               '2つの空間が別のものを測っている**ことを示す。原文で確かめること。')'''),
- ('md', r'''## 6. 最終課題（レポート 4000–6000字）
+ ('md', r'''## 6. 最終課題（レポート）
 
-**提出先**：Zulip（{ZULIP_ORG}）の非公開チャネル **{ZULIP_CHANNEL}** ＞ トピック **最終リポート**。
-本文はメッセージにそのまま書き（Markdown が使える），図（SVG）と表は添付する。再提出は元の投稿を直さず，同じトピックに新しく投稿する（手順書 §5.3）。
+型 `my_work/results/final_report.md` の構成で書き，**PDF にして**提出する
+（**全体で4000–6000字程度**。図表と「再現のための情報」は字数に含めない）。
+PDF を作る道具は問わない（Word・Pages・Google ドキュメントなど）。
 
-次の構成で提出する。
+- **提出先**：Zulip（{ZULIP_ORG}）の非公開チャネル **{ZULIP_CHANNEL}** ＞ トピック **最終リポート**
+- 要旨（3〜5行）をメッセージに書き，PDF を**同じメッセージに添付**する（1人1通）
+- 再提出は元の投稿を直さず，同じトピックに新しく投稿する（手順書 §5.3）
+
+構成は次のとおり。
 
 ### 1. 問いの設定
 近代日本文学における言語変化・文体変化・主題の多様化について，
@@ -5932,7 +5964,8 @@ Step 1 の代表性診断をふまえ，**答えられない問い**も明示す
 - 結果がコーパスの偏りに由来する可能性をどう排除したか
 - 増補すべきテクストは何か（`expansion_candidates.csv` を参照）
 
-### 6. 再現性
+### 6. 再現のための情報
+教材の版（`git rev-parse --short HEAD`）・辞書・乱数の種・変えた設定を書き，
 使用した `config/pipeline.yaml` を添付する。
 
 ---
@@ -5988,9 +6021,83 @@ SLUGS = {1: 'corpus_design', 2: 'rebuild_xml', 3: 'normalise_tokenise',
          6: 'diachronic_word2vec', 7: 'doc2vec', 8: 'topic_modelling'}
 
 
+# --------------------------------------------------------------------------
+# 課題の型（テンプレート）。各 Step の「このステップの課題」の設問から作る。
+# copy_notebooks.py が my_work/results/ にコピーする。
+# --------------------------------------------------------------------------
+REPRO = """## 再現のための情報
+
+- 教材の版：（`git rev-parse --short HEAD` の出力）
+- 辞書：unidic-novel-v202512
+- 機体：（ラベル番号。自分の Mac なら機種）
+- 変えた設定・乱数の種：
+"""
+
+
+def _questions(md: str) -> list[str]:
+    """課題の節から番号付きの設問を取り出す（続きの行は字下げで判定）。"""
+    qs, cur = [], None
+    for line in md.splitlines():
+        m = re.match(r'^(\d+)\. (.*)', line)
+        if m:
+            if cur is not None:
+                qs.append(cur)
+            cur = m.group(2)
+        elif cur is not None and line.startswith('   ') and line.strip():
+            cur += line.strip()
+        elif cur is not None and not line.strip():
+            qs.append(cur); cur = None
+        elif line.startswith('#'):
+            if cur is not None:
+                qs.append(cur); cur = None
+    if cur is not None:
+        qs.append(cur)
+    return qs
+
+
+def write_templates(outdir: str) -> int:
+    os.makedirs(outdir, exist_ok=True)
+    n_out = 0
+    for les in LESSONS:
+        for kind, src in les['cells']:
+            if kind != 'md':
+                continue
+            if 'このステップの課題' in src.split('\n', 1)[0]:
+                qs = _questions(src.split('### このステップの到達点')[0])
+                body = [f"# Step {les['n']} 課題 — （氏名）", '']
+                for i, q in enumerate(qs, 1):
+                    if q.startswith('図を') and '添付' in q:
+                        continue                  # 添付の指示は「図表」の節で受ける
+                    body += [f'## {i}.', '', f'> {q.replace("**", "")}', '', '（ここに書く）', '']
+                body += ['## 図表', '',
+                         '- 図1 `（ファイル名）.svg` — 何を，どの設定で示したか',
+                         '- 表1 `（ファイル名）.csv` — 何を示したか', '', REPRO]
+                path = os.path.join(outdir, f"Step{les['n']}_report.md")
+            elif '最終課題' in src.split('\n', 1)[0]:
+                heads = re.findall(r'^### (\d\. .+)$', src, re.M)
+                body = ['# 最終リポート — （氏名）', '', '## 要旨', '',
+                        '（3〜5行。Zulip のメッセージにもこれを書く）', '']
+                for h in heads:
+                    if h.startswith('6.'):
+                        body += [REPRO.replace('## 再現のための情報', f'## {h}').rstrip(),
+                                 '- 添付：config/pipeline.yaml', '']
+                    else:
+                        body += [f'## {h}', '', '（ここに書く）', '']
+                body += ['## 参考文献', '', '- ', '']
+                path = os.path.join(outdir, 'final_report.md')
+            else:
+                continue
+            with open(path, 'w', encoding='utf-8') as fh:
+                fh.write('\n'.join(body).rstrip() + '\n')
+            n_out += 1
+    return n_out
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument('--out', default='notebooks')
+    ap.add_argument('--templates', default='templates',
+                    help='課題の型（StepN_report.md・final_report.md）の書き出し先')
     args = ap.parse_args()
     os.makedirs(args.out, exist_ok=True)
     for les in LESSONS:
@@ -6003,6 +6110,8 @@ def main() -> int:
         print(f'  [ok  ] {name:<34} 解説{n_md:>3}セル / コード{n_cd:>3}セル  '
               f'— {les["title"]}')
     print(f'\n[ok  ] {len(LESSONS)} 件のノートブック → {args.out}')
+    k = write_templates(args.templates)
+    print(f'[ok  ] {k} 件の課題の型 → {args.templates}')
     return 0
 
 
