@@ -112,7 +112,7 @@ def fetch(url: str, timeout: int = 60) -> bytes:
             '   1. ネットワークにつながっているか\n'
             '   2. 学内プロキシの設定が要るか（環境変数 HTTPS_PROXY）\n'
             '   3. 青空文庫のサーバが一時的に落ちていないか\n'
-            '   共用 iMac では，代表者が取得した data/aozora/ を共有してもよい。') from e
+            '   しばらくして再実行する（取得済みの分は共有キャッシュから読むので速い）。') from e
     except TimeoutError as e:
         raise FetchError(f'{url}\n  時間切れ。回線が遅い場合は時間をおいて再実行する。') from e
 
