@@ -3161,8 +3161,19 @@ L(4, '記述統計と文体計量 — MFW・Delta・PCA・特徴語', [
 このステップで「何が作家由来で，何が時代由来か」を切り分ける感覚を作る。
 
 ## 参考
+- Burrows, J. (1987) *Computation into Criticism: A Study of Jane Austen's Novels and an Experiment in Method*. Clarendon Press.
 - Burrows, J. (2002) 'Delta': a measure of stylistic difference. *LLC* 17(3).
+- Hoover, D. L. (2004a) Testing Burrows's Delta. *LLC* 19(4): 453–475.
+- Hoover, D. L. (2004b) Delta prime? *LLC* 19(4): 477–495.
+- Burrows, J. (2007) All the way through: testing for authorship in different frequency strata. *LLC* 22(1): 27–47.
+- Craig, H. & Kinney, A. F., eds. (2009) *Shakespeare, Computers, and the Mystery of Authorship*. Cambridge University Press.
+- Eder, M., Rybicki, J. & Kestemont, M. (2016) Stylometry with R: a package for computational text analysis. *The R Journal* 8(1): 107–121.
 - Evert, S. et al. (2017) Understanding and explaining Delta measures. *DSH* 32.
+- Tabata, T. (2012) Approaching Dickens' style through Random Forests. *Digital Humanities 2012: Conference Abstracts*, University of Hamburg.
+- Tabata, T. (2015) Stylometry of Dickens's language: an experiment with random forests. In P. L. Arthur & K. Bode (eds), *Advancing Digital Humanities: Research, Methods, Theories*. Palgrave Macmillan.
+- Prokić, J., Çöltekin, Ç. & Nerbonne, J. (2012) Detecting shibboleths. *Proceedings of the EACL 2012 Joint Workshop of LINGVIS & UNCLH*.
+- Klaussner, C., Nerbonne, J. & Çöltekin, Ç. (2015) Finding characteristic features in stylometric analysis. *DSH* 30(Supplement 1): 114–129.
+- Schöch, C., Schlör, D., Zehe, A., Gebhard, H., Becker, M. & Hotho, A. (2018) Burrows' Zeta: exploring and evaluating variants and parameters. *DH2018 Book of Abstracts*.
 - 金明哲 (2021)『テキストアナリティクス』共立出版
 '''),
  ('code', PREAMBLE),
@@ -3606,12 +3617,17 @@ log ratio=18.92 になる）。しかし意味はまったく違う。
 
 #### culling とは
 
-そこで**語を絞る**。文体計量でいう *culling*（Eder らの用語）は，
-**一定割合の文書に現れない語を特徴量から外す**操作である。
+そこで**語を絞る**。文体計量でいう *culling* は，Hoover (2004a, b) が
+Burrows の Delta を検証する中で導入した語の選別である。Hoover が外したのは
+**1つの作品が出現の大部分を占める語**と人称代名詞で，これで作者判定の
+精度が大きく上がることを示した。その後 R の stylo パッケージ
+（Eder, Rybicki & Kestemont 2016）が，culling を
+**一定割合の文書に現れない語を特徴量から外す**規則として実装し，
+今日ふつうに culling と言えばこちらを指す。このステップの culling も後者である。
 
 > **culling at 10%** = コーパス全体の文書頻度（df）が 10% 未満の語を弾く
 
-本コーパスは 101 点なので，**11 点未満に出る語を捨てる**ことになる。
+本コーパスで分析に使うのは 108 点なので，**11 点未満に出る語を捨てる**ことになる。
 
 ⚠ **culling は G² の値を変えない。** 語を1つ落としても，他の語の
 `a, b, c, d` は変わらないからである（`c, d` は総語数で，特徴量の集合とは
@@ -3750,6 +3766,10 @@ if need(p, 'この分析のスクリプトを走らせるセルを先に実行�
 - **弾かれるが均等** … その時代の作品数が少ないために df が 10% に
   届かないだけで，その時代の中では均等に出る語
 
+Hoover (2004a) の元の規則（1作品が出現の大部分を占める語を外す）は，
+文書頻度ではなく**偏りそのもの**を見ていた。下の表の「最多作品の占有」が
+その量にあたる。stylo 流の df の規則と見比べておくとよい。
+
 下の図は横軸に `df_all_prop`（culling の規則），縦軸に `dp_in`
 （bursty さ）を取る。**規則が捉え損なう語は左上と右下に現れる。**
 その語に名前が付いているので，自分の目で確かめられる。
@@ -3874,6 +3894,87 @@ if need(p, 'この分析のスクリプトを走らせるセルを先に実行�
             print(f'取りこぼしなし（df≧{CULL:.0%} の語はどれも dp_in≦0.5，'
                   '弾かれる語はどれも dp_in≧0.3）。')
             print('このコーパスでは df の規則が bursty さの代理として働いている。')'''),
+ ('md', r'''### 4.4 研究史 — Delta・culling・Zeta・Iota から特徴語の抽出へ
+
+このステップで扱った道具は，DH（デジタル・ヒューマニティーズ）の文体計量が
+30年あまりかけて積み上げてきたものである。**誰が何を問題にして，
+どの道具を作ったのか**を知っておくと，自分の分析の位置が分かる。
+
+| 年 | 研究 | 何をしたか |
+|---|---|---|
+| 1987 | Burrows『Computation into Criticism』 | Jane Austen の作品を**最頻語（機能語）**の頻度で比べ，登場人物の話し方の違いを示した。MFW による文体計量の出発点 |
+| 2002 | Burrows — **Delta** | 最頻語の z 得点の差の平均で，作品どうしの距離を測った（本ステップの 2） |
+| 2004 | Hoover — **culling** | Delta を検証し，1作品が出現の大部分を占める語と人称代名詞を外すと精度が上がること，語数を 150 より増やすと精度が上がることを示した（4.1） |
+| 2007 | Burrows — **Zeta・Iota** | 最頻語より**下の頻度帯**にも作者の手がかりがあることを示した。Zeta は中頻度の語，Iota は低頻度の語を使う |
+| 2009 | Craig & Kinney — Zeta の簡略版 | Zeta を「2群の文書頻度の割合の差」に整理し，シェイクスピア作品の作者問題に使った |
+| 2012, 2015 | Tabata — **Random Forests** | Dickens を Collins や18・19世紀の参照コーパスと判別する分類器を作り，その **variable importance** から Dickens の特徴語を取り出した |
+| 2015 | Klaussner, Nerbonne & Çöltekin — **representativeness と distinctiveness** | 「判別に効く語」ではなく，その作者が**一貫して**使い（representativeness），かつ**他の作者と違う**（distinctiveness）語を特徴語とした |
+| 2016 | Eder, Rybicki & Kestemont — **stylo** | Delta・culling などを R のパッケージにまとめ，誰でも同じ手順で試せるようにした |
+| 2017 | Evert ほか | Delta が**なぜ**効くのかを説明した（z 得点による正規化が要である） |
+| 2018 | Schöch ほか | Zeta の変種（対数を取るものなど）を比べて評価した |
+
+#### Zeta は何を測るか
+
+Burrows (2007) の Zeta は，テクストを一定の長さのチャンクに区切り，
+語ごとに **「群 A のチャンクのうち何割に出るか」** と **「群 B のチャンクのうち
+何割に出るか」** を比べる。Craig & Kinney (2009) の形では
+
+> Zeta = （群 A でその語を含むチャンクの割合）−（群 B でその語を含むチャンクの割合）
+
+で，−1 から +1 の値を取る。+1 に近い語は「A では**どのチャンクにも**出て，
+B では**どのチャンクにも**出ない」語である。
+
+**頻度を数えずに，出るか出ないかだけを数える**ところが G² と違う。
+1つの作品に大量に出る語（bursty な語）は，G² では大きく効くが，
+Zeta ではチャンク1つ分しか効かない。つまり Zeta は，4.1–4.3 で扱った
+**bursty さの問題を，指標の作りそのもので避けている。** culling が
+「リストから語を外す」ことで対処したのに対し，Zeta は「数え方を変える」
+ことで対処したと言える。
+
+Iota は Zeta より**さらに頻度の低い語**に目を向け，対象の作者がときどき
+使い，他の作者はほとんど使わない語を拾う。Delta（最頻語）・Zeta（中頻度）・
+Iota（低頻度）の三つで，Burrows は**頻度のどの層にも作者の手がかりがある**
+ことを示した。
+
+#### 分類器から特徴語を取り出す — Random Forests
+
+Tabata (2012, 2015) は，Dickens の24作品を Collins の24作品，および
+18・19世紀の参照コーパスと判別する **Random Forests**（Breiman の
+決定木のアンサンブル）を作った。判別の正解率は 96–100% に達した。
+そのうえで，**どの語を抜くと判別が悪くなるか**（mean decrease accuracy）と
+**どの語が2群をよく分けるか**（mean decrease Gini）という2つの
+variable importance で語を順位付けし，Dickens の特徴語とした。
+上位に出たのは *eyes, hands, saw, looked, back* のような，
+登場人物の**動作や姿勢**を描く語である。
+
+この研究は，対数尤度比による特徴語の抽出に2つの弱点があることも指摘した。
+**固有名詞が上位を占めやすい**こと（本ステップの演習 3）と，
+**作品間の分布の偏りに引きずられる**こと（4.1–4.3 の bursty さ）である。
+分類器は作品を単位に学習するので，1作品にしか出ない語は判別に効かず，
+重要度が上がらない。
+
+#### representativeness と distinctiveness
+
+Klaussner, Nerbonne & Çöltekin (2015) は，方言学で方言の「目印になる語」を
+見つけるために作られた方法（Prokić, Çöltekin & Nerbonne 2012）を文体計量に
+持ち込んだ。特徴語の条件を2つに分ける。
+
+- **representativeness** — その作者の作品の**どれでも同じように**使われる
+- **distinctiveness** — 他の作者の作品での使い方と**違う**
+
+G² は2つ目しか見ない。1つ目を条件に加えることは，culling や Zeta と
+同じく bursty な語を退けることにあたる。Dickens と Collins で試したところ，
+選ばれた語は Delta（最頻語）とも Hoover の方法ともほとんど重ならなかった。
+**「特徴語」は指標の定義しだいで別物になる**ことを示した例である。
+
+⚠ ここでいう representativeness は**語の性質**であって，Step 1 の
+「コーパスの代表性」とは別の概念である。混同しないこと。
+
+⚠ Zeta・Iota・Random Forests・representativeness/distinctiveness は，
+このステップでは計算しない。G² の特徴語リストと Zeta の特徴語リストが
+どう違うかは，Schöch ほか (2018) が詳しく比べている。
+最終リポートで特徴語を論じるなら，**どの指標で選んだ語なのか**を書き，
+他の指標なら違う語が出うることに触れること。'''),
  ('md', r'''### 演習 2 — bursty か evenly-distributed か
 
 `CULL` を `0.05` / `0.10` / `0.25` と変え，時代ごとに次を答えよ。

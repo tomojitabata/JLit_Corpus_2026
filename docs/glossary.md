@@ -838,7 +838,7 @@ FATAL 0 は目標ではない
 
 文体計量 / 機能語 / MFW / TTR / Guiraud's R / Yule's K / エントロピー /
 z 標準化 / Burrows's Delta / 最近傍 / PCA / 対数尤度比 G² / 効果量 /
-**散らばり（ディスパーション）— bursty / evenly-distributed** / **DP** / **culling** /
+**散らばり（ディスパーション）— bursty / evenly-distributed** / **DP** / **culling** / Zeta・Iota / representativeness・distinctiveness /
 **重なり率** / 作家効果と時代効果の交絡
 
 ---
@@ -993,9 +993,16 @@ G² は有意性の指標なので，log ratio のような効果量と併記し
 
 #### culling ★
 
-**一定割合の文書に現れない語を特徴量から外す**操作（Eder らの用語）。
+**一定割合の文書に現れない語を特徴量から外す**操作。
 *culling at 10%* なら，コーパス全体の文書頻度が 10% 未満の語を捨てる。
-本コーパスは 101 点なので 11 点未満に出る語が落ちる。
+本コーパスで分析に使うのは 108 点なので 11 点未満に出る語が落ちる。
+
+由来は Hoover (2004a, b)。Delta の検証で，**1つの作品が出現の大部分を
+占める語**と人称代名詞を外すと精度が大きく上がることを示した。
+文書頻度の閾値として定式化したのは R の stylo パッケージ
+（Eder, Rybicki & Kestemont 2016）で，本授業の culling はこちらである。
+Hoover の元の規則は文書頻度ではなく偏りそのものを見ている
+（Step 4 の表の「最多作品の占有」がその量にあたる）。
 
 ⚠ **culling は G² の値を変えない。** 語を1つ落としても他の語の
 `a, b, c, d` は変わらない（`c, d` は総語数で，特徴量の集合とは無関係）。
@@ -1011,6 +1018,36 @@ G² は有意性の指標なので，log ratio のような効果量と併記し
 ⚠ **閾値は測る前に決める。** 3通り試して「いちばんきれいな」閾値を選ぶのは，
 結果に合わせて規則を選ぶことである。複数試すのは**感度分析**として行い，
 本分析の閾値は先に宣言して報告に書く。
+
+#### Zeta / Iota
+
+Burrows (2007) が Delta に続けて提案した，**最頻語より下の頻度帯**を使う指標。
+Zeta は中頻度の語，Iota は低頻度の語を使う。Delta（最頻語）と合わせて，
+頻度のどの層にも作者の手がかりがあることを示した。
+
+Zeta はテクストをチャンクに区切り，語が**出るか出ないかだけ**を数える。
+Craig & Kinney (2009) の形では
+Zeta =（群 A でその語を含むチャンクの割合）−（群 B でその語を含むチャンクの割合）
+で，−1 から +1 の値を取る。頻度を数えないので，1作品に大量に出る語
+（bursty な語）に引きずられない。**culling が語を外して bursty さに対処する
+のに対し，Zeta は数え方を変えて対処する。** 変種の比較は Schöch ほか (2018)。
+本授業では計算しないが，研究史として Step 4 の 4.4 で扱う。
+
+#### representativeness / distinctiveness（特徴語の条件）
+
+Klaussner, Nerbonne & Çöltekin (2015) が特徴語の条件として分けた2つ。
+**representativeness** はその作者の作品のどれでも同じように使われること，
+**distinctiveness** は他の作者と使い方が違うこと。G² は後者しか見ない。
+方言学の方法（Prokić, Çöltekin & Nerbonne 2012）に由来する。
+⚠ Step 1 の「コーパスの代表性 (representativeness)」とは別の概念である。
+
+#### Random Forests による特徴語の抽出
+
+Tabata (2012, 2015) は，Dickens と Collins・参照コーパスを判別する
+Random Forests を作り，その variable importance（mean decrease accuracy・
+mean decrease Gini）で Dickens の特徴語を順位付けした。対数尤度比の
+特徴語が固有名詞と分布の偏りに引きずられるのに対し，作品を単位に学習する
+分類器は1作品にしか出ない語を重視しない。Step 4 の 4.4 で扱う。
 
 #### 重なり率 (overlap) — リストがどれだけ変わったか
 
@@ -2626,8 +2663,19 @@ drift が大きい語は KWIC で用例を読む。トピックは，そのト�
 | 1 | Biber, D. (1993) Representativeness in corpus design. *LLC* 8(4). |
 | 1 | 田野村忠温 (2011)「コーパスとコーパス言語学」『日本語学』 |
 | 1 | 前川喜久雄 (2013)『コーパス入門』（講座日本語コーパス1）朝倉書店 |
+| 4 | Burrows, J. (1987) *Computation into Criticism: A Study of Jane Austen's Novels and an Experiment in Method*. Clarendon Press. |
 | 4 | Burrows, J. (2002) 'Delta': a measure of stylistic difference. *LLC* 17(3). |
+| 4 | Hoover, D. L. (2004a) Testing Burrows's Delta. *LLC* 19(4): 453–475. |
+| 4 | Hoover, D. L. (2004b) Delta prime? *LLC* 19(4): 477–495. |
+| 4 | Eder, M., Rybicki, J. & Kestemont, M. (2016) Stylometry with R: a package for computational text analysis. *The R Journal* 8(1): 107–121. |
+| 4 | Burrows, J. (2007) All the way through: testing for authorship in different frequency strata. *LLC* 22(1): 27–47. |
+| 4 | Craig, H. & Kinney, A. F., eds. (2009) *Shakespeare, Computers, and the Mystery of Authorship*. Cambridge University Press. |
 | 4 | Evert, S. et al. (2017) Understanding and explaining Delta measures. *DSH* 32. |
+| 4 | Tabata, T. (2012) Approaching Dickens' style through Random Forests. *Digital Humanities 2012: Conference Abstracts*, University of Hamburg. |
+| 4 | Tabata, T. (2015) Stylometry of Dickens's language: an experiment with random forests. In P. L. Arthur & K. Bode (eds), *Advancing Digital Humanities: Research, Methods, Theories*. Palgrave Macmillan. |
+| 4 | Prokić, J., Çöltekin, Ç. & Nerbonne, J. (2012) Detecting shibboleths. *Proceedings of the EACL 2012 Joint Workshop of LINGVIS & UNCLH*. |
+| 4 | Klaussner, C., Nerbonne, J. & Çöltekin, Ç. (2015) Finding characteristic features in stylometric analysis. *DSH* 30(Supplement 1): 114–129. |
+| 4 | Schöch, C., Schlör, D., Zehe, A., Gebhard, H., Becker, M. & Hotho, A. (2018) Burrows' Zeta: exploring and evaluating variants and parameters. *DH2018 Book of Abstracts*. |
 | 4 | 金明哲 (2021)『テキストアナリティクス』共立出版 |
 | 5 | Mikolov et al. (2013) Efficient estimation of word representations. *ICLR Workshop*. |
 | 5 | Levy & Goldberg (2014) Neural word embedding as implicit matrix factorization. *NIPS*. |
@@ -2669,6 +2717,9 @@ drift が大きい語は KWIC で用例を読む。トピックは，そのト�
 | 効果量 | 4 |
 | カテゴリの凝集度 | 5 |
 | culling | 4 |
+| Zeta / Iota | 4 |
+| representativeness / distinctiveness | 4 |
+| Random Forests による特徴語の抽出 | 4 |
 | 交差検証 | 7 |
 | 最近傍と一致率 | 4 |
 | 散らばり（ディスパーション）— bursty / evenly-distributed | 4 |

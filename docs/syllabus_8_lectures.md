@@ -218,8 +218,11 @@ Zulip のトピック「Step N」に貼って図（SVG）・表を同じメッ�
 3. `lemma-policy` を4通り変えて異なり語数を比較
 4. `05_tokenise_unidic.py` で解析。未知語率と未知語リストを読む。
    **出力の1行目に書かれた辞書名を確かめる**
-5. `06_build_datasets.py` でチャンク分割（2,000語・上限40）
-6. **`99_validate.py` で FATAL 0 を達成する**
+5. `00_extend_metadata.py` で v3 を作り，**Step 1 の2枚の図（時代の構成・
+   文語 ⇄ 口語）を v1 と v3 で並べて作り直す**。どの空白が埋まり，何がまだ
+   偏っているかを確かめる（物差しをそろえるため，両方とも v3 の実測値で描く）
+6. `06_build_datasets.py` でチャンク分割（2,000語・上限40）
+7. **`99_validate.py` で FATAL 0 を達成する**
 
 ### このステップの勘所
 - 未知語の上位を分類させる：人名／踊り字残り／外字／文語活用／外来語
@@ -249,6 +252,11 @@ Zulip のトピック「Step N」に貼って図（SVG）・表を同じメッ�
 - **G² は「どこで多いか」を見ない**。頻度が同じでも
   「8作品に20回ずつ」と「1作品に160回」は G² が一致する。
   bursty か evenly-distributed か → **散らばり（ディスパーション。df・DP）と culling**
+- 研究史：Burrows の MFW（1987）と Delta（2002），Hoover の culling（2004），
+  Burrows の Zeta・Iota（2007。中頻度・低頻度の語），Random Forests による
+  Dickens の特徴語の抽出（Tabata 2012, 2015），representativeness と
+  distinctiveness（Klaussner ほか 2015），stylo（2016）。
+  Zeta は語が出るか出ないかだけを数えるので，bursty さに引きずられない
 
 ### 実習（50分）
 1. `07_descriptive_stats.py` を実行
@@ -407,14 +415,25 @@ Antoniak & Mimno (2018) の議論を必ず扱う。
 
 ## 参考文献（授業全体）
 
+- Burrows, J. (1987) *Computation into Criticism: A Study of Jane Austen's Novels and an Experiment in Method*. Clarendon Press.
 - Biber, D. (1993) Representativeness in corpus design. *Literary and Linguistic Computing* 8(4).
 - Burrows, J. (2002) 'Delta': a measure of stylistic difference. *LLC* 17(3).
 - Blei, D., Ng, A. & Jordan, M. (2003) Latent Dirichlet Allocation. *JMLR* 3.
+- Hoover, D. L. (2004a) Testing Burrows's Delta. *Literary and Linguistic Computing* 19(4): 453–475.
+- Hoover, D. L. (2004b) Delta prime? *Literary and Linguistic Computing* 19(4): 477–495.
+- Burrows, J. (2007) All the way through: testing for authorship in different frequency strata. *Literary and Linguistic Computing* 22(1): 27–47.
+- Craig, H. & Kinney, A. F., eds. (2009) *Shakespeare, Computers, and the Mystery of Authorship*. Cambridge University Press.
+- Prokić, J., Çöltekin, Ç. & Nerbonne, J. (2012) Detecting shibboleths. *Proceedings of the EACL 2012 Joint Workshop of LINGVIS & UNCLH*.
+- Tabata, T. (2012) Approaching Dickens' style through Random Forests. *Digital Humanities 2012: Conference Abstracts*, University of Hamburg.
 - Le, Q. & Mikolov, T. (2014) Distributed representations of sentences and documents. *ICML*.
 - Levy, O. & Goldberg, Y. (2014) Neural word embedding as implicit matrix factorization. *NIPS*.
+- Tabata, T. (2015) Stylometry of Dickens's language: an experiment with random forests. In P. L. Arthur & K. Bode (eds), *Advancing Digital Humanities: Research, Methods, Theories*. Palgrave Macmillan.
+- Klaussner, C., Nerbonne, J. & Çöltekin, Ç. (2015) Finding characteristic features in stylometric analysis. *Digital Scholarship in the Humanities* 30(Supplement 1): 114–129.
+- Eder, M., Rybicki, J. & Kestemont, M. (2016) Stylometry with R: a package for computational text analysis. *The R Journal* 8(1): 107–121.
 - Hamilton, W., Leskovec, J. & Jurafsky, D. (2016) Diachronic word embeddings reveal statistical laws of semantic change. *ACL*.
 - Dubossarsky, H. et al. (2017) Outta control: laws of semantic change and inherent biases in word representation models. *EMNLP*.
 - Antoniak, M. & Mimno, D. (2018) Evaluating the stability of embedding-based word similarities. *TACL* 6.
+- Schöch, C., Schlör, D., Zehe, A., Gebhard, H., Becker, M. & Hotho, A. (2018) Burrows' Zeta: exploring and evaluating variants and parameters. *DH2018 Book of Abstracts*.
 - Underwood, T. (2019) *Distant Horizons: Digital Evidence and Literary Change*. University of Chicago Press.
 - 前川喜久雄 編 (2013)『コーパス入門』（講座日本語コーパス1）朝倉書店
 - 金明哲 (2021)『テキストアナリティクス』共立出版
