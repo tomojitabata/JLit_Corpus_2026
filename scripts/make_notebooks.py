@@ -3907,7 +3907,7 @@ if need(p, 'この分析のスクリプトを走らせるセルを先に実行�
 | 2004 | Hoover — **culling** | Delta を検証し，1作品が出現の大部分を占める語と人称代名詞を外すと精度が上がること，語数を 150 より増やすと精度が上がることを示した（4.1） |
 | 2007 | Burrows — **Zeta・Iota** | 最頻語より**下の頻度帯**にも作者の手がかりがあることを示した。Zeta は中頻度の語，Iota は低頻度の語を使う |
 | 2009 | Craig & Kinney — Zeta の簡略版 | Zeta を「2群の文書頻度の割合の差」に整理し，シェイクスピア作品の作者問題に使った |
-| 2012, 2015 | Tabata — **Random Forests** | Dickens を Collins や18・19世紀の参照コーパスと判別する分類器を作り，その **variable importance** から Dickens の特徴語を取り出した |
+| 2012, 2015 | Tabata — **Random Forests** | Random Forests を応用して，Dickens を Collins や18・19世紀の参照コーパスと判別する特徴語セットを **variable importance** によって特定した |
 | 2015 | Klaussner, Nerbonne & Çöltekin — **representativeness と distinctiveness** | 「判別に効く語」ではなく，その作者が**一貫して**使い（representativeness），かつ**他の作者と違う**（distinctiveness）語を特徴語とした |
 | 2016 | Eder, Rybicki & Kestemont — **stylo** | Delta・culling などを R のパッケージにまとめ，誰でも同じ手順で試せるようにした |
 | 2017 | Evert ほか | Delta が**なぜ**効くのかを説明した（z 得点による正規化が要である） |
@@ -3938,12 +3938,12 @@ Iota（低頻度）の三つで，Burrows は**頻度のどの層にも作者の
 
 #### 分類器から特徴語を取り出す — Random Forests
 
-Tabata (2012, 2015) は，Dickens の24作品を Collins の24作品，および
-18・19世紀の参照コーパスと判別する **Random Forests**（Breiman の
-決定木のアンサンブル）を作った。判別の正解率は 96–100% に達した。
-そのうえで，**どの語を抜くと判別が悪くなるか**（mean decrease accuracy）と
+Tabata (2012, 2015) は，**Random Forests**（Breiman の決定木のアンサンブル）を
+応用して Dickens の24作品を Collins の24作品，および18・19世紀の参照コーパスと
+判別する特徴語セットを特定した。判別の正解率は 96–100% に達した。
+語の順位付けには，**どの語を抜くと判別が悪くなるか**（mean decrease accuracy）と
 **どの語が2群をよく分けるか**（mean decrease Gini）という2つの
-variable importance で語を順位付けし，Dickens の特徴語とした。
+variable importance を用いた。
 上位に出たのは *eyes, hands, saw, looked, back* のような，
 登場人物の**動作や姿勢**を描く語である。
 

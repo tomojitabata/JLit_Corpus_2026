@@ -1043,9 +1043,10 @@ Klaussner, Nerbonne & Çöltekin (2015) が特徴語の条件として分けた2
 
 #### Random Forests による特徴語の抽出
 
-Tabata (2012, 2015) は，Dickens と Collins・参照コーパスを判別する
-Random Forests を作り，その variable importance（mean decrease accuracy・
-mean decrease Gini）で Dickens の特徴語を順位付けした。対数尤度比の
+Tabata (2012, 2015) は，Random Forests（Breiman の決定木のアンサンブル）を
+応用して Dickens を Collins・参照コーパスと判別する特徴語セットを特定した。
+語の順位付けには variable importance（mean decrease accuracy・
+mean decrease Gini）を用いた。対数尤度比の
 特徴語が固有名詞と分布の偏りに引きずられるのに対し，作品を単位に学習する
 分類器は1作品にしか出ない語を重視しない。Step 4 の 4.4 で扱う。
 
