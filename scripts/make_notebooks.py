@@ -98,8 +98,8 @@ def need(path, hint=''):
     return ok
 
 
-# 旧名 → 新名。**中身は 0–1 の割合なので per cent は誤称**であった。
-# 2026-09-24 に改名。古い出力を持っている人のために読み替えだけは残す。
+# 旧名 → 新名。**中身は 0–1 の割合なので per cent は誤称**である。
+# 旧名の列を持つ古い出力も読めるように，読み替えを残す。
 LEGACY_COLS = {'df_all_pct': 'df_all_prop', 'df_in_pct': 'df_in_prop'}
 
 
@@ -295,8 +295,8 @@ def attach_meta(df, cols, stem_col='work_stem', meta_df=None, quiet=False,
     ``fill_blank=True``（既定）なら，**列はあるのに値が空**のセルも補う。
     列が無いより，列があって半分が空のほうが危ない。列が無ければ
     ``AttributeError`` で止まるが，値が空だと**図がそのまま描けてしまう**。
-    2026-09-22 に 07 の突合が外れ，101 点のうち 62 点の ``year_first`` が
-    空になった。図は描けたが，62 点が「初出年不明」の灰色で並んだ。
+    たとえば突合が外れて多くの作品の ``year_first`` が空になっても，図は
+    描けてしまい，それらが「初出年不明」の灰色で並ぶだけである。
     値の空きも数えて報告し，ここで補えるものは補う。
 
     分析スクリプトの出力は，その分析に要る列しか書かない。
@@ -811,7 +811,7 @@ def reserve_right(fig, frac=0.80):
     ``tight_layout()`` は面の外に置いた凡例を数えないので，そのままだと
     凡例が図の枠から出る。静止版は ``bbox_inches='tight'`` で救われるが，
     **HTML に埋め込む版は切り取らない**（切り取ると点の位置の割合が
-    ずれる）ので，凡例が切れて読めなくなる。実際に切れた。
+    ずれる）ので，凡例が切れて読めなくなる。
 
     ``tight_layout()`` の**後**，注記（``label_points``）の**前**に呼ぶ。
     """
@@ -841,7 +841,7 @@ def save_fig(fig, stem, out=None):
 # 付ければ図は読めない。
 #
 # そこで**同じ図から2つ出す**。
-#   * ``<stem>.svg``  … 論文・配布用。これまでどおり。加筆も拡大も自由
+#   * ``<stem>.svg``  … 論文・配布用。加筆も拡大も自由
 #   * ``<stem>.html`` … 授業・探索用。SVG をそのまま埋め込み，
 #                       その上に当たり判定を重ねて，指した点の語を出す
 #
@@ -1182,7 +1182,7 @@ def save_interactive(fig, ax, stem, xs, ys, tips, out=None, title='',
         i = k * n_pts + j
         # **変数名に注意。** ここを d と書くと，上で取った出力先 d
         # （svg_path.parent）を上書きして，最後に d / '....html' が
-        # 「dict ÷ str」になる。実際に踏んだ。名前は使い回さない。
+        # 「dict ÷ str」になる。名前は使い回さない。
         # 添字 i は JS では使わない（行は r で引く）。点が1万個ある図では
         # 使わない値も 100 KB 単位で効くので書かない。
         rec = {'r': j, 'term': str(t.get('term', '')),
@@ -1239,7 +1239,7 @@ def save_interactive(fig, ax, stem, xs, ys, tips, out=None, title='',
 
     # ---- 由来を図自身に刻む -------------------------------------------
     # **どの表から描いた図かが分からないと，試験用のデータで描いた図が
-    # 本物として配られる。** 実際に起きた（2026-09-22）。
+    # 本物として配られかねない。**
     import datetime as _dt
     stamp = _dt.datetime.now().astimezone().strftime('%Y-%m-%d %H:%M')
     src = Path(source) if source else None
@@ -2914,8 +2914,8 @@ if need(TOK/'tsv', 'このステップの 05_tokenise_unidic.py のセルを先�
 空いているポートを自動で使う。`PORT` を手で変える必要はない。"""),
  ('code', r'''# ---- 画面を起動する ----------------------------------------------------
 # **ポートが開くまで待ってからリンクを出す。** 待たずにリンクを出すと，
-# 索引を読んでいる最中にクリックして「サーバに接続できません」になる
-# （実際にそうなった）。起動しなかったときはログをその場に出す。
+# 索引を読んでいる最中にクリックして「サーバに接続できません」になる。
+# 起動しなかったときはログをその場に出す。
 import socket, subprocess, sys, time, urllib.request
 from IPython.display import display, HTML
 import getpass, json, os
@@ -3447,7 +3447,7 @@ if need(p, 'この分析のスクリプトを走らせるセルを先に実行�
 
     # **色分けする軸は，図の側で宣言して取りに行く。**
     # 07 の突合が外れると year_first も period も空のまま CSV に入る。
-    # それを黙って色分けすると，62 点が「初出年不明」の灰色で並ぶ（実際に起きた）。
+    # それを黙って色分けすると，多くの作品が「初出年不明」の灰色で並ぶ。
     # attach_meta は空のセルもメタデータから補い，補えなかった件数を出す。
     pc = attach_meta(pc, ['year_first','period','style_class',
                           'genre_sub','author_ja'], stem_col='work')

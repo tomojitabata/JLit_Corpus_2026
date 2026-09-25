@@ -128,7 +128,7 @@ JLit_Corpus_2026/
 │   ├── find_unclosed_quotes.py  閉じ括弧のない「の検出
 │   └── lib/aozora.py            外字復元・踊り字展開の中核
 ├── data/                        生成物（git 管理外）
-├── results/                     旧い出力先（使わない。いまは my_work/results/）
+├── results/                     使わない（出力先は my_work/results/）
 └── logs/                        実行記録
 ```
 
@@ -313,7 +313,7 @@ XML に写像し，解析用テクストはそこから決定的に生成する�
 
 メタデータの各行には `year_source` 列があり，`card`（青空文庫図書カードの記載どおり）と
 `editor`（カードに記載がなく編者が補った）を区別する。
-現在 19 件が `editor` で，Excel では黄色で塗ってある。**要確認**。
+v2 では 19 件が `editor` で，Excel では黄色で塗ってある。
 
 ### 3. 「変化を検出した」と言うには対照条件が要る。
 

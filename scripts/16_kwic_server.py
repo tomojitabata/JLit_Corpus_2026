@@ -67,7 +67,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('Content-Length', str(len(body)))
         # 画面は自分が出す1枚だけ。**外の資源は読み込まない**（CDN も使わない）。
         # connect-src 'self' が無いと，自分の /api/ にも fetch できない
-        # （最初にこれで画面が真っ白になった）。
+        # （画面が真っ白になる）。
         self.send_header('Content-Security-Policy',
                          "default-src 'none'; connect-src 'self'; "
                          "style-src 'unsafe-inline'; script-src 'unsafe-inline'; "

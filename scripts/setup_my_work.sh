@@ -84,7 +84,7 @@ mkdir -p notebooks results
 cd "${ROOT}" || exit 1
 
 # ---- 3. ノートブックを揃える ---------------------------------------------------
-# 試行版の置き場からの引っ越し（2026-09 の試行版を使った人だけ）
+# 旧い置き場（my_notebooks/）からの引っ越し（そのフォルダがある人だけ）
 if [ -d my_notebooks ]; then
   for f in my_notebooks/* my_notebooks/.copied_from.json; do
     [ -e "${f}" ] || continue

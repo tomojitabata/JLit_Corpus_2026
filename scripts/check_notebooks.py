@@ -8,9 +8,8 @@ check_notebooks.py
 セルを上から順に実行したと仮定して名前空間を積み上げ，
 その時点で束縛されていない名前が使われていないかを調べる。
 実行せずに ``NameError`` を先回りして捕まえるための道具である。
-
-（初出の不具合：共通プリアンブルに ``subprocess`` の import が無く，
-  第2回の取得セルで ``NameError: name 'subprocess' is not defined`` が出た）
+（たとえば共通プリアンブルに ``import subprocess`` が無いと，それを使う
+  セルで ``NameError: name 'subprocess' is not defined`` になる）
 
 使い方
 ------

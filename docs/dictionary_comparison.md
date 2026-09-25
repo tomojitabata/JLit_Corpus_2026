@@ -377,7 +377,7 @@ python3 scripts/12_dict_compare.py --plain data/plain/full --dict main=<本番�
 `12_dict_compare.py` は最初に素性を調べて `dict_features.csv` に記録し，
 足りない素性があれば `[warn]` を出す。**この警告が出たまま先へ進まないこと。**
 
-`05_tokenise_unidic.py` も 2026-09-22 から同じ検査を起動時に行う。
+`05_tokenise_unidic.py` も同じ検査を起動時に行う。
 `--lemma-policy mixed` が要る `lemma` / `orthBase` が無い辞書では
 **止まる**（続けるには `--lemma-policy surface` を明示するか
 `--allow-feature-mismatch`）。黙って表層形に落ちるほうが危険だからである。
@@ -640,71 +640,27 @@ python3 scripts/12_dict_compare.py --plain data/plain/full \
 | `data/datasets/dataset_provenance.json` | 上記＋チャンク長・上限・シード（06 が書く） |
 | `metadata/corpus_metadata_v3.csv` の `measure_source` | 実測に使ったトークン列と**辞書名**（`rebuilt:tokens_surface@unidic-novel-v202512`） |
 
-### 変更した箇所の一覧（2026-09-22）
-
-| ファイル | 変更 |
-|---|---|
-| `config/pipeline.yaml` | `tokenise:` に辞書名・版・決定日・根拠・`dicdir`・`dicdir_bungo` |
-| `requirements.txt` | 形態素解析欄を novel 前提に。`pip install unidic` を**書かない**理由を明記 |
-| `scripts/05_tokenise_unidic.py` | 探索順を novel 優先に／本番以外で `[warn]`／`--expect-dict`／素性検査（`--allow-feature-mismatch`）／TSV 1行目と `tokenise_provenance.json` に辞書を記録 |
-| `scripts/06_build_datasets.py` | 辞書の照合（`--strict-dict` / `--no-dict-check`）／`dataset_provenance.json` |
-| `scripts/00_extend_metadata.py` | `measure_source` に辞書名を入れ，**辞書の混在**を名指しで警告 |
-| `scripts/00_env_check.py` | 探索順を統一／本番以外なら `[WARN]`／共有辞書を `unidic*` で列挙 |
-| `scripts/00_bootstrap_mac.sh` | NINJAL 2512 版を取得（novel＋`--with-bungo` で kindai）／`env.sh` の `JLIT_UNIDIC_DIR`／展開後に `check_unidic_dir.py`／`--check` の表示 |
-| `scripts/13_pipeline_compare.py` | 比較工程では `--allow-feature-mismatch` と `--no-dict-check` を渡す |
-| `scripts/99_validate.py` | 未知語率の層別検査の注記（水準が変わったこと・外来語密度の可能性） |
-| `scripts/make_notebooks.py` | Step 3 に §3「どの辞書で解析するか」を新設（節番号を繰り下げ）／辞書検出セルを 05 の `resolve_dicdir` 経由に／到達目標と課題／Step 1 の散布図に「辞書依存の実測値」の注記 |
-| `docs/00_setup_students.md` | §1.4「本番の辞書は1つに決まっている」新設／§4.3（Windows）／つまずき表に3行 |
-| `docs/encoding_guidelines.md` | §6 の辞書欄／未知語率の表に「cwj で測った旧い値」の注記 |
-| `docs/representativeness_report.md` | §6.3 推奨設定（初版の記述を訂正した旨も明記） |
-| `docs/glossary.md` | Step 0「UniDic」／Step 3「辞書の選定」新設・「未知語率は何を測る指標か」新設／索引・キーワード |
-| `docs/syllabus_8_lectures.md` | Step 1 の環境構築／Step 3 の講義・実習・勘所・発展課題 |
-| `solutions/step3_normalise_tokenise.md` | 未知語の分類表／「辞書は作品ごとに替えない」／模範解答 |
-| `README.md` | 導入手順と 05 の実行例（`--expect-dict`） |
-| `notebooks/01`, `notebooks/03` | 再生成 |
-
-### この判定に残っている留保
+### この判定の留保
 
 1. **cwj は pip 版（`/Users/Shared/jlit/unidic`）で測った。** NINJAL の
    `unidic-cwj-202512` ではない。落選の結論は覆らない見込みだが，
-   **報告には「pip 版で測った」と書く**か，`unidic-cwj-202512` で測り直す。
-2. **層別（`dict_by_stratum.csv`）を読んでいない。** 全体の判定は済んで
-   いるが，報告には層別の表が要る（規則1は層ごとに勝者を出す）。とくに
-   「旧字旧仮名 × A_文語体」（語数 2.7%）で kindai が novel を上回るか。
-3. **`dict_disagreements.csv`（400 件）を読んでいない。** 規則1の条件3が
-   未了である。cwj ⇄ novel で 11.7 万箇所，novel ⇄ qkana で 2.9 万箇所が
-   食い違っている。**文語助動詞と複合辞の箇所を最低3例，原文で確かめる。**
-4. **外在指標（`13_pipeline_compare.py`）が未実行。** 規則3は「外在が
-   内在と食い違えば外在を採る」と定めている。novel と qkana は内在指標で
-   ほぼ同点なので，**もし順位が入れ替わるならここである。**
-5. ~~**未知語率 0.17% は低い。**~~ → **解決（2026-09-22）。**
-   05 を novel で回した `unknown_words.csv` を確認したところ，
-   **残った未知語の大半がカタカナ外来語**であった。これは辞書が語を
-   誤って吸収したのではなく，**前処理の失敗（踊り字・外字）と文語の
-   活用形が消えて，開いた類である外来語だけが残った**状態である。
-   0.17% という値は妥当と判断する。
-
+   報告には「pip 版で測った」と書く。
+2. **判定は全体（語数重み）の比較による。** 層別の比較（`dict_by_stratum.csv`），
+   食い違い箇所の原文での確認（`dict_disagreements.csv`），外在指標
+   （`13_pipeline_compare.py`）による確認は，この判定には含まれていない。
+   とくに「旧字旧仮名 × A_文語体」（語数 2.7%）では kindai が novel を
+   上回る可能性がある。novel と qkana は内在指標でほぼ同点なので，
+   外在指標で順位が入れ替わるならここである。自分の報告でこれらに
+   触れるときは，**自分で確かめた範囲**を明記すること。
+3. **未知語率 0.17% は妥当と判断した。** novel で回した `unknown_words.csv`
+   では，**残った未知語の大半がカタカナ外来語**であった。辞書が語を
+   誤って吸収したのではなく，前処理の失敗（踊り字・外字）と文語の
+   活用形が消えて，開いた類である外来語だけが残った状態である。
    **ただしこれは，指標の意味が変わったことを意味する。** §11 参照。
 
-### 決定にともなう作業
+### 辞書を替えたときにすること（実測値の測り直し。§8）
 
-**コードと設定の側（2026-09-22 に済ませた）**
-
-- [x] `config/pipeline.yaml` に辞書名・版・決定日・根拠を記録
-- [x] `05_tokenise_unidic.py` の探索順を `unidic-novel-v202512` 優先に。
-      本番以外に落ちたら `[warn]`，`--expect-dict` で停止
-- [x] 05 が辞書を **TSV の1行目**と `tokenise_provenance.json` に記録
-- [x] 05 が起動時に素性の並びを検査（`lemma`/`orthBase` が無ければ停止）
-- [x] `06_build_datasets.py` が辞書の記録と `config` を突き合わせ，
-      食い違えば警告（`--strict-dict` で停止）
-- [x] `00_env_check.py` の探索順・判定を同じにする
-- [x] `00_bootstrap_mac.sh` が NINJAL の 2512 版を取得
-      （本番＝novel，`--with-bungo` で検算用の kindai も）
-- [x] 教材（`docs/`・`solutions/`・ノートブック Step 3）の記述を改める
-
-**データの側（実測値の測り直し。§8）**
-
-辞書を替えたので，トークン列から実測しているメタデータの列は**すべて
+辞書を替えたら，トークン列から実測しているメタデータの列は**すべて
 測り直さなければならない**。測り直さずに図だけ描き替えると，古い値と
 新しいトークン列が混ざる。
 
@@ -725,13 +681,13 @@ python3 scripts/06_build_datasets.py --tokens data/tokens/tokens_content --meta 
 - **Step 1 の図（`Step1_bungo_kogo.svg`）を描き直す**
 - Step 4 以降（keyness・doc2vec・トピック）も辞書が変われば数値が変わる。
   **前の辞書で出した図と並べてはいけない**
-- `logs/` に今日の `config/pipeline.yaml` の写しを残す
+- `logs/` にその日の `config/pipeline.yaml` の写しを残す
 
 ---
 
 ## 11. 指標の意味が変わった — 未知語率は何を測っているか
 
-### 観察（2026-09-22）
+### 観察
 
 `novel` で 05 を回した `unknown_words.csv` は，**大半がカタカナ外来語**で
 占められていた。踊り字の残り・外字マーカの残り・文語の活用形は，
