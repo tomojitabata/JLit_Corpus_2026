@@ -54,7 +54,7 @@
 - [Step 0 環境構築 — 走る前の足場](#step-0-環境構築--走る前の足場)
 - [Step 1 コーパスとは何か — 設計・代表性・診断](#step-1-コーパスとは何か--設計・代表性・診断)
 - [Step 2 再構築(1) — 書誌の典拠と XML マークアップ](#step-2-再構築1--書誌の典拠と-xml-マークアップ)
-- [Step 3 再構築(2) — 正規化・形態素解析・データセット](#step-3-再構築2--正規化・形態素解析・データセット)
+- [Step 3 再構築からKWICへ — 踊り字の正規化・UniDic 解析・データセット再構築・KWICコンコーダンサ実装](#step-3-再構築からkwicへ--踊り字の正規化・unidic-解析・データセット再構築・kwicコンコーダンサ実装)
 - [Step 4 記述統計と文体計量](#step-4-記述統計と文体計量)
 - [Step 5 word2vec の原理](#step-5-word2vec-の原理)
 - [Step 6 通時的 word2vec](#step-6-通時的-word2vec)
@@ -542,7 +542,7 @@ TEI 的にも，分冊は1つの `<text>` の中の `<div type="volume">` であ
 </details>
 ---
 
-# Step 3 再構築(2) — 正規化・形態素解析・データセット
+# Step 3 再構築からKWICへ — 踊り字の正規化・UniDic 解析・データセット再構築・KWICコンコーダンサ実装
 
 > ノートブック: `03_normalise_tokenise.ipynb`
 > スクリプト: `04_normalise.py`，`05_tokenise_unidic.py`，`00_extend_metadata.py`，`06_build_datasets.py`

@@ -197,7 +197,7 @@ Zulip のトピック「Step N」に貼って図（SVG）・表を同じメッ�
 
 ---
 
-## Step 3 再構築(2) — 踊り字・UniDic 解析・データセット構築
+## Step 3 再構築からKWICへ — 踊り字の正規化・UniDic 解析・データセット再構築・KWICコンコーダンサ実装
 
 `notebooks/03_normalise_tokenise.ipynb`
 
