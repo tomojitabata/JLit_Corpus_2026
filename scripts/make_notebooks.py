@@ -1510,8 +1510,12 @@ DH Lab の iMac は XCreds 認証で，**ホームはマシンごとに別々**�
  ('code', r'''r = run_script('00_env_check.py')'''),
  ('md', r'''## 2. メタデータを読む
 
-`metadata/corpus_metadata_v2.csv` は，v1 の `コーパスdescription.xlsx` を
+`metadata/corpus_metadata_v2.csv` は，v1 の `metadata/近代日本文学コーパスdescription.xlsx` を
 青空文庫の図書カードに突き合わせて作り直したものである。
+
+**Step 1 は v1（64点）の診断なので，増補前の v2 を読む。** 増補後の
+`corpus_metadata_v3.csv`（109行）は Step 3 で作り，Step 4 以降で使う
+（共通の準備のセルの `META` は v3 を指しているので，ここでは明示的に v2 を渡す）。
 
 **v1 の何が問題だったか**（`changes_from_v1` シートに全件）:
 
@@ -1527,8 +1531,9 @@ DH Lab の iMac は XCreds 認証で，**ホームはマシンごとに別々**�
 説明できない列は，必ずあとで誤用される。'''),
  ('code', r'''# load_meta() は分析に使わない行（superseded / too_short）を落として読む。
 # 生の表がほしいときは load_meta(analysis_only=False)。
-meta = load_meta()
-print('分析対象:', meta.shape)
+META_V1 = ROOT/'metadata'/'corpus_metadata_v2.csv'   # v1 の64点（Step 1 の診断対象）
+meta = load_meta(META_V1)
+print('分析対象:', meta.shape, '←', META_V1.name)
 meta[['id','author_ja','title_aozora','year_first','period','ndc',
       'genre_sub','narration','style_class','tokens']].head(12)'''),
  ('md', r'''## 3. 演習 1 — 偏りを数える
@@ -1742,7 +1747,7 @@ for pos, (_, r) in enumerate(meta.iterrows()):
                             ('図の番号', str(n) if n <= len(top) else '')]})
 save_interactive(fig, ax, 'Step1_bungo_kogo',
                  meta.bungo_per10k, meta.kogo_per10k, tips,
-                 source=META, id_col='作品',
+                 source=META_V1, id_col='作品',
                  title='文語 ⇄ 口語（1点＝1作品）',
                  note=('色＝初出年の5段（濃いほど新しい）／菱形と矢印は'
                        '各段の中央値／番号は文語標識の上位10点。'
