@@ -48,7 +48,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from kwic_core import KwicIndex, QueryError, to_csv     # noqa: E402
+from kwic_core import (API_VERSION, KwicIndex, QueryError,  # noqa: E402
+                       code_signature, to_csv)
 
 ROOT = Path(__file__).resolve().parent.parent
 APP = Path(__file__).resolve().parent / 'kwic_app.html'
@@ -58,6 +59,11 @@ MAX_BODY = 1 << 20          # 1 MB。検索式にそれ以上は要らない
 
 class Handler(BaseHTTPRequestHandler):
     kw: KwicIndex = None            # type: ignore[assignment]
+    owner = ''
+    index_path = ''
+    sig = ''
+    app_html = b''
+    manual_html = b''
     server_version = 'JLitKWIC/1.0'
 
     # ---- 返し方 ---------------------------------------------------------
@@ -94,11 +100,14 @@ class Handler(BaseHTTPRequestHandler):
         q = urllib.parse.parse_qs(u.query)
         try:
             if u.path in ('/', '/index.html'):
-                self._send(200, APP.read_bytes(), 'text/html; charset=utf-8')
+                # **起動したときに読んだ画面**を出す。ファイルをその都度読むと，
+                # 教材を更新したあと「新しい画面＋古いサーバ」の組になり，
+                # 画面が知らない形の結果を受け取って壊れる
+                self._send(200, self.app_html, 'text/html; charset=utf-8')
             elif u.path in ('/manual', '/manual.html'):
                 # 操作マニュアル。画面から別のウィンドウで開く
-                if MANUAL.exists():
-                    self._send(200, MANUAL.read_bytes(), 'text/html; charset=utf-8')
+                if self.manual_html:
+                    self._send(200, self.manual_html, 'text/html; charset=utf-8')
                 else:
                     self._json({'error': f'マニュアルが無い: {MANUAL}'}, 404)
             elif u.path == '/api/meta':
@@ -108,7 +117,9 @@ class Handler(BaseHTTPRequestHandler):
                 # 共通なので，前の人がログアウトせずに離れる（ファストユーザー
                 # スイッチ）と，その人のサーバが同じポートに残っている。ノートブックは
                 # これを見て，自分のサーバでなければ別のポートを使う。
-                self._json({'user': self.owner, 'index': self.index_path})
+                self._json({'user': self.owner, 'index': self.index_path,
+                            'sig': self.sig, 'pid': os.getpid(),
+                            'api': API_VERSION})
             elif u.path == '/api/passage':
                 self._json(self.kw.passage(
                     int(q.get('pos', ['0'])[0]),
@@ -340,6 +351,9 @@ def main() -> int:
     Handler.kw = kw
     Handler.owner = getpass.getuser()
     Handler.index_path = os.path.realpath(args.index)
+    Handler.sig = code_signature(args.index)
+    Handler.app_html = APP.read_bytes()
+    Handler.manual_html = MANUAL.read_bytes() if MANUAL.exists() else b''
     httpd = ThreadingHTTPServer((args.host, args.port), Handler)
     url = f'http://{args.host}:{args.port}/'
     print(f'\n[serve] {url}   （終わるときは Ctrl-C）')

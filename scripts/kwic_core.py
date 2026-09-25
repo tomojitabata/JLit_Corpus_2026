@@ -67,6 +67,34 @@ INDEX_VERSION = 2
 EOS = 'EOS'
 PUNCT_POS = {'補助記号', '空白'}
 
+# 画面（kwic_app.html）とサーバの取り決めの版。画面の側にも同じ番号を書く。
+# 返す項目を変えたら上げる。食い違えば画面は「サーバが古い」と言って止まる
+API_VERSION = 2
+
+
+def code_signature(index_dir: str | os.PathLike) -> str:
+    """このサーバが使っている**プログラムと索引の指紋**。
+
+    サーバはカーネルを再起動しても止まらないので，教材を更新したり索引を
+    作り直したりしたあとも，古いプログラム・古い索引のまま動き続けうる。
+    ノートブックはこの指紋を見て，食い違えばサーバを起動し直す。
+    """
+    import hashlib
+    here = Path(__file__).resolve().parent
+    h = hashlib.sha1()
+    for name in ('kwic_core.py', '16_kwic_server.py', 'kwic_app.html',
+                 'kwic_manual.html'):
+        p = here / name
+        h.update(name.encode())
+        if p.exists():
+            h.update(p.read_bytes())
+    j = Path(index_dir) / 'kwic_index.json'
+    if j.exists():
+        st = j.stat()
+        h.update(f'{st.st_size}:{int(st.st_mtime)}'.encode())
+    return h.hexdigest()[:16]
+
+
 # 共起語の指標（名前 → 画面の表示名）。並べ替えの基準に選べる
 COLL_MEASURES = {
     'logdice': 'LogDice',          # Rychlý (2008)。14 + log2(2·O11/(f(node)+f(c)))
@@ -1183,6 +1211,7 @@ class KwicIndex:
             'pos_tree': self.pos_tree(),
             'coll_measures': COLL_MEASURES,
             'index_v2': self.v2,
+            'api': API_VERSION,
             'band_labels': self.band_labels,
             'provenance': self.prov,
         }

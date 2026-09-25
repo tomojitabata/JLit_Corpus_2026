@@ -2933,23 +2933,52 @@ def port_open(port, host='127.0.0.1', timeout=0.4):
     except OSError:
         return False
 
+def whoami(port):
+    try:
+        with urllib.request.urlopen(f'http://127.0.0.1:{port}/api/whoami', timeout=2) as r:
+            return json.loads(r.read().decode('utf-8'))
+    except Exception:                                        # noqa: BLE001
+        return {}
+
 def mine(port):
     """そのポートのサーバが「自分の，この索引の」KWIC かどうか。
 
     127.0.0.1 はマシンの中の全ユーザーに共通なので，前の人のサーバ
     （ログアウトせずに離れた人のもの）が残っていることがある。"""
-    try:
-        with urllib.request.urlopen(f'http://127.0.0.1:{port}/api/whoami', timeout=2) as r:
-            w = json.loads(r.read().decode('utf-8'))
-        return (w.get('user') == getpass.getuser()
-                and w.get('index') == os.path.realpath(KW))
-    except Exception:                                        # noqa: BLE001
-        return False
+    w = whoami(port)
+    return (w.get('user') == getpass.getuser()
+            and w.get('index') == os.path.realpath(KW))
 
 # 自分のサーバが既に起動していればそれを使い，無ければ最初の空いているポートを使う
 PORTS = range(PORT0, PORT0 + 20)
 PORT = next((p for p in PORTS if port_open(p) and mine(p)), None)
 REUSE = PORT is not None
+if REUSE:
+    # **教材を更新した・索引を作り直したあとは，古いサーバを使い回さない。**
+    # サーバはカーネルを再起動しても止まらないので，古いプログラム・古い索引のまま
+    # 動き続ける（新しい画面と組み合わさると検索で表示が壊れる）
+    from kwic_core import code_signature
+    w = whoami(PORT)
+    if w.get('sig') != code_signature(KW):
+        print(f'[info ] 起動中のサーバ（ポート番号 {PORT}）は，教材の更新または'
+              '索引の作り直しより前のもの。止めて起動し直す。')
+        try:
+            import signal
+            os.kill(int(w['pid']), signal.SIGTERM)
+        except (KeyError, ValueError, ProcessLookupError, PermissionError):
+            # 古い版のサーバは pid を返さない。起動したときの記録から止める
+            try:
+                os.kill(int(KWIC_PID.read_text().split()[0]), signal.SIGTERM)
+            except Exception:                                # noqa: BLE001
+                pass
+        for _ in range(20):
+            if not port_open(PORT):
+                break
+            time.sleep(0.25)
+        if port_open(PORT):
+            print(f'[warn ] ポート番号 {PORT} のサーバを止められなかった。別のポートを使う。')
+            PORT = None
+        REUSE = False
 if PORT is None:
     PORT = next((p for p in PORTS if not port_open(p)), None)
 

@@ -334,9 +334,16 @@ function el(tag, cls, text) {
 }
 function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
 function num(n) { return (n === null || n === undefined) ? '' : n.toLocaleString('ja-JP'); }
+// 数でないもの（古いサーバが返さない項目など）は空欄にする。表示全体を止めない
+function fx(v, d) { return (typeof v === 'number' && isFinite(v)) ? v.toFixed(d) : ''; }
 const $ = (id) => document.getElementById(id);
 
 let META = null, STREAM = 'lemma', LAST = null, OFFSET = 0;
+// サーバとの取り決めの版（kwic_core.API_VERSION と同じ番号）
+const API_VERSION = 2;
+const STALE = 'サーバが古い（画面より前の版のまま動いている）。'
+  + 'ノートブックの「止める」のセルを STOP_KWIC = True で実行してから，'
+  + '「画面を起動する」のセルを実行し直すこと。';
 
 function selected(id) {
   return Array.from($(id).selectedOptions).map(o => o.value);
@@ -352,6 +359,7 @@ function showErr(msg) {
 async function loadMeta() {
   const r = await fetch('/api/meta');
   META = await r.json();
+  if (META.api !== API_VERSION) showErr(STALE);
   const p = META.provenance || {};
   $('head-sub').textContent =
     `${p.dictionary || '?'} ${p.dictionary_version || ''}／`
@@ -439,11 +447,20 @@ async function search(offset) {
   if (!body.query.trim()) { showErr('検索語を入れること。'); return; }
   $('go').disabled = true;
   showErr('');
+  let res;
   try {
     const r = await fetch('/api/search', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(body)});
-    const res = await r.json();
+    res = await r.json();
+  } catch (e) {
+    // **接続の失敗と，表示の失敗を分ける。** 表示の誤りを「接続できない」と
+    // 言うと，サーバを疑って時間を失う
+    showErr('サーバに接続できない: ' + e);
+    $('go').disabled = false;
+    return;
+  }
+  try {
     if (res.error) {
       showErr(res.error);
       if (res.kind === 'query') { clear($('kwic').tBodies[0]); }
@@ -451,8 +468,12 @@ async function search(offset) {
     }
     LAST = res; OFFSET = res.offset;
     render(res);
+    // 古いサーバでも表示できるところは出すが，警告は消さない
+    if (!META || META.api !== API_VERSION) showErr(STALE);
   } catch (e) {
-    showErr('サーバに接続できない: ' + e);
+    const stale = !META || META.api !== API_VERSION || !('coll_info' in res);
+    showErr(stale ? STALE + '\n（' + e + '）'
+                  : '結果の表示で誤りが出た: ' + e + '\n画面を再読み込みしても直らなければ教員に知らせること。');
   } finally {
     $('go').disabled = false;
   }
@@ -597,10 +618,10 @@ function renderColl(res) {
     tr.appendChild(el('td', null, c.form));
     tr.appendChild(el('td', 'num' + (cur === 'co' ? ' on' : ''), num(c.co)));
     tr.appendChild(el('td', 'num', num(c.freq)));
-    tr.appendChild(el('td', 'num', c.exp.toFixed(2)));
+    tr.appendChild(el('td', 'num', fx(c.exp, 2)));
     MEAS_COLS.forEach(m => {
       const v = c[m];
-      const s = m.startsWith('dp') ? v.toFixed(4) : v.toFixed(2);
+      const s = fx(v, m.startsWith('dp') ? 4 : 2);
       tr.appendChild(el('td', 'num' + (m === cur ? ' on' : ''), s));
     });
     ct.appendChild(tr);
