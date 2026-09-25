@@ -415,26 +415,26 @@ Antoniak & Mimno (2018) の議論を必ず扱う。
 
 ## 参考文献（授業全体）
 
-- Burrows, J. (1987) *Computation into Criticism: A Study of Jane Austen's Novels and an Experiment in Method*. Clarendon Press.
+- Antoniak, M. & Mimno, D. (2018) Evaluating the stability of embedding-based word similarities. *TACL* 6.
 - Biber, D. (1993) Representativeness in corpus design. *Literary and Linguistic Computing* 8(4).
-- Burrows, J. (2002) 'Delta': a measure of stylistic difference. *LLC* 17(3).
 - Blei, D., Ng, A. & Jordan, M. (2003) Latent Dirichlet Allocation. *JMLR* 3.
-- Hoover, D. L. (2004a) Testing Burrows's Delta. *Literary and Linguistic Computing* 19(4): 453–475.
-- Hoover, D. L. (2004b) Delta prime? *Literary and Linguistic Computing* 19(4): 477–495.
+- Burrows, J. (1987) *Computation into Criticism: A Study of Jane Austen's Novels and an Experiment in Method*. Clarendon Press.
+- Burrows, J. (2002) 'Delta': a measure of stylistic difference. *LLC* 17(3).
 - Burrows, J. (2007) All the way through: testing for authorship in different frequency strata. *Literary and Linguistic Computing* 22(1): 27–47.
 - Craig, H. & Kinney, A. F., eds. (2009) *Shakespeare, Computers, and the Mystery of Authorship*. Cambridge University Press.
-- Prokić, J., Çöltekin, Ç. & Nerbonne, J. (2012) Detecting shibboleths. *Proceedings of the EACL 2012 Joint Workshop of LINGVIS & UNCLH*.
-- Tabata, T. (2012) Approaching Dickens' style through Random Forests. *Digital Humanities 2012: Conference Abstracts*, University of Hamburg.
-- Le, Q. & Mikolov, T. (2014) Distributed representations of sentences and documents. *ICML*.
-- Levy, O. & Goldberg, Y. (2014) Neural word embedding as implicit matrix factorization. *NIPS*.
-- Tabata, T. (2015) Stylometry of Dickens's language: an experiment with random forests. In P. L. Arthur & K. Bode (eds), *Advancing Digital Humanities: Research, Methods, Theories*. Palgrave Macmillan.
-- Klaussner, C., Nerbonne, J. & Çöltekin, Ç. (2015) Finding characteristic features in stylometric analysis. *Digital Scholarship in the Humanities* 30(Supplement 1): 114–129.
+- Dubossarsky, H. et al. (2017) Outta control: laws of semantic change and inherent biases in word representation models. *EMNLP*.
 - Eder, M., Rybicki, J. & Kestemont, M. (2016) Stylometry with R: a package for computational text analysis. *The R Journal* 8(1): 107–121.
 - Hamilton, W., Leskovec, J. & Jurafsky, D. (2016) Diachronic word embeddings reveal statistical laws of semantic change. *ACL*.
-- Dubossarsky, H. et al. (2017) Outta control: laws of semantic change and inherent biases in word representation models. *EMNLP*.
-- Antoniak, M. & Mimno, D. (2018) Evaluating the stability of embedding-based word similarities. *TACL* 6.
-- Schöch, C., Schlör, D., Zehe, A., Gebhard, H., Becker, M. & Hotho, A. (2018) Burrows' Zeta: exploring and evaluating variants and parameters. *DH2018 Book of Abstracts*.
-- Underwood, T. (2019) *Distant Horizons: Digital Evidence and Literary Change*. University of Chicago Press.
-- Tabata, T. (2026) Using word embeddings as a semantic approach to key word analysis. *PALA 2026: The Philosophy of Stylistics*, Uppsala, 19–22 August 2026. 資料: <https://tinyurl.com/tabata-pala2026>
-- 前川喜久雄 編 (2013)『コーパス入門』（講座日本語コーパス1）朝倉書店
+- Hoover, D. L. (2004a) Testing Burrows's Delta. *Literary and Linguistic Computing* 19(4): 453–475.
+- Hoover, D. L. (2004b) Delta prime? *Literary and Linguistic Computing* 19(4): 477–495.
 - 金明哲 (2021)『テキストアナリティクス』共立出版
+- Klaussner, C., Nerbonne, J. & Çöltekin, Ç. (2015) Finding characteristic features in stylometric analysis. *Digital Scholarship in the Humanities* 30(Supplement 1): 114–129.
+- Le, Q. & Mikolov, T. (2014) Distributed representations of sentences and documents. *ICML*.
+- Levy, O. & Goldberg, Y. (2014) Neural word embedding as implicit matrix factorization. *NIPS*.
+- 前川喜久雄 編 (2013)『コーパス入門』（講座日本語コーパス1）朝倉書店
+- Prokić, J., Çöltekin, Ç. & Nerbonne, J. (2012) Detecting shibboleths. *Proceedings of the EACL 2012 Joint Workshop of LINGVIS & UNCLH*.
+- Schöch, C., Schlör, D., Zehe, A., Gebhard, H., Becker, M. & Hotho, A. (2018) Burrows' Zeta: exploring and evaluating variants and parameters. *DH2018 Book of Abstracts*.
+- Tabata, T. (2012) Approaching Dickens' style through Random Forests. *Digital Humanities 2012: Conference Abstracts*, University of Hamburg.
+- Tabata, T. (2015) Stylometry of Dickens's language: an experiment with random forests. In P. L. Arthur & K. Bode (eds), *Advancing Digital Humanities: Research, Methods, Theories*. Palgrave Macmillan.
+- Tabata, T. (2026) Using word embeddings as a semantic approach to key word analysis. *PALA 2026: The Philosophy of Stylistics*, Uppsala, 19–22 August 2026. 資料: <https://tinyurl.com/tabata-pala2026>
+- Underwood, T. (2019) *Distant Horizons: Digital Evidence and Literary Change*. University of Chicago Press.

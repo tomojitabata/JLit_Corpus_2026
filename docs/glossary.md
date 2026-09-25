@@ -2634,31 +2634,31 @@ drift が大きい語は KWIC で用例を読む。トピックは，そのト�
 | Step | 文献 |
 |---|---|
 | 1 | Biber, D. (1993) Representativeness in corpus design. *LLC* 8(4). |
-| 1 | 田野村忠温 (2011)「コーパスとコーパス言語学」『日本語学』 |
 | 1 | 前川喜久雄 (2013)『コーパス入門』（講座日本語コーパス1）朝倉書店 |
+| 1 | 田野村忠温 (2011)「コーパスとコーパス言語学」『日本語学』 |
 | 4 | Burrows, J. (1987) *Computation into Criticism: A Study of Jane Austen's Novels and an Experiment in Method*. Clarendon Press. |
 | 4 | Burrows, J. (2002) 'Delta': a measure of stylistic difference. *LLC* 17(3). |
-| 4 | Hoover, D. L. (2004a) Testing Burrows's Delta. *LLC* 19(4): 453–475. |
-| 4 | Hoover, D. L. (2004b) Delta prime? *LLC* 19(4): 477–495. |
-| 4 | Eder, M., Rybicki, J. & Kestemont, M. (2016) Stylometry with R: a package for computational text analysis. *The R Journal* 8(1): 107–121. |
 | 4 | Burrows, J. (2007) All the way through: testing for authorship in different frequency strata. *LLC* 22(1): 27–47. |
 | 4 | Craig, H. & Kinney, A. F., eds. (2009) *Shakespeare, Computers, and the Mystery of Authorship*. Cambridge University Press. |
+| 4 | Eder, M., Rybicki, J. & Kestemont, M. (2016) Stylometry with R: a package for computational text analysis. *The R Journal* 8(1): 107–121. |
 | 4 | Evert, S. et al. (2017) Understanding and explaining Delta measures. *DSH* 32. |
+| 4 | Hoover, D. L. (2004a) Testing Burrows's Delta. *LLC* 19(4): 453–475. |
+| 4 | Hoover, D. L. (2004b) Delta prime? *LLC* 19(4): 477–495. |
+| 4 | 金明哲 (2021)『テキストアナリティクス』共立出版 |
+| 4 | Klaussner, C., Nerbonne, J. & Çöltekin, Ç. (2015) Finding characteristic features in stylometric analysis. *DSH* 30(Supplement 1): 114–129. |
+| 4 | Prokić, J., Çöltekin, Ç. & Nerbonne, J. (2012) Detecting shibboleths. *Proceedings of the EACL 2012 Joint Workshop of LINGVIS & UNCLH*. |
+| 4 | Schöch, C., Schlör, D., Zehe, A., Gebhard, H., Becker, M. & Hotho, A. (2018) Burrows' Zeta: exploring and evaluating variants and parameters. *DH2018 Book of Abstracts*. |
 | 4 | Tabata, T. (2012) Approaching Dickens' style through Random Forests. *Digital Humanities 2012: Conference Abstracts*, University of Hamburg. |
 | 4 | Tabata, T. (2015) Stylometry of Dickens's language: an experiment with random forests. In P. L. Arthur & K. Bode (eds), *Advancing Digital Humanities: Research, Methods, Theories*. Palgrave Macmillan. |
-| 4 | Prokić, J., Çöltekin, Ç. & Nerbonne, J. (2012) Detecting shibboleths. *Proceedings of the EACL 2012 Joint Workshop of LINGVIS & UNCLH*. |
-| 4 | Klaussner, C., Nerbonne, J. & Çöltekin, Ç. (2015) Finding characteristic features in stylometric analysis. *DSH* 30(Supplement 1): 114–129. |
-| 4 | Schöch, C., Schlör, D., Zehe, A., Gebhard, H., Becker, M. & Hotho, A. (2018) Burrows' Zeta: exploring and evaluating variants and parameters. *DH2018 Book of Abstracts*. |
-| 4 | 金明哲 (2021)『テキストアナリティクス』共立出版 |
-| 5 | Mikolov et al. (2013) Efficient estimation of word representations. *ICLR Workshop*. |
-| 5 | Levy & Goldberg (2014) Neural word embedding as implicit matrix factorization. *NIPS*. |
 | 5 | Antoniak & Mimno (2018) Evaluating the stability of embedding-based word similarities. *TACL* 6. |
+| 5 | Levy & Goldberg (2014) Neural word embedding as implicit matrix factorization. *NIPS*. |
+| 5 | Mikolov et al. (2013) Efficient estimation of word representations. *ICLR Workshop*. |
+| 6 | Dubossarsky et al. (2017) Outta control: laws of semantic change and inherent biases. *EMNLP*. |
 | 6 | Hamilton, Leskovec & Jurafsky (2016) Diachronic word embeddings reveal statistical laws of semantic change. *ACL*. |
 | 6 | Kim et al. (2014) Temporal analysis of language through neural language models. *ACL Workshop*. |
-| 6 | Dubossarsky et al. (2017) Outta control: laws of semantic change and inherent biases. *EMNLP*. |
 | 6 | Tabata, T. (2026) Using word embeddings as a semantic approach to key word analysis. *PALA 2026: The Philosophy of Stylistics*, Uppsala, 19–22 August 2026. 資料: <https://tinyurl.com/tabata-pala2026> |
-| 7 | Le & Mikolov (2014) Distributed representations of sentences and documents. *ICML*. |
 | 7 | Lau & Baldwin (2016) An empirical evaluation of doc2vec. *Rep4NLP*. |
+| 7 | Le & Mikolov (2014) Distributed representations of sentences and documents. *ICML*. |
 | 8 | Blei, Ng & Jordan (2003) Latent Dirichlet Allocation. *JMLR* 3. |
 | 8 | Mimno et al. (2011) Optimizing semantic coherence in topic models. *EMNLP*. |
 | 8 | Underwood, T. (2019) *Distant Horizons*. Chicago UP. |

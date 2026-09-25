@@ -1471,8 +1471,8 @@ L(1, 'コーパスとは何か — 設計・代表性・v1の診断', [
 ## 参考
 
 - Biber, D. (1993) Representativeness in corpus design. *LLC* 8(4).
-- 田野村忠温 (2011)「コーパスとコーパス言語学」『日本語学』
 - 前川喜久雄 (2013)『コーパス入門』（講座日本語コーパス1）朝倉書店
+- 田野村忠温 (2011)「コーパスとコーパス言語学」『日本語学』
 '''),
  ('code', PREAMBLE),
  ('md', r'''## 1. 環境チェック
@@ -3163,18 +3163,18 @@ L(4, '記述統計と文体計量 — MFW・Delta・PCA・特徴語', [
 ## 参考
 - Burrows, J. (1987) *Computation into Criticism: A Study of Jane Austen's Novels and an Experiment in Method*. Clarendon Press.
 - Burrows, J. (2002) 'Delta': a measure of stylistic difference. *LLC* 17(3).
-- Hoover, D. L. (2004a) Testing Burrows's Delta. *LLC* 19(4): 453–475.
-- Hoover, D. L. (2004b) Delta prime? *LLC* 19(4): 477–495.
 - Burrows, J. (2007) All the way through: testing for authorship in different frequency strata. *LLC* 22(1): 27–47.
 - Craig, H. & Kinney, A. F., eds. (2009) *Shakespeare, Computers, and the Mystery of Authorship*. Cambridge University Press.
 - Eder, M., Rybicki, J. & Kestemont, M. (2016) Stylometry with R: a package for computational text analysis. *The R Journal* 8(1): 107–121.
 - Evert, S. et al. (2017) Understanding and explaining Delta measures. *DSH* 32.
+- Hoover, D. L. (2004a) Testing Burrows's Delta. *LLC* 19(4): 453–475.
+- Hoover, D. L. (2004b) Delta prime? *LLC* 19(4): 477–495.
+- 金明哲 (2021)『テキストアナリティクス』共立出版
+- Klaussner, C., Nerbonne, J. & Çöltekin, Ç. (2015) Finding characteristic features in stylometric analysis. *DSH* 30(Supplement 1): 114–129.
+- Prokić, J., Çöltekin, Ç. & Nerbonne, J. (2012) Detecting shibboleths. *Proceedings of the EACL 2012 Joint Workshop of LINGVIS & UNCLH*.
+- Schöch, C., Schlör, D., Zehe, A., Gebhard, H., Becker, M. & Hotho, A. (2018) Burrows' Zeta: exploring and evaluating variants and parameters. *DH2018 Book of Abstracts*.
 - Tabata, T. (2012) Approaching Dickens' style through Random Forests. *Digital Humanities 2012: Conference Abstracts*, University of Hamburg.
 - Tabata, T. (2015) Stylometry of Dickens's language: an experiment with random forests. In P. L. Arthur & K. Bode (eds), *Advancing Digital Humanities: Research, Methods, Theories*. Palgrave Macmillan.
-- Prokić, J., Çöltekin, Ç. & Nerbonne, J. (2012) Detecting shibboleths. *Proceedings of the EACL 2012 Joint Workshop of LINGVIS & UNCLH*.
-- Klaussner, C., Nerbonne, J. & Çöltekin, Ç. (2015) Finding characteristic features in stylometric analysis. *DSH* 30(Supplement 1): 114–129.
-- Schöch, C., Schlör, D., Zehe, A., Gebhard, H., Becker, M. & Hotho, A. (2018) Burrows' Zeta: exploring and evaluating variants and parameters. *DH2018 Book of Abstracts*.
-- 金明哲 (2021)『テキストアナリティクス』共立出版
 '''),
  ('code', PREAMBLE),
  ('code', r'''TOK = ROOT/'data'/'tokens'
@@ -4099,9 +4099,9 @@ word2vec はこの仮説を，**文脈語を予測する浅いニューラルネ
 必ずしも高頻度ではない。したがって **skip-gram を既定にする**。
 
 ## 参考
-- Mikolov et al. (2013) Efficient estimation of word representations. *ICLR Workshop*.
-- Levy & Goldberg (2014) Neural word embedding as implicit matrix factorization. *NIPS*.
 - Antoniak & Mimno (2018) Evaluating the stability of embedding-based word similarities. *TACL* 6.
+- Levy & Goldberg (2014) Neural word embedding as implicit matrix factorization. *NIPS*.
+- Mikolov et al. (2013) Efficient estimation of word representations. *ICLR Workshop*.
 '''),
  ('code', PREAMBLE),
  ('md', r'''## 1. まず共起行列を作ってみる
@@ -5101,9 +5101,9 @@ word2vec の目的関数は**回転に対して不変**である。
 3. 回転だけを許すので，**語どうしの距離構造は保たれる**
 
 ## 参考
+- Dubossarsky et al. (2017) Outta control: laws of semantic change and inherent biases. *EMNLP*.
 - Hamilton, Leskovec & Jurafsky (2016) Diachronic word embeddings reveal statistical laws of semantic change. *ACL*.
 - Kim et al. (2014) Temporal analysis of language through neural language models. *ACL Workshop*.
-- Dubossarsky et al. (2017) Outta control: laws of semantic change and inherent biases. *EMNLP*.
 - Tabata, T. (2026) Using word embeddings as a semantic approach to key word analysis. *PALA 2026: The Philosophy of Stylistics*, Uppsala, 19–22 August 2026. 資料: <https://tinyurl.com/tabata-pala2026>
 '''),
  ('code', PREAMBLE),
@@ -5454,8 +5454,8 @@ Le & Mikolov (2014) の Paragraph Vector は，文書 ID を追加の「語」�
 ベクトルの質が作品長と相関してしまう（『夜明け前』は『大塩平八郎』の16.5倍）。
 
 ## 参考
-- Le & Mikolov (2014) Distributed representations of sentences and documents. *ICML*.
 - Lau & Baldwin (2016) An empirical evaluation of doc2vec. *Rep4NLP*.
+- Le & Mikolov (2014) Distributed representations of sentences and documents. *ICML*.
 '''),
  ('code', PREAMBLE),
  ('code', r'''DS = ROOT/'data'/'datasets'
