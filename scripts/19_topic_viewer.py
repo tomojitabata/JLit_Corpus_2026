@@ -361,6 +361,7 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
 svg text{fill:var(--fg);font-size:11px}
 svg .mut{fill:var(--mut)}
 .warn{color:var(--c1);font-size:12px}
+.copy{color:var(--mut);font-size:11px;margin:24px 0 8px}
 #rel{margin-top:14px}
 #rel .head{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 #rel h3{font-size:13px;margin:0}
@@ -418,6 +419,7 @@ svg .mut{fill:var(--mut)}
   <div class="bar" id="summary"></div>
   <div class="grid" id="grid"></div>
   <section id="detail" hidden></section>
+  <footer class="copy">JLit トピックビューア　&copy; Tomoji Tabata (DH UOsaka)</footer>
 </main>
 </div>
 <script id="data" type="application/json">__DATA__</script>
