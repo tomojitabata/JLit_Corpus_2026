@@ -419,6 +419,7 @@ Antoniak & Mimno (2018) の議論を必ず扱う。
 - Antoniak, M. & Mimno, D. (2018) Evaluating the stability of embedding-based word similarities. *TACL* 6.
 - Biber, D. (1993) Representativeness in corpus design. *Literary and Linguistic Computing* 8(4).
 - Blei, D., Ng, A. & Jordan, M. (2003) Latent Dirichlet Allocation. *JMLR* 3.
+- Blondel, V. D., Guillaume, J.-L., Lambiotte, R. & Lefebvre, E. (2008) Fast unfolding of communities in large networks. *Journal of Statistical Mechanics: Theory and Experiment* 2008(10): P10008.
 - Burrows, J. (1987) *Computation into Criticism: A Study of Jane Austen's Novels and an Experiment in Method*. Clarendon Press.
 - Burrows, J. (2002) 'Delta': a measure of stylistic difference. *LLC* 17(3).
 - Burrows, J. (2007) All the way through: testing for authorship in different frequency strata. *Literary and Linguistic Computing* 22(1): 27–47.
@@ -432,6 +433,7 @@ Antoniak & Mimno (2018) の議論を必ず扱う。
 - Hoover, D. L. (2004b) Delta prime? *Literary and Linguistic Computing* 19(4): 477–495.
 - 金明哲 (2021)『テキストアナリティクス』共立出版
 - Klaussner, C., Nerbonne, J. & Çöltekin, Ç. (2015) Finding characteristic features in stylometric analysis. *Digital Scholarship in the Humanities* 30(Supplement 1): 114–129.
+- Lau, J. H., Grieser, K., Newman, D. & Baldwin, T. (2011) Automatic labelling of topic models. *Proceedings of the 49th Annual Meeting of the Association for Computational Linguistics*: 1536–1545.
 - Le, Q. & Mikolov, T. (2014) Distributed representations of sentences and documents. *ICML*.
 - Levy, O. & Goldberg, Y. (2014) Neural word embedding as implicit matrix factorization. *NIPS*.
 - Lin, J. (1991) Divergence measures based on the Shannon entropy. *IEEE Transactions on Information Theory* 37(1): 145–151.

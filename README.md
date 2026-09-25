@@ -116,6 +116,7 @@ JLit_Corpus_2026/
 │   ├── 17_delta_workbook.py     Burrows's Delta を手計算する Excel ブック（Step 4）
 │   ├── 18_pos_select.py         品詞・集中度・dp_in で語を選び直す（Step 8）
 │   ├── 19_topic_viewer.py       トピックビューア（品詞・頻度帯で絞り込む HTML）
+│   ├── topic_viewer_manual.html トピックビューアの操作マニュアル（ビューアと同じフォルダに書き出す）
 │   ├── check_script_calls.py    ノートブックの呼び出しとスクリプトの引数を突き合わせる
 │   ├── check_units.py           列名（_prop は 0–1／_pct は 0–100）と中身の尺度の照合
 │   ├── kwic_core.py             KWIC の中身（索引と検索。ノートブックからも使える）

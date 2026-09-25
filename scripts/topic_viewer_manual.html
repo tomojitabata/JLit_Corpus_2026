@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>トピックビューア操作マニュアル</title>
+<!--
+  JLit トピックビューアの操作マニュアル。19_topic_viewer.py がビューアと同じフォルダに
+  topic_viewer_manual.html として書き出す。ビューアの「操作マニュアル」と各欄の「？」から，
+  別のウィンドウで開く。外部の資源は使わない。
+  ● ビューアの機能を変えたら，このマニュアルも同じ変更で直すこと。
+-->
+<style>
+:root{
+  --ink:#1f1e1b; --ink2:#5a5a55; --ink3:#8a8a82; --line:#d8d7d0;
+  --surface:#ffffff; --wash:#f7f7f4; --key:#0d366b; --keybg:#eef4fb;
+  --accent:#0072B2; --warn:#8a3b12; --warnbg:#fdf1ea; --tip:#1d5c3a; --tipbg:#edf6f0;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:14px}
+body{margin:0;background:var(--wash);color:var(--ink);line-height:1.75;
+  font-family:"Hiragino Sans","Noto Sans JP","Yu Gothic",system-ui,sans-serif;font-size:15px}
+a{color:var(--accent)}
+.wrap{display:grid;grid-template-columns:250px minmax(0,1fr);max-width:1180px;margin:0 auto}
+nav{position:sticky;top:0;align-self:start;max-height:100vh;overflow:auto;
+  padding:22px 14px 30px 18px;border-right:1px solid var(--line);font-size:13px}
+nav .t{font-weight:700;font-size:14px;margin-bottom:10px;line-height:1.4}
+nav ol{margin:0;padding-left:1.3em}
+nav li{margin:3px 0}
+nav a{text-decoration:none;color:var(--ink2)}
+nav a:hover{color:var(--accent);text-decoration:underline}
+main{padding:22px 34px 60px;min-width:0}
+h1{font-size:1.35rem;margin:0 0 .2em}
+.lead{color:var(--ink2);margin:0 0 1.4em}
+h2{font-size:1.1rem;margin:2.2em 0 .6em;padding-top:.4em;border-top:1px solid var(--line)}
+h2 .n{color:var(--accent);margin-right:.35em}
+h3{font-size:.98rem;margin:1.5em 0 .4em}
+p,li{max-width:52em}
+table{border-collapse:collapse;width:100%;max-width:54em;font-size:13.5px;margin:.6em 0 1em;
+  background:var(--surface)}
+th,td{padding:6px 9px;border:1px solid #e3e1d9;vertical-align:top;text-align:left}
+th{background:#f0efe9;color:var(--ink2);font-weight:600;white-space:nowrap}
+code,kbd{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:.9em}
+code{background:#efeee8;padding:1px 5px;border-radius:4px}
+kbd{background:#fff;border:1px solid #cfcdc4;border-bottom-width:2px;border-radius:4px;padding:0 5px}
+pre{background:#23221f;color:#f3f2ec;padding:12px 14px;border-radius:8px;overflow:auto;
+  font-size:13px;line-height:1.55;max-width:54em}
+pre code{background:none;padding:0;color:inherit}
+.ui{display:inline-block;background:var(--keybg);color:var(--key);border:1px solid #c9dbef;
+  border-radius:5px;padding:0 6px;font-size:.9em;white-space:nowrap}
+.box{border-radius:8px;padding:10px 14px;margin:1em 0;max-width:54em;font-size:14px}
+.warn{background:var(--warnbg);border:1px solid #e6bfa6;color:var(--warn)}
+.tip{background:var(--tipbg);border:1px solid #b9d9c4;color:var(--tip)}
+.box b:first-child{margin-right:.3em}
+figure{margin:1em 0 1.4em;max-width:54em}
+figcaption{font-size:12.5px;color:var(--ink2);margin-top:4px}
+svg text{font-family:inherit}
+.steps li{margin:.35em 0}
+.top{font-size:12px;margin-left:.6em}
+@media (max-width:860px){
+  .wrap{grid-template-columns:1fr}
+  nav{position:static;max-height:none;border-right:0;border-bottom:1px solid var(--line)}
+  main{padding:18px 16px 50px}
+}
+@media print{nav{display:none}.wrap{grid-template-columns:1fr}h2{break-after:avoid}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav aria-label="目次">
+  <div class="t">JLit トピックビューア<br>操作マニュアル</div>
+  <ol>
+    <li><a href="#intro">この道具で何をするか</a></li>
+    <li><a href="#twoscreen">マニュアルを横に並べて使う</a></li>
+    <li><a href="#start">作り方と開き方</a></li>
+    <li><a href="#layout">画面の構成</a></li>
+    <li><a href="#model">モデルを切り替える</a></li>
+    <li><a href="#pos">品詞で絞る</a></li>
+    <li><a href="#band">頻度帯で絞る</a></li>
+    <li><a href="#lambda">並べ方（relevance λ）</a></li>
+    <li><a href="#search">語で探す</a></li>
+    <li><a href="#cards">トピックのカードと並べ替え</a></li>
+    <li><a href="#detail">トピックの詳細</a></li>
+    <li><a href="#related">関連の強いトピック</a></li>
+    <li><a href="#network">ネットワーク（トピック・作品）</a></li>
+    <li><a href="#labels">ラベルづけ</a></li>
+    <li><a href="#hide">語を隠すことと，除いて学習し直すこと</a></li>
+    <li><a href="#trouble">困ったとき</a></li>
+  </ol>
+</nav>
+
+<main>
+<h1>JLit トピックビューア 操作マニュアル</h1>
+<p class="lead">Step 8「トピックモデル（LDA / MALLET）」で作るトピックビューアの使い方。
+画面の各欄の見出しにある <span class="ui">？</span> を押すと，このマニュアルの該当する節が開く。</p>
+
+<!-- ================================================================ -->
+<h2 id="intro"><span class="n">1</span>この道具で何をするか</h2>
+<p>MALLET で学習したトピックモデル（LDA）の結果を，<b>読むため</b>の画面である。
+トピックは「語の確率分布」なので，上位語の一覧を眺めるだけでは，それが主題なのか，
+1つの作品の登場人物名の束なのか，機能語の寄せ集めなのかが分からない。この画面では</p>
+<ul>
+  <li>上位語を<b>品詞・頻度帯</b>で絞り，<b>relevance λ</b> で並べ替えて，トピックの中身を見分ける</li>
+  <li>トピックごとに<b>時代別の割合</b>と，<b>そのトピックを担う作品・作家</b>を見る</li>
+  <li>選んだトピックと<b>関連の強いトピック</b>を，語分布の近さや共起から探す</li>
+  <li>学習の条件を変えた<b>複数のモデル</b>を切り替えて比べる</li>
+</ul>
+<p>1枚の HTML で，サーバもネットワークも要らない。ブラウザで開くだけで使える。</p>
+
+<!-- ================================================================ -->
+<h2 id="twoscreen"><span class="n">2</span>マニュアルを横に並べて使う</h2>
+<p>画面右上の <span class="ui">操作マニュアル ↗</span> と，各欄の <span class="ui">？</span> は，
+このマニュアルを<b>別のウィンドウ</b>で開く。何度押しても同じウィンドウが使われ，該当する節まで送られる。</p>
+<ol class="steps">
+  <li>ビューアで <span class="ui">操作マニュアル ↗</span> を押す（別のウィンドウが開く）</li>
+  <li>macOS では，ウィンドウ左上の緑のボタンにポインタを載せ，出てくるメニューから
+    画面の左半分に並べる項目を選ぶ（macOS の版によって表記が違う）。もう一方のウィンドウを右半分に選ぶ</li>
+  <li>大きなモニターや2台目のモニターがあれば，マニュアルのウィンドウをそちらへ移す</li>
+</ol>
+<div class="box tip"><b>ヒント</b>ビューアは幅 900px 未満になると左の欄が上に回る。
+画面を2分割するときはビューア側を広めにするとよい。</div>
+
+<!-- ================================================================ -->
+<h2 id="start"><span class="n">3</span>作り方と開き方</h2>
+<h3>ノートブックから（ふつうはこちら）</h3>
+<ol class="steps">
+  <li>Step 8 で MALLET を実行し（本番と，語を選び直したもの），
+    「トピックビューアを作る」のセルを実行する</li>
+  <li>macOS なら次のセルで既定のブラウザに開く。あるいは
+    <code>my_work/results/topic_viewer.html</code> をブラウザで開く</li>
+</ol>
+<p>このマニュアル（<code>topic_viewer_manual.html</code>）は，ビューアと<b>同じフォルダ</b>に一緒に書き出される。
+ビューアのファイルをほかの場所へ移すときは，マニュアルも一緒に移すこと。</p>
+<h3>ターミナルから</h3>
+<pre><code>python3 scripts/19_topic_viewer.py \
+    --model 名詞・動詞・形容詞=my_work/results/mallet_nva \
+    --model 内容語すべて=my_work/results/mallet \
+    --out my_work/results/topic_viewer.html</code></pre>
+<table>
+  <tr><th>引数</th><th>働き</th></tr>
+  <tr><td><code>--model 名前=ディレクトリ</code></td><td>MALLET の出力ディレクトリ。何度でも指定でき，画面で切り替えられる</td></tr>
+  <tr><td><code>--lexicon</code></td><td>語の品詞と頻度帯の表（<code>18_pos_select.py</code> が書く <code>data/tokens/lexicon.tsv</code>）</td></tr>
+  <tr><td><code>--top</code></td><td>各トピックについて保持する語の数（既定 400）。多いほど λ を下げたときの並びが正確になる</td></tr>
+  <tr><td><code>--min-count</code></td><td>モデル内の度数がこれ未満の語はビューアに入れない（既定 3）</td></tr>
+  <tr><td><code>--d2v</code></td><td>Step 7 の doc2vec の出力（<code>work_vectors.csv</code> のあるディレクトリ）。作品のネットワークに使う</td></tr>
+  <tr><td><code>--labels</code></td><td>ビューアで書き出したラベル（<code>topic_labels.json</code>）。省くと，<code>--out</code> と同じフォルダにあれば読む</td></tr>
+  <tr><td><code>--rel-mfw</code></td><td>関連の強いトピックの Delta 系の指標に使う語の数（既定 500）</td></tr>
+</table>
+<div class="box warn"><b>⚠</b>ビューアは作った時点の結果を写した1枚である。MALLET を実行し直したら，
+ビューアも作り直すこと。</div>
+
+<!-- ================================================================ -->
+<h2 id="layout"><span class="n">4</span>画面の構成</h2>
+<figure>
+<svg viewBox="0 0 720 330" width="100%" role="img" aria-label="画面の構成図">
+  <rect x="1" y="1" width="718" height="328" rx="10" fill="#fff" stroke="#d8d7d0"/>
+  <rect x="12" y="12" width="696" height="44" rx="7" fill="#eef4fb" stroke="#c9dbef"/>
+  <text x="24" y="39" font-size="14" font-weight="700" fill="#0d366b">① 見出し：モデルの切り替え・操作マニュアル</text>
+  <rect x="12" y="66" width="200" height="252" rx="7" fill="#f7f7f4" stroke="#d8d7d0"/>
+  <text x="24" y="90" font-size="14" font-weight="700" fill="#1f1e1b">② 左の欄</text>
+  <text x="24" y="114" font-size="12" fill="#3d3c37">品詞</text>
+  <text x="24" y="134" font-size="12" fill="#3d3c37">頻度帯（5つのつまみ）</text>
+  <text x="24" y="154" font-size="12" fill="#3d3c37">並べ方（relevance λ）</text>
+  <text x="24" y="174" font-size="12" fill="#3d3c37">表示する語数</text>
+  <text x="24" y="194" font-size="12" fill="#3d3c37">語で探す</text>
+  <text x="24" y="214" font-size="12" fill="#3d3c37">並べ替え</text>
+  <rect x="222" y="66" width="486" height="110" rx="7" fill="#f7f7f4" stroke="#d8d7d0"/>
+  <text x="234" y="90" font-size="14" font-weight="700" fill="#1f1e1b">③ トピックのカード</text>
+  <text x="234" y="112" font-size="12" fill="#3d3c37">T00 … 割合・残存・上位語（品詞で色分け）</text>
+  <text x="234" y="132" font-size="12" fill="#3d3c37">押すと ④ に詳細が出る</text>
+  <rect x="222" y="186" width="486" height="132" rx="7" fill="#f7f7f4" stroke="#d8d7d0"/>
+  <text x="234" y="210" font-size="14" font-weight="700" fill="#1f1e1b">④ トピックの詳細</text>
+  <text x="234" y="232" font-size="12" fill="#3d3c37">上位語の棒・時代別の割合</text>
+  <text x="234" y="252" font-size="12" fill="#3d3c37">このトピックが多い作品・担う作家</text>
+  <text x="234" y="272" font-size="12" fill="#3d3c37">⑤ 関連の強いトピック</text>
+  <text x="234" y="296" font-size="12" fill="#3d3c37">（上部のタブでネットワーク・ラベルづけに切り替える）</text>
+</svg>
+<figcaption>画面の構成（幅の広いとき）。幅が 900px 未満では ② が上に回る。</figcaption>
+</figure>
+
+<!-- ================================================================ -->
+<h2 id="model"><span class="n">5</span>モデルを切り替える</h2>
+<p>見出しの <span class="ui">モデル</span> で，ビューアに入れたモデルを切り替える。
+Step 8 のノートブックからは，「語を選び直したもの」と「本番（内容語すべて）」の2つが入る。
+左の欄の下に，いま見ているモデルのトピック数・作品数・トークン数と，MALLET の出力ディレクトリが出る。</p>
+<p>切り替えると，絞り込みの設定はそのままで，選んでいたトピックの詳細は閉じる
+（トピックの番号はモデルごとに別物なので，T05 と T05 は対応しない）。</p>
+
+<!-- ================================================================ -->
+<h2 id="pos"><span class="n">6</span>品詞で絞る</h2>
+<p>チェックを外した品詞の語を，カードと詳細の上位語から隠す。語の色は品詞を表す。
+右の数字は，そのモデルのトークンのうちその品詞が占める割合である。</p>
+<table>
+  <tr><th>分類</th><th>中身（UniDic の品詞）</th></tr>
+  <tr><td>普通名詞・固有名詞・数詞</td><td>名詞-普通名詞・名詞-固有名詞・名詞-数詞</td></tr>
+  <tr><td>動詞（自立）／動詞（非自立）</td><td>動詞-一般／動詞-非自立可能（いる・する・なる など）</td></tr>
+  <tr><td>形容詞（自立）／形容詞（非自立）</td><td>形容詞-一般／形容詞-非自立可能（ない・よい など）</td></tr>
+  <tr><td>形状詞・副詞・代名詞</td><td>それぞれの品詞</td></tr>
+  <tr><td>その他</td><td>上のどれにも当たらないもの</td></tr>
+</table>
+<div class="box warn"><b>⚠</b>品詞は UniDic の解析結果であって原文の事実ではない。
+人名が普通名詞と解析されることがある。固有名詞を外しても人名が残るときは，
+次の「1作品への集中度」「1作家への集中度」を下げる。</div>
+
+<!-- ================================================================ -->
+<h2 id="band"><span class="n">7</span>頻度帯で絞る</h2>
+<p>5つのつまみで，上位語を頻度や散らばりの性質で絞る。つまみの右に今の値が出る。</p>
+<table>
+  <tr><th>つまみ</th><th>意味</th><th>使いどころ</th></tr>
+  <tr><td><span class="ui">全体の度数（最小）</span></td><td>コーパス全体での度数がこれ未満の語を隠す（対数の目盛り）</td>
+      <td>一回きりの語や誤解析を除く</td></tr>
+  <tr><td><span class="ui">出現作品の割合（最大）</span></td><td>その語が現れる作品の割合がこれを超える語を隠す</td>
+      <td>どの作品にも出る語（言う・思う・顔）を除き，トピックに特有の語を見る</td></tr>
+  <tr><td><span class="ui">1作品への集中度（最大）</span></td><td>語の度数のうち1作品が占める割合がこれを超える語を隠す</td>
+      <td>その作品にしか出ない語（登場人物名など）を除く</td></tr>
+  <tr><td><span class="ui">1作家への集中度（最大）</span></td><td>語の度数のうち1作家が占める割合がこれを超える語を隠す</td>
+      <td>同じ作家の複数作品に出る人物名（「素子」など）は，作品ではなく作家に集中する</td></tr>
+  <tr><td><span class="ui">散らばり dp_in（最大）</span></td><td>Gries の DP を，その語がいちばん濃い時代の中で測ったもの。1 に近いほど少数の作品に固まる（bursty）</td>
+      <td>時代への偏りは不利に扱わずに，特定の作品に固まる語だけを除く</td></tr>
+</table>
+<p>度数・割合・集中度・dp_in は <code>18_pos_select.py</code> が書く語の表（lexicon）から来る。
+語にポインタを載せると，UniDic の語彙素（外来語は原綴つき）と品詞が出る。</p>
+
+<!-- ================================================================ -->
+<h2 id="lambda"><span class="n">8</span>並べ方（relevance λ）</h2>
+<p>上位語の並べ方を relevance（Sievert &amp; Shirley 2014）で決める。</p>
+<p style="margin-left:1em">relevance ＝ λ log p(w|t) ＋ (1−λ) log(p(w|t) / p(w))</p>
+<ul>
+  <li><b>λ = 1</b>：トピックの中での確率 p(w|t) の順。どのトピックにも出る高頻度語が上に来やすい</li>
+  <li><b>λ を下げる</b>ほど，コーパス全体に比べて<b>そのトピックに特有の語</b>が上に来る。0.6 前後が目安</li>
+  <li>λ を 0 近くまで下げると，ごくまれな語ばかりになる（全体の度数のつまみと組み合わせる）</li>
+</ul>
+<p><span class="ui">表示する語数</span>（5〜50）で，カードに出す語の数を変える。</p>
+
+<!-- ================================================================ -->
+<h2 id="search"><span class="n">9</span>語で探す</h2>
+<p>語を入れると，その語を<b>上位（表示する語数以内）に持つトピック</b>だけが濃く残り，ほかは薄くなる。
+一致した語には色の帯が付く。見出しの行に，当たったトピックの数が出る。</p>
+<p>語彙素（例：<code>汽車</code>）でも，外来語の片仮名だけ（例：<code>テーブル</code>）でも当たる。
+絞り込みや λ で上位から外れた語は当たらない。</p>
+
+<!-- ================================================================ -->
+<h2 id="cards"><span class="n">10</span>トピックのカードと並べ替え</h2>
+<p>1枚のカードが1つのトピックである。</p>
+<table>
+  <tr><th>表示</th><th>意味</th></tr>
+  <tr><td>T00, T01, …</td><td>トピックの番号（MALLET の番号）</td></tr>
+  <tr><td>割合（例 3.2%）と細い棒</td><td>コーパス全体でそのトピックが占める割合（チャンクの平均）</td></tr>
+  <tr><td>残存（例 残存 64%）</td><td>ビューアが持っている上位語の確率のうち，いまの絞り込みの後に残った割合。
+      <b>低いトピックは，隠した語でできている</b></td></tr>
+  <tr><td>上位語</td><td>絞り込みの後に残った語を λ の順に並べたもの。色は品詞</td></tr>
+</table>
+<p>左の欄の <span class="ui">並べ替え</span> で，トピック番号・割合の大きい順・
+絞り込み後に残る確率の大きい順（残存の順）に並べ替える。カードを押すと，下に詳細が出る。</p>
+
+<!-- ================================================================ -->
+<h2 id="detail"><span class="n">11</span>トピックの詳細</h2>
+<ul>
+  <li><b>上位語</b>：λ の順に30語。棒の長さは p(w|t)。下に，MALLET が出した上位語（絞り込み前）も出る</li>
+  <li><b>時代別の割合</b>：時代区分ごとに，チャンクの中でこのトピックが占める割合の平均</li>
+  <li><b>このトピックが多い作品</b>：「作品内の割合」の大きい順に12作品</li>
+  <li><b>このトピックを担う作家</b>：「トピックに占める割合」の大きい順に8人</li>
+</ul>
+<h3>2つの割合を区別する</h3>
+<table>
+  <tr><th>列</th><th>意味</th><th>向き</th></tr>
+  <tr><td>作品内の割合</td><td>その作品の中でこのトピックが占める割合</td><td>P(トピック｜作品)</td></tr>
+  <tr><td>トピックに占める割合</td><td>このトピックの重みのうち，その作品（作家）から来る割合</td><td>P(作品｜トピック)</td></tr>
+</table>
+<p>「A 高校の生徒の半分が野球部」と「野球部員の9割が A 高校」が両立するのと同じで，
+向きが逆なので値は一致しない。どちらも語の絞り込みでは変わらない。</p>
+<div class="box warn"><b>⚠</b>トピックの重みの半分より多くが1作品（または1作家）から来ていると，
+詳細の上に警告が出る。そのトピックは主題ではなく，<b>作品や作家の目印</b>である可能性が高い。</div>
+
+<!-- ================================================================ -->
+<h2 id="related"><span class="n">12</span>関連の強いトピック</h2>
+<p>詳細のいちばん下に，選んだトピックと関連の強いトピックが並ぶ。
+<b>行を押すと，そのトピックに移る</b>。各行の上位語は，いまの絞り込みと λ で並べたもの。</p>
+<table>
+  <tr><th>指標</th><th>何を測るか</th><th>近いのは</th></tr>
+  <tr><td>Jensen–Shannon divergence（既定）</td><td>2つの語分布 p(w|t) の隔たり（底 2，0〜1）。LDAvis のトピック間距離と同じ考え方（Lin 1991; Sievert &amp; Shirley 2014）</td><td>小さいほど</td></tr>
+  <tr><td>語分布のコサイン類似度</td><td>p(w|t) を並べたベクトルの向き。度数の大きい語に引きずられやすい</td><td>大きいほど</td></tr>
+  <tr><td>Burrows's Delta（z 得点）</td><td>度数上位の語（既定 500 語）の p(w|t) をトピックをまたいで z 得点にし，差の絶対値を平均したもの</td><td>小さいほど</td></tr>
+  <tr><td>Cosine Delta</td><td>同じ z 得点のベクトルの 1 − コサイン類似度（Smith &amp; Aldridge 2011）</td><td>小さいほど</td></tr>
+  <tr><td>チャンク上の相関（CLR 変換後）</td><td>チャンクごとのトピックの割合を CLR（centred log-ratio; Aitchison 1986）で変換し，チャンクをまたいで取った Pearson の相関係数</td><td>大きいほど</td></tr>
+</table>
+<p>上の4つは<b>語分布の近さ</b>（同じ語でできているか），相関は<b>文書の中での共起</b>
+（同じチャンクに一緒に現れるか）を測る。語がほとんど重ならなくても，
+同じ場面に続けて現れる2つのトピックは相関が高くなる。<span class="ui">件数</span> で並べる数を変える。</p>
+<div class="box warn"><b>⚠</b>トピックの割合は和が 1 の比率データなので，相関の平均は
+−1/(K−1)（K はトピック数）になる。画面にそのモデルでの値が出るので，<b>その値を基準に</b>読む。
+また，同じ作品のチャンクが多いので，相関は作品・作家の偏りも拾う。</div>
+
+<!-- ================================================================ -->
+<h2 id="network"><span class="n">13</span>ネットワーク（トピック・作品）</h2>
+<p>画面上部の <span class="ui">トピック一覧</span>／<span class="ui">トピックのネットワーク</span>／<span class="ui">作品のネットワーク</span>
+で表示を切り替える。ネットワークでは，近いものどうしを線（辺）で結び，力学モデルで配置する
+（つながりの強いものが近くに集まる）。</p>
+<h3>操作</h3>
+<table>
+  <tr><th>操作</th><th>働き</th></tr>
+  <tr><td>ノードをドラッグ</td><td>動かす。放した位置に留まる（ダブルクリックで解く）</td></tr>
+  <tr><td>ホイール／背景のドラッグ</td><td>拡大縮小／全体の移動。<span class="ui">配置し直す</span> で初めの配置と大きさに戻す</td></tr>
+  <tr><td>ノードにポインタを載せる</td><td>トピックは割合と上位語，作品は作家・題・初出年・時代区分・ジャンル・文体が出る</td></tr>
+  <tr><td>ノードを押す</td><td>つながる相手を強調し，下に<b>近い順の一覧</b>（上位10）を出す。一覧の行を押すとその相手に移る。背景を押すと強調を解く</td></tr>
+  <tr><td>トピックをダブルクリック</td><td>一覧の画面に戻り，そのトピックの詳細を開く</td></tr>
+</table>
+<h3>辺の張り方</h3>
+<ul>
+  <li><span class="ui">近い順に k 本</span>：各ノードから，近い順に k 本（1〜5）の辺を張る。k を増やすとつながりが密になる</li>
+  <li><span class="ui">辺として残す：全組の近さの上位 N%</span>：すべての組の近さを順位にし，上位 N% に入らない辺を消す。
+    弱いつながりを消して，強いまとまりだけを見るときに下げる。辺の無いノードの数は説明の行に出る</li>
+  <li><b>線が太く濃いほど近い</b>。太さは，その組の近さの順位（全組の中での位置）を，いま表示している辺の中で
+    細い〜太いに割り当てたもの。指標によって値の尺度が違うので，値そのものではなく<b>順位</b>にそろえてある。
+    線にポインタを載せると，2つのノードと指標の値，全組の中での位置が出る</li>
+</ul>
+<h3>トピックのネットワーク</h3>
+<p>指標は <a href="#related">12 関連の強いトピック</a> の5つから選ぶ。円の大きさはトピックの割合。
+色は「いちばん割合の高い時代区分」か「コミュニティ」。</p>
+<h3>作品のネットワーク</h3>
+<table>
+  <tr><th>作品の表し方</th><th>中身</th></tr>
+  <tr><td>doc2vec の作品ベクトル（コサイン類似度）</td><td>Step 7（<code>09_doc2vec.py</code>）のチャンクの document vector の平均。
+      Step 7 を実行したあとにビューアを作ると入る</td></tr>
+  <tr><td>トピック構成の近さ（Jensen–Shannon divergence）</td><td>いま選んでいるモデルで，作品のチャンクの θ（トピックの割合）を平均したものどうしの隔たり</td></tr>
+</table>
+<p>色は時代区分・作家・ジャンル・文体・コミュニティから選ぶ。作家は作品の多い順に8人まで色を付け，
+残りは灰色（凡例の「その他」にポインタを載せると名前が出る）。円の大きさは作品のチャンク数。
+作品を押すと，近い作品の一覧に加えて，<b>その作品で割合の高いトピック</b>が出る（押すとトピックの詳細へ）。</p>
+<div class="box tip"><b>比べ方</b>同じ作品の集合を2つの表現で結び，色を「作家」や「時代区分」にして見比べる。
+doc2vec で同じ作家がかたまり，トピック構成では時代でまとまる，といった違いは，
+2つの表現が何を捉えているかの手がかりになる（Step 7 の作家効果と時代効果）。</div>
+<h3>コミュニティ</h3>
+<p>いま張られている辺から，互いに密につながるまとまりを Louvain 法（Blondel et al. 2008）で求めて色分けする。
+番号は大きいまとまりから順に振る。</p>
+<div class="box warn"><b>⚠</b>ネットワークの形とコミュニティは，<b>指標・k・残す割合の選び方で変わる</b>。
+1つの設定の図だけで「まとまりがある」と言ってはいけない。設定を変えても残るまとまりを探し，
+その作品やトピックの中身（用例・上位語）で確かめること。配置の上下左右や距離そのものには意味が無い
+（辺でつながっているかどうかと，その強さを読む）。</div>
+
+<!-- ================================================================ -->
+<h2 id="labels"><span class="n">14</span>ラベルづけ</h2>
+<p>トピックに名前を付けるのは，LDA でいちばん難しい作業の1つである（Lau et al. 2011）。
+上位語だけでは，それが主題なのか，1つの作品の登場人物名の束なのか，文体の偏りなのかが分からない。
+上部の <span class="ui">ラベルづけ</span> のタブで，次の2通りのラベルを扱う。</p>
+<table>
+  <tr><th>ラベル</th><th>作り方</th><th>表示</th></tr>
+  <tr><td>仮ラベル</td><td>ビューアが機械的に付ける。λ=0.6 の上位3語に，割合の目立って高い時代区分を添える。
+      1作品・1作家から重みの半分より多くが来ていれば「⚠ 『作品』の目印」「⚠ 作家の目印」とする</td><td>灰色の字</td></tr>
+  <tr><td>ラベル</td><td>診断資料を生成 AI に渡して付けさせたもの，または手で付けたもの</td><td>色の付いた字</td></tr>
+</table>
+<p>ラベルはカードの見出し・詳細の上・トピックのネットワークのノードに出る。</p>
+<h3>手順</h3>
+<ol class="steps">
+  <li><span class="ui">対象</span>（すべて／ラベルの無いものだけ）と <span class="ui">1回に含めるトピック</span>（5・10・20・すべて）を選ぶ。
+    無料プランでは長い依頼文が途中で切れることがあるので，10 前後がよい。<span class="ui">← 前</span>・<span class="ui">次 →</span> で残りの回に進む</li>
+  <li><span class="ui">依頼文をコピー</span> を押し，生成 AI の入力欄に貼り付けて送る。
+    Claude・ChatGPT・Gemini・Copilot などの<b>無料プランでよい</b>（アカウントの登録は要る。API キーは要らない）</li>
+  <li>返ってきた回答の JSON を「2.」の欄に貼り付け，<span class="ui">使った AI</span> を選んで <span class="ui">取り込む</span> を押す。
+    説明文や <code>```json</code> の囲みが付いていても，JSON の部分を探して読む</li>
+  <li>「3.」の一覧で結果を確かめる。ラベル・種類・確信度は<b>手で直せる</b>（直すと出典に「手で修正」と残る）</li>
+  <li><span class="ui">ラベルを書き出す</span> で <code>topic_labels.json</code> を保存し，ビューアと同じフォルダ（<code>my_work/results/</code>）に置く。
+    次にビューアを作るとき自動で読み込まれる</li>
+</ol>
+<h3>診断資料（依頼文）の中身</h3>
+<ul>
+  <li>上位語（トピック内の確率の順）と特有の語（λ=0.6 の順）を15語ずつ。品詞つき</li>
+  <li>このトピックの割合が高い作品と，このトピックを担う作品（作家・初出年・時代区分・ジャンル・文体・2つの割合）</li>
+  <li>担う作家・時代区分ごとの割合・偏りの警告・語分布の近いトピック</li>
+</ul>
+<p>依頼文には，主題か目印か文体の偏りかを<b>診断してから</b>名前を付けること，根拠は資料の語と作品から挙げること
+（一般に知られた知識を使ったときはそう明記すること），回答の形（JSON）が書いてある。
+<b>本文そのものは送らない</b>（上位語と書誌だけ）。</p>
+<table>
+  <tr><th>回答の項目</th><th>中身</th></tr>
+  <tr><td>label</td><td>ラベル（15字以内）</td></tr>
+  <tr><td>type</td><td>主題／作品の目印／作家の目印／文体・機能語／混成</td></tr>
+  <tr><td>confidence</td><td>高／中／低</td></tr>
+  <tr><td>evidence・caution</td><td>根拠（資料の語・作品）と注意点</td></tr>
+</table>
+<div class="box warn"><b>⚠</b><b>ラベルは AI の仮説である。</b>もっともらしい名前でも，根拠に挙がった語と作品を
+<a href="#detail">詳細</a> と KWIC で確かめ，種類（とくに主題か目印か）を自分で判断し直すこと。
+同じ依頼文でも，AI の種類や回ごとにラベルは変わる。どの AI で付けたかは出典として記録される。</div>
+<div class="box tip"><b>モデルとの結び付き</b>ラベルは<b>モデルの指紋</b>（上位語の一覧から作る12桁の記号）に結び付く。
+トピックの番号は学習のたびに変わるので，学習し直したモデルにはラベルが付かない。
+別のモデルへの回答を取り込もうとすると，取り込まずに止まる。</div>
+
+<!-- ================================================================ -->
+<h2 id="hide"><span class="n">15</span>語を隠すことと，除いて学習し直すこと</h2>
+<p><b>ビューアで語を隠すことと，その語を除いて学習し直すことは違う。</b>
+隠した語もトピックの形成には寄与している。固有名詞が作ったトピックは，
+固有名詞を隠しても「その作品のトピック」のままである。カードの「残存」が低いのはそのためである。</p>
+<p>本当に除くには，<code>18_pos_select.py</code> で語を選び直して学習し直し，
+両方のモデルをビューアに入れて <a href="#model">切り替えて</a> 比べる。</p>
+
+<!-- ================================================================ -->
+<h2 id="trouble"><span class="n">16</span>困ったとき</h2>
+<table>
+  <tr><th>症状</th><th>原因と対処</th></tr>
+  <tr><td>品詞がすべて「その他」になる／頻度帯のつまみが効かない</td><td>語の表（lexicon）が無いまま作った。
+      Step 8 で <code>18_pos_select.py</code> を実行してから，ビューアを作り直す</td></tr>
+  <tr><td>カードに「表示できる語が無い」と出る</td><td>絞り込みが強すぎる。つまみを戻すか，品詞のチェックを入れ直す</td></tr>
+  <tr><td>操作マニュアルが開かない</td><td>ビューアのファイルだけをほかの場所へ移した。<code>topic_viewer_manual.html</code> を同じフォルダに置くか，ビューアを作り直す</td></tr>
+  <tr><td>MALLET をやり直したのに結果が変わらない</td><td>ビューアは作った時点の写しである。「トピックビューアを作る」のセルを実行し直し，ブラウザで再読み込みする</td></tr>
+  <tr><td>「JSON として読めない」と出る</td><td>回答が途中で切れているか，JSON 以外の文が混ざっている。
+      1回に含めるトピックを減らして依頼し直すか，回答の <code>{</code> から <code>}</code> までだけを貼り付ける</td></tr>
+  <tr><td>「別のモデルへの回答である」と出る</td><td>別のモデル（学習し直す前など）の依頼文への回答を貼り付けた。いまのモデルで依頼文を作り直す</td></tr>
+  <tr><td>ビューアを作り直したらラベルが消えた</td><td><code>topic_labels.json</code> を書き出して，ビューアと同じフォルダに置いていない。
+      または MALLET を学習し直した（モデルの指紋が変わった）</td></tr>
+  <tr><td>作品のネットワークで doc2vec が選べない</td><td>ビューアに doc2vec の結果が入っていない。Step 7 の <code>09_doc2vec.py</code> を実行してから
+      ビューアを作り直す（ターミナルからは <code>--d2v my_work/results/d2v</code> を付ける）</td></tr>
+  <tr><td>ネットワークが団子になって読めない</td><td>辺が多すぎる。k を下げるか，「辺として残す」の割合を下げる。拡大して読む</td></tr>
+  <tr><td>開くのが遅い・ファイルが大きい</td><td><code>--top</code> を小さくする（既定 400）。λ を下げたときの並びは少し粗くなる</td></tr>
+</table>
+
+<p style="margin-top:3em;color:var(--ink3);font-size:12px">JLit_Corpus_2026 — トピックビューア操作マニュアル。
+ビューアは <code>scripts/19_topic_viewer.py</code> が作り，このマニュアルは <code>scripts/topic_viewer_manual.html</code> から
+ビューアと同じフォルダに書き出される。用語の説明は <code>docs/glossary.md</code> の Step 8 にある。<br>
+JLit トピックビューア　&copy; Tomoji Tabata (DH UOsaka)</p>
+</main>
+</div>
+</body>
+</html>

@@ -5843,6 +5843,8 @@ Step 3 でチャンク分割したことがここで生きる。作品を1文書
 ## 参考
 - Aitchison, J. (1986) *The Statistical Analysis of Compositional Data*. Chapman & Hall.
 - Blei, Ng & Jordan (2003) Latent Dirichlet Allocation. *JMLR* 3.
+- Blondel, V. D., Guillaume, J.-L., Lambiotte, R. & Lefebvre, E. (2008) Fast unfolding of communities in large networks. *Journal of Statistical Mechanics: Theory and Experiment* 2008(10): P10008.
+- Lau, J. H., Grieser, K., Newman, D. & Baldwin, T. (2011) Automatic labelling of topic models. *Proceedings of the 49th Annual Meeting of the Association for Computational Linguistics*: 1536–1545.
 - Lin, J. (1991) Divergence measures based on the Shannon entropy. *IEEE Transactions on Information Theory* 37(1): 145–151.
 - Mimno et al. (2011) Optimizing semantic coherence in topic models. *EMNLP*.
 - Sievert, C. & Shirley, K. (2014) LDAvis: a method for visualizing and interpreting topics. *Proceedings of the Workshop on Interactive Language Learning, Visualization, and Interfaces*: 63–70.
@@ -6033,6 +6035,15 @@ if need(TOK_SEL, '上のセルを先に実行すること'):
 - **relevance λ** を下げると，そのトピックに特有の語が上に来る（0.6 前後が目安）
 - トピックを押すと，**時代別の割合・割合の大きい作品と作家**が出る
 - 語で探すと，その語を上位に持つトピックだけが濃く残る
+- **トピックのネットワーク**：関連の強いトピックどうしを線で結ぶ（指標は5つから選ぶ）。
+  色は時代区分かコミュニティ。ノードをドラッグ・拡大縮小でき，押すと近い順の一覧が出る
+- **ラベルづけ**：トピックごとの診断資料（上位語・担う作品と作家・時代別の割合・偏りの警告）を
+  依頼文にまとめ，生成 AI（Claude・ChatGPT・Gemini などの無料プランでよい）に貼り付けて，返ってきた
+  JSON を取り込む。AI を使わない**仮ラベル**も付く。ラベルは `topic_labels.json` に書き出して残す
+- **作品のネットワーク**：doc2vec（Step 7）の作品ベクトルの近さ，またはトピック構成の近さで
+  作品を結ぶ。色は時代区分・作家・ジャンル・文体・コミュニティ。**同じ作品の集合を2つの表現で比べる**
+- 画面右上の「操作マニュアル ↗」で**操作マニュアルが別のウィンドウに開く**。各欄の「？」で
+  その欄の説明に飛ぶ（マニュアルはビューアと同じフォルダに書き出される）
 - トピックの詳細の下に，**関連の強いトピック**が並ぶ。指標は5つから選ぶ。
   Jensen–Shannon divergence・語分布のコサイン類似度・Burrows's Delta・Cosine Delta は
   **語分布の近さ**（同じ語でできているか），チャンク上の相関（CLR 変換後）は
@@ -6052,7 +6063,12 @@ if (ML/'doc-topics.txt').exists():
 if not models:
     print('[未実行] MALLET の結果が無い。上のセルを先に実行すること')
 else:
-    run_script('19_topic_viewer.py', *models, '--meta', META,
+    # Step 7 の doc2vec の作品ベクトルがあれば，作品のネットワークに入れる
+    D2V_DIR = OUT/'d2v'
+    d2v = ['--d2v', D2V_DIR] if (D2V_DIR/'work_vectors.csv').exists() else []
+    if not d2v:
+        print('[info ] Step 7 の doc2vec の結果が無い。作品のネットワークはトピック構成だけで作る')
+    run_script('19_topic_viewer.py', *models, *d2v, '--meta', META,
                '--lexicon', TOK/'lexicon.tsv', '--out', TV)
     print(f'ブラウザで開く: {TV}')
     if sys.platform == 'darwin':
@@ -6069,7 +6085,17 @@ if sys.platform == 'darwin' and TV.exists():
    下げる。カードの「残存」が低く残るトピックはどれか。**隠しても消えない理由**を説明してみよう
 3. `SEL` の閾値を1つだけ変えて学習し直し，トピックの顔ぶれがどう変わるかを見る。
    どの閾値を採るかを，自分の問いに照らして1段落で正当化してみよう
-4. 「汽車」「戦争」「工場」を検索し，それを上位に持つトピックの**時代別の割合**を比べてみよう'''),
+4. 「汽車」「戦争」「工場」を検索し，それを上位に持つトピックの**時代別の割合**を比べてみよう
+5. 「作品のネットワーク」で色を「作家」にし，作品の表し方を doc2vec とトピック構成とで
+   切り替えてみよう。同じ作家の作品がかたまるのはどちらか。Step 7 の作家効果と時代効果の
+   議論に照らして，2つの表現が何を捉えているかを説明してみよう
+6. 「トピックのネットワーク」で指標を Jensen–Shannon divergence とチャンク上の相関とで
+   切り替え，つながり方がどう変わるかを見てみよう。**語が似ていること**と**一緒に現れること**の
+   違いを，具体的なトピックの組で説明してみよう
+7. 「ラベルづけ」で10トピックの依頼文を作り，生成 AI にラベルを付けさせてみよう。
+   そのうち3つについて，根拠に挙がった語と作品を詳細と KWIC で確かめ，**種類（主題か目印か）と
+   ラベルが妥当か**を判断し，必要なら手で直してみよう。仮ラベルとも比べ，AI が何を補い，
+   何を取り違えたかを1段落で述べてみよう'''),
  ('md', r'''## 4. 主題の通時変化と多様化
 
 問いは2つある。

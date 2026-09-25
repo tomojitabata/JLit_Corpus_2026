@@ -20,6 +20,12 @@
   語分布のコサイン類似度，Jensen–Shannon divergence，Burrows's Delta，
   Cosine Delta（以上は語分布の近さ），チャンク上の相関（CLR 変換後。共起）
 * 複数のモデル（例：内容語すべて／名詞・動詞・形容詞）を切り替えて比べる
+* トピックと作品の**ネットワーク**を描く（作品は doc2vec の作品ベクトルかトピック構成で結ぶ）
+* **ラベルづけ**：トピックごとの診断資料を依頼文にまとめて生成 AI に渡し，返ってきた JSON を
+  取り込む（どの AI でもよい。無料プランで足りる）。AI を使わない仮ラベルも機械的に付ける。
+  ラベルは ``topic_labels.json`` に書き出し，ビューアと同じフォルダに置けば次に作るときも読み込む
+* 操作マニュアル（``topic_viewer_manual.html``）をビューアと同じフォルダに書き出す。
+  画面の「操作マニュアル ↗」と各欄の「？」から別のウィンドウで開く
 
 ⚠ **ビューアで語を隠すことと，その語を除いて学習し直すことは違う。**
 隠した語もトピックの形成には寄与している。固有名詞が作ったトピックは，
@@ -50,6 +56,7 @@ import json
 import math
 import os
 import re
+import shutil
 import sys
 from collections import Counter, defaultdict
 
@@ -222,6 +229,97 @@ def relatedness(k: int, wt: dict[str, Counter], rows: list[list[float]],
             'cdelta': r4(cdelta), 'corr': r4(corr), 'mfw': int(len(order))}
 
 
+def model_fingerprint(mdir: str) -> str:
+    """モデルの指紋。ラベルをモデルに結び付けるのに使う。
+
+    トピックの番号は学習のたびに変わるので，ラベルを番号だけで覚えると，
+    学習し直したモデルに別のトピックのラベルが付いてしまう。topic-keys.txt
+    （上位語の一覧）の中身から作るので，同じ学習結果なら置き場所が変わっても同じ指紋になる。
+    """
+    import hashlib
+    h = hashlib.sha1()
+    for name in ('topic-keys.txt', 'doc-topics.txt'):
+        p = os.path.join(mdir, name)
+        if os.path.exists(p):
+            with open(p, 'rb') as fh:
+                h.update(fh.read(4_000_000))
+            break
+    return h.hexdigest()[:12]
+
+
+def load_labels(path: str | None) -> dict | None:
+    """ビューアの「ラベルづけ」で書き出した topic_labels.json を読む。"""
+    if not path or not os.path.exists(path):
+        return None
+    try:
+        with open(path, encoding='utf-8') as fh:
+            d = json.load(fh)
+    except (OSError, ValueError) as e:
+        print(f'[warn] ラベルのファイルが読めない: {path}（{e}）')
+        return None
+    n = sum(len(m.get('topics', {})) for m in d.get('models', {}).values())
+    print(f'[lab ] ラベル {n} 件（{path}）。指紋の合うモデルにだけ付く')
+    return d
+
+
+def jsd_matrix(P) -> list[list[float]]:
+    """行ごとの確率分布どうしの Jensen–Shannon divergence（底 2，0〜1）。"""
+    import numpy as np
+    P = np.asarray(P, dtype=np.float64)
+    P = P / np.maximum(P.sum(axis=1, keepdims=True), 1e-12)
+
+    def ent(x):
+        with np.errstate(divide='ignore', invalid='ignore'):
+            return -np.nansum(np.where(x > 0, x * np.log2(x), 0.0), axis=-1)
+    H = ent(P)
+    n = P.shape[0]
+    out = np.zeros((n, n))
+    for a in range(n):
+        m = (P[a] + P[a:]) / 2
+        v = ent(m) - (H[a] + H[a:]) / 2
+        out[a, a:] = v
+        out[a:, a] = v
+    out = np.clip(out, 0, 1)
+    return [[round(float(x), 4) for x in row] for row in out]
+
+
+def work_jsd(wmean) -> list[list[float]]:
+    """作品のトピック構成（チャンクの θ の平均）どうしの隔たり。作品のネットワークに使う。"""
+    return jsd_matrix(wmean)
+
+
+def load_d2v(d2v_dir: str, meta: dict) -> dict | None:
+    """Step 7（09_doc2vec.py）の作品ベクトルを読み，作品間のコサイン類似度を作る。
+
+    作品ベクトルはチャンクの document vector の平均である（09_doc2vec.py の定義）。
+    """
+    import numpy as np
+    p = os.path.join(d2v_dir, 'work_vectors.csv')
+    if not os.path.exists(p):
+        print(f'[warn] doc2vec の作品ベクトルが無い: {p}（作品のネットワークは'
+              'トピック構成だけで作る。Step 7 の 09_doc2vec.py を先に実行すること）')
+        return None
+    works, vecs = [], []
+    with open(p, encoding='utf-8-sig') as fh:
+        for r in csv.DictReader(fh):
+            s = r['work_stem']
+            m = meta.get(s, {})
+            dims = sorted((k for k in r if re.fullmatch(r'd\d+', k)), key=lambda k: int(k[1:]))
+            vecs.append([float(r[k]) for k in dims])
+            works.append([s, r.get('author_ja') or m.get('author_ja', '（メタデータ無し）'),
+                          r.get('title') or m.get('title_aozora', s),
+                          r.get('year_first') or m.get('year_first', ''),
+                          r.get('period') or m.get('period', '') or '不明', 0,
+                          r.get('genre_main') or m.get('genre_main', '') or '',
+                          r.get('style_class') or m.get('style_class', '') or ''])
+    V = np.asarray(vecs, dtype=np.float64)
+    V = V / np.maximum(np.linalg.norm(V, axis=1, keepdims=True), 1e-12)
+    S = V @ V.T
+    print(f'[d2v ] {len(works)} 作品・{V.shape[1]} 次元（{os.path.abspath(d2v_dir)}）')
+    return {'dir': os.path.abspath(d2v_dir), 'dim': int(V.shape[1]), 'works': works,
+            'sim': [[round(float(x), 4) for x in row] for row in S]}
+
+
 def build_model(label: str, mdir: str, meta: dict, lex: dict, top: int, min_count: int,
                 rel_mfw: int = 500) -> dict:
     k, wt = read_word_topic(mdir)
@@ -277,7 +375,8 @@ def build_model(label: str, mdir: str, meta: dict, lex: dict, top: int, min_coun
         m = meta.get(s, {})
         winfo.append([s, m.get('author_ja', '（メタデータ無し）'),
                       m.get('title_aozora', s), m.get('year_first', ''),
-                      m.get('period', '') or '不明', wn[widx[s]]])
+                      m.get('period', '') or '不明', wn[widx[s]],
+                      m.get('genre_main', '') or '', m.get('style_class', '') or ''])
     periods = sorted({w[4] for w in winfo})
     psum = {p: [0.0] * k for p in periods}
     pn = Counter()
@@ -304,7 +403,9 @@ def build_model(label: str, mdir: str, meta: dict, lex: dict, top: int, min_coun
             'works': winfo, 'workTopic': wmean, 'periods': periods,
             'periodN': [pn[p] for p in periods], 'periodTopic': pmean,
             'keys': [keys.get(t, '') for t in range(k)],
-            'rel': relatedness(k, wt, rows, rel_mfw, min_count)}
+            'fp': model_fingerprint(mdir),
+            'rel': relatedness(k, wt, rows, rel_mfw, min_count),
+            'workJsd': work_jsd(wmean)}
 
 
 HTML = r"""<!DOCTYPE html>
@@ -362,6 +463,44 @@ svg text{fill:var(--fg);font-size:11px}
 svg .mut{fill:var(--mut)}
 .warn{color:var(--c1);font-size:12px}
 .copy{color:var(--mut);font-size:11px;margin:24px 0 8px}
+#labelview textarea{width:100%;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace;border:1px solid var(--line);border-radius:6px;padding:8px;background:var(--card);color:var(--fg);box-sizing:border-box}
+#labelview .lh{font-size:13px;margin:14px 0 6px}
+.ltwrap{overflow:auto;max-height:60vh;border:1px solid var(--line);border-radius:6px}
+#ltab input.lin{width:100%;min-width:140px;font:inherit;border:1px solid var(--line);border-radius:4px;padding:2px 5px;background:var(--card);color:var(--fg)}
+#ltab td{vertical-align:top}
+.filebtn{position:relative;overflow:hidden;border:1px solid var(--line);border-radius:5px;padding:3px 10px;background:var(--card);cursor:pointer;font-size:12px}
+.filebtn input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.card .clab{font-size:12.5px;font-weight:600;color:var(--acc);margin:-2px 0 4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card .clab.auto{font-weight:400;color:var(--mut)}
+.labbox{border:1px solid var(--line);border-left:4px solid var(--acc);border-radius:6px;padding:6px 10px;margin:6px 0 10px;font-size:13px}
+.labbox.auto{border-left-color:var(--line)}
+.labbox .ty{display:inline-block;border:1px solid var(--line);border-radius:4px;padding:0 5px;font-size:11.5px;margin-left:6px}
+.tabs{display:flex;gap:0;margin-bottom:12px;border-bottom:1px solid var(--line);align-items:center}
+.tabs button{font:inherit;font-size:13px;padding:6px 14px;border:1px solid transparent;border-bottom:0;background:none;color:var(--mut);cursor:pointer;border-radius:6px 6px 0 0}
+.tabs button.on{border-color:var(--line);background:var(--card);color:var(--fg);font-weight:600;margin-bottom:-1px}
+.netbar{display:flex;gap:14px;flex-wrap:wrap;align-items:center;font-size:12.5px;margin-bottom:6px}
+.netbar label{display:flex;gap:5px;align-items:center}
+.netbar label[hidden]{display:none}
+.netbar button{font:inherit;font-size:12px;padding:3px 10px;border:1px solid var(--line);border-radius:5px;background:var(--card);color:var(--fg);cursor:pointer}
+.netwrap{position:relative;background:var(--card);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+#netsvg{display:block;width:100%;height:auto;aspect-ratio:900/620;touch-action:none;cursor:grab}
+#netsvg .edge{stroke:var(--mut);stroke-linecap:round}
+#netsvg .edge:hover{stroke:var(--acc)}
+#netsvg .node{stroke:var(--card);stroke-width:1.2;cursor:pointer}
+#netsvg .node.foc{stroke:var(--fg);stroke-width:2.4}
+#netsvg .dim{opacity:.15}
+#netsvg .nlabel{font-size:10px;fill:var(--fg);pointer-events:none;paint-order:stroke;stroke:var(--card);stroke-width:3px}
+.tip{position:absolute;max-width:270px;background:var(--card);border:1px solid var(--line);border-radius:6px;padding:6px 9px;font-size:12px;line-height:1.5;box-shadow:0 2px 8px rgba(0,0,0,.12);pointer-events:none}
+#ninfo h3{font-size:13px;margin:12px 0 4px}
+#ninfo tr.go{cursor:pointer}
+#ninfo tr.go:hover td{background:var(--hi)}
+a.manual{margin-left:auto;padding:4px 11px;border:1px solid var(--line);border-radius:6px;background:var(--card);
+  color:var(--mut);font-size:12.5px;text-decoration:none;white-space:nowrap}
+a.manual:hover{border-color:var(--acc);color:var(--acc)}
+a.help-q{display:inline-block;width:1.4em;height:1.4em;line-height:1.4em;text-align:center;border:1px solid var(--line);
+  border-radius:50%;font-size:10.5px;font-weight:600;color:var(--mut);text-decoration:none;margin-left:6px;
+  vertical-align:1px;background:var(--card)}
+a.help-q:hover{border-color:var(--acc);color:var(--acc)}
 #rel{margin-top:14px}
 #rel .head{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 #rel h3{font-size:13px;margin:0}
@@ -373,18 +512,19 @@ svg .mut{fill:var(--mut)}
 <body>
 <header>
   <h1>JLit トピックビューア</h1>
-  <label>モデル <select id="model"></select></label>
+  <label>モデル <select id="model"></select></label><a class="help-q" href="topic_viewer_manual.html#model" target="jlit-topic-manual" title="この欄の使い方（マニュアルを別のウィンドウで開く）">？</a>
+  <a class="manual" href="topic_viewer_manual.html" target="jlit-topic-manual" title="操作マニュアルを別のウィンドウで開く。横に並べて参照しながら使える">操作マニュアル ↗</a>
   <div class="note">上位語を<b>品詞・頻度帯</b>で絞り，<b>λ</b>で並べ替えて読む。
   ⚠ ここで語を隠しても，その語は学習には寄与している。除いて学習し直した結果と比べるには，
   モデルを切り替えること。</div>
 </header>
 <div class="wrap">
 <aside>
-  <h2>品詞</h2>
+  <h2>品詞<a class="help-q" href="topic_viewer_manual.html#pos" target="jlit-topic-manual" title="この欄の使い方（マニュアルを別のウィンドウで開く）">？</a></h2>
   <div class="pos" id="pos"></div>
   <div class="hint">品詞は UniDic の解析結果。人名が普通名詞と解析されることがある（→ 集中度）</div>
 
-  <h2>頻度帯</h2>
+  <h2>頻度帯<a class="help-q" href="topic_viewer_manual.html#band" target="jlit-topic-manual" title="この欄の使い方（マニュアルを別のウィンドウで開く）">？</a></h2>
   <label>全体の度数（最小）</label>
   <div class="rng"><input type="range" id="minc" min="0" max="4" step="0.1" value="0"><output id="mincO"></output></div>
   <label>出現作品の割合（最大）</label>
@@ -400,25 +540,75 @@ svg .mut{fill:var(--mut)}
   <div class="rng"><input type="range" id="maxdp" min="0.2" max="1" step="0.05" value="1"><output id="maxdpO"></output></div>
   <div class="hint">Gries の DP を，その語がいちばん濃い時代の中で測ったもの。1 に近いほど少数の作品に固まる（bursty）。時代への偏りは不利に扱わない</div>
 
-  <h2>並べ方</h2>
+  <h2>並べ方<a class="help-q" href="topic_viewer_manual.html#lambda" target="jlit-topic-manual" title="この欄の使い方（マニュアルを別のウィンドウで開く）">？</a></h2>
   <label>relevance λ</label>
   <div class="rng"><input type="range" id="lam" min="0" max="1" step="0.05" value="1"><output id="lamO"></output></div>
   <div class="hint">1＝トピック内の確率順。下げるほどそのトピックに特有の語が上に来る（0.6 前後が目安）</div>
   <label>表示する語数 <input type="number" id="nw" min="5" max="50" value="12" style="width:60px"></label>
 
-  <h2>語で探す</h2>
+  <h2>語で探す<a class="help-q" href="topic_viewer_manual.html#search" target="jlit-topic-manual" title="この欄の使い方（マニュアルを別のウィンドウで開く）">？</a></h2>
   <input type="text" id="q" placeholder="例：汽車" style="width:100%">
   <div class="hint">その語を上位（表示語数以内）に持つトピックだけを濃く表示</div>
 
-  <h2>並べ替え</h2>
+  <h2>並べ替え<a class="help-q" href="topic_viewer_manual.html#cards" target="jlit-topic-manual" title="この欄の使い方（マニュアルを別のウィンドウで開く）">？</a></h2>
   <select id="sort"><option value="id">トピック番号</option><option value="prev">割合の大きい順</option>
   <option value="kept">絞り込み後に残る確率の大きい順</option></select>
   <p class="hint" id="modelinfo"></p>
 </aside>
 <main>
-  <div class="bar" id="summary"></div>
+  <div class="tabs" id="tabs"><button data-v="list" class="on">トピック一覧</button><button data-v="topicnet">トピックのネットワーク</button><button data-v="worknet">作品のネットワーク</button><button data-v="label">ラベルづけ</button><a class="help-q" href="topic_viewer_manual.html#network" target="jlit-topic-manual" title="この欄の使い方（マニュアルを別のウィンドウで開く）">？</a></div>
+  <section id="netview" hidden>
+    <div class="netbar">
+      <label id="nmeasw">指標 <select id="nmeas"></select></label>
+      <label id="nsrcw" hidden>作品の表し方 <select id="nsrc"></select></label>
+      <label>近い順に <input type="range" id="nk" min="1" max="5" step="1" value="2"> <output id="nkO"></output> 本</label>
+      <label>辺として残す：全組の近さの上位 <input type="range" id="ntop" min="1" max="100" step="1" value="100"> <output id="ntopO"></output></label>
+      <label>色 <select id="ncol"></select></label>
+      <label><input type="checkbox" id="nlab" checked> ラベル</label>
+      <button id="nre" type="button">配置し直す</button>
+    </div>
+    <p class="hint" id="nhint"></p>
+    <div class="netwrap" id="netwrap"><svg id="netsvg" role="img" aria-label="ネットワーク"></svg><div id="ntip" class="tip" hidden></div></div>
+    <div class="legend" id="nleg"></div>
+    <p class="hint">ノードをドラッグして動かす（放した位置に留まる。ダブルクリックで解く）・ホイールで拡大縮小・背景のドラッグで移動。
+    ノードを押すと近い順の一覧が出て，つながる相手が強調される。トピックはダブルクリックで詳細へ移る。</p>
+    <div id="ninfo"></div>
+  </section>
+  <section id="labelview" hidden>
+    <p class="hint" style="margin-top:0">トピックごとの<b>診断資料</b>（上位語・担う作品と作家・時代別の割合・偏りの警告）を依頼文にまとめる。
+    それを生成 AI（Claude・ChatGPT・Gemini などの無料プランでよい）に貼り付け，返ってきた JSON をここに貼り付けて取り込む。
+    <b>ラベルは AI の仮説である。</b>根拠の語と作品を詳細と KWIC で確かめ，必要なら下の一覧で手で直す。<a class="help-q" href="topic_viewer_manual.html#labels" target="jlit-topic-manual" title="この欄の使い方（マニュアルを別のウィンドウで開く）">？</a></p>
+    <div class="netbar">
+      <label>対象 <select id="lscope"><option value="all">すべてのトピック</option><option value="todo">ラベルの無いトピックだけ</option></select></label>
+      <label>1回に含めるトピック <select id="lbatch"><option value="5">5</option><option value="10" selected>10</option><option value="20">20</option><option value="0">すべて</option></select></label>
+      <button id="lprev" type="button">← 前</button><span id="lpage" class="hint"></span><button id="lnext" type="button">次 →</button>
+    </div>
+    <h3 class="lh">1. 依頼文をコピーして，生成 AI に貼り付ける <span class="hint" id="lfp"></span></h3>
+    <textarea id="lprompt" readonly rows="10"></textarea>
+    <div class="netbar"><button id="lcopy" type="button">依頼文をコピー</button><span id="lcopied" class="hint"></span><span id="lcount" class="hint"></span></div>
+    <h3 class="lh">2. 返ってきた JSON を貼り付けて取り込む</h3>
+    <textarea id="lans" rows="6" placeholder='{"model": "…", "topics": [{"topic": 0, "label": "…", …}]}'></textarea>
+    <div class="netbar">
+      <label>使った AI <select id="lsrc"><option>Claude</option><option>ChatGPT</option><option>Gemini</option><option>Copilot</option><option>手元のモデル（Ollama など）</option><option>その他</option></select></label>
+      <input type="text" id="lsrc2" placeholder="名前" hidden>
+      <button id="limport" type="button">取り込む</button>
+    </div>
+    <p id="lmsg" class="hint"></p>
+    <h3 class="lh">3. ラベルの一覧（手で直せる） <span class="hint" id="lstat"></span></h3>
+    <div class="netbar">
+      <button id="lexport" type="button">ラベルを書き出す（topic_labels.json）</button>
+      <label class="filebtn">ラベルを読み込む <input type="file" id="lfile" accept=".json,application/json"></label>
+      <button id="lclear" type="button">このモデルのラベルを消す</button>
+    </div>
+    <p class="hint">書き出したファイルをビューアと同じフォルダ（my_work/results/）に置けば，ビューアを作り直しても自動で読み込まれる。
+    ラベルはモデルの指紋に結び付くので，学習し直したモデルには付かない。</p>
+    <div class="ltwrap"><table id="ltab"></table></div>
+  </section>
+  <div id="listview">
+  <div class="bar"><span id="summary"></span><a class="help-q" href="topic_viewer_manual.html#cards" target="jlit-topic-manual" title="この欄の使い方（マニュアルを別のウィンドウで開く）">？</a></div>
   <div class="grid" id="grid"></div>
   <section id="detail" hidden></section>
+  </div>
   <footer class="copy">JLit トピックビューア　&copy; Tomoji Tabata (DH UOsaka)</footer>
 </main>
 </div>
@@ -476,6 +666,8 @@ function initModel(i){
   $('modelinfo').innerHTML = `${esc(M.label)}：${M.K} トピック・${M.works.length} 作品・トークン ${M.N.toLocaleString()}<br>${esc(M.dir)}`;
   sel = null; $('detail').hidden = true;
   render();
+  if (typeof NET !== 'undefined' && (NET.view === 'topicnet' || NET.view === 'worknet')) { netControls(); buildNet(); }
+  if (typeof NET !== 'undefined' && NET.view === 'label') labelView();
 }
 
 function keep(j){
@@ -532,9 +724,12 @@ function render(){
       const v = M.vocab[x.j];
       const hit = q && (v[0] === q || disp(v[0]) === q);
       return `<b style="color:${COLORS[gOf[x.j]]}" class="${hit?'m':''}" title="${esc(v[0])}（${esc(v[1])}）">${esc(disp(v[0]))}</b>`;}).join(' ');
+    const lb = labelOf(t);
+    const ltag = lb ? `<div class="clab" title="${esc(lb.type)}・確信度 ${esc(lb.confidence)}・${esc(lb.source || '')}：${esc(lb.evidence || '')}">${esc(lb.label)}</div>`
+                    : `<div class="clab auto" title="仮ラベル（機械的に付けたもの）">${esc(autoLabel(t))}</div>`;
     return `<div class="card${dim}${sel===t?' sel':''}" data-t="${t}"><h3>T${String(t).padStart(2,'0')}
       <span title="全体に占める割合・絞り込み後に残った語の確率の割合">${(100*M.prev[t]).toFixed(1)}%・残存 ${(100*keptMass).toFixed(0)}%</span></h3>
-      <div class="prevbar"><i style="width:${100*M.prev[t]/maxPrev}%"></i></div><div class="words">${ws || '<span class="warn">表示できる語が無い</span>'}</div></div>`;
+      ${ltag}<div class="prevbar"><i style="width:${100*M.prev[t]/maxPrev}%"></i></div><div class="words">${ws || '<span class="warn">表示できる語が無い</span>'}</div></div>`;
   }).join('');
   $('grid').querySelectorAll('.card').forEach(el => el.onclick = () => {sel = +el.dataset.t; render(); detail(sel); $('detail').scrollIntoView({behavior:'smooth'});});
   const nk = M.vocab.filter((_, j) => keep(j)).length;
@@ -589,7 +784,8 @@ function detail(t){
     「トピックに占める割合」＝このトピックの重みのうちその作品から来る割合（P(作品｜トピック)）。
     向きが逆なので値は一致しない。どちらも語の絞り込みでは変わらない。</p>`;
   $('detail').hidden = false;
-  $('detail').innerHTML = `<h2>T${String(t).padStart(2,'0')}　全体の ${(100*M.prev[t]).toFixed(1)}%・表示の残存 ${(100*keptMass).toFixed(0)}%</h2>
+  $('detail').innerHTML = `<h2>T${String(t).padStart(2,'0')}　全体の ${(100*M.prev[t]).toFixed(1)}%・表示の残存 ${(100*keptMass).toFixed(0)}%<a class="help-q" href="topic_viewer_manual.html#detail" target="jlit-topic-manual" title="この欄の使い方（マニュアルを別のウィンドウで開く）">？</a></h2>
+    ${labBox(t)}
     <div class="legend">${POSGROUPS.map((g, gi) => `<span><i style="background:${COLORS[gi]}"></i>${g[0]}</span>`).slice(0, 8).join('')}</div>
     ${warn}
     <div class="cols"><div><h3 style="font-size:13px">上位語（λ=${st.lam.toFixed(2)} の順・棒は p(w|t)）</h3>${words}
@@ -609,7 +805,7 @@ function relTable(t){
   const others = row.map((v, u) => ({u, v})).filter(x => x.u !== t)
     .sort((a, b) => dir * (b.v - a.v)).slice(0, st.nrel);
   const words = u => ranked(u).list.slice(0, 8).map(x => `<b style="color:${COLORS[gOf[x.j]]}" title="${esc(M.vocab[x.j][0])}">${esc(disp(M.vocab[x.j][0]))}</b>`).join(' ');
-  $('rel').innerHTML = `<div class="head"><h3>関連の強いトピック</h3>
+  $('rel').innerHTML = `<div class="head"><h3>関連の強いトピック<a class="help-q" href="topic_viewer_manual.html#related" target="jlit-topic-manual" title="この欄の使い方（マニュアルを別のウィンドウで開く）">？</a></h3>
       <select id="relm">${RELS.map(r => `<option value="${r[0]}"${r[0]===key?' selected':''}>${esc(r[1])}</option>`).join('')}</select>
       <label>件数 <input type="number" id="nrel" min="3" max="${Math.max(3, M.K-1)}" value="${st.nrel}" style="width:56px"></label></div>
     <p class="hint">${hint.replace('__MFW__', M.rel.mfw).replace('__BASE__', (-1/(M.K-1)).toFixed(3))}</p>
@@ -625,6 +821,737 @@ function relTable(t){
     sel = +el.dataset.t; render(); $('detail').scrollIntoView({behavior:'smooth'}); });
 }
 
+
+// ======================================================================
+// ネットワーク（トピック間・作品間）。外部のライブラリは使わない。
+// 配置は力学モデル（ばねと斥力）。ドラッグで動かし，ホイールで拡大縮小，
+// 背景のドラッグで移動する。
+// ======================================================================
+const PAL = ['#0072B2', '#E69F00', '#009E73', '#CC79A7', '#56B4E9', '#D55E00', '#8C6D31', '#6A3D9A'];
+const GRAY = '#9a9a93';
+const NET = {view: 'list', kind: 'topic', nodes: [], edges: [], raf: 0, alpha: 0,
+             scale: 1, tx: 0, ty: 0, focus: null, W: 900, H: 620};
+const nst = {meas: 'jsd', src: 'd2v', k: 2, top: 100, col: 'period', lab: true};
+
+function setView(v){
+  NET.view = v;
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  const net = v === 'topicnet' || v === 'worknet';
+  $('listview').hidden = v !== 'list';
+  $('netview').hidden = !net;
+  $('labelview').hidden = v !== 'label';
+  if (net) { NET.kind = v === 'topicnet' ? 'topic' : 'work'; netControls(); buildNet(); }
+  else cancelAnimationFrame(NET.raf);
+  if (v === 'label') labelView();
+}
+
+function goTopic(t){
+  setView('list');
+  sel = t; render(); detail(t);
+  $('detail').scrollIntoView({behavior: 'smooth'});
+}
+
+// ---- 操作欄 -----------------------------------------------------------
+function netControls(){
+  let opts;
+  if (NET.kind === 'topic') {
+    opts = RELS.map(r => [r[0], r[1]]);
+    if (!RELS.some(r => r[0] === nst.meas)) nst.meas = 'jsd';
+    $('nsrcw').hidden = true;
+    $('nmeasw').hidden = false;
+  } else {
+    $('nsrcw').hidden = false;
+    $('nmeasw').hidden = true;
+    const so = [['theta', 'トピック構成の近さ（Jensen–Shannon divergence）']];
+    if (D.d2v) so.unshift(['d2v', 'doc2vec の作品ベクトル（コサイン類似度）']);
+    if (!so.some(x => x[0] === nst.src)) nst.src = so[0][0];
+    $('nsrc').innerHTML = so.map(x => `<option value="${x[0]}"${x[0]===nst.src?' selected':''}>${esc(x[1])}</option>`).join('');
+  }
+  if (opts) $('nmeas').innerHTML = opts.map(x => `<option value="${x[0]}"${x[0]===nst.meas?' selected':''}>${esc(x[1])}</option>`).join('');
+  const cols = NET.kind === 'topic'
+    ? [['period', 'いちばん割合の高い時代区分'], ['community', 'コミュニティ']]
+    : [['period', '時代区分'], ['author', '作家'], ['genre', 'ジャンル'], ['style', '文体'], ['community', 'コミュニティ']];
+  if (!cols.some(c => c[0] === nst.col)) nst.col = 'period';
+  $('ncol').innerHTML = cols.map(c => `<option value="${c[0]}"${c[0]===nst.col?' selected':''}>${esc(c[1])}</option>`).join('');
+  $('nk').value = nst.k; $('nkO').textContent = nst.k;
+  $('ntop').value = nst.top; $('ntopO').textContent = nst.top + '%';
+  $('nlab').checked = nst.lab;
+}
+
+// ---- グラフを作る -----------------------------------------------------
+// 近さ s(i,j) を指標の向きで揃え（大きいほど近い），各ノードから近い順に k 本。
+// 重みは「全組の中での近さの順位」（0〜1）。指標ごとに値の尺度が違っても同じ扱いにできる。
+function graphData(){
+  let n, mat, dir, nodes;
+  if (NET.kind === 'topic') {
+    const r = RELS.find(x => x[0] === nst.meas);
+    mat = M.rel[r[0]]; dir = r[2]; n = M.K;
+    const maxP = Math.max(...M.prev);
+    nodes = M.prev.map((p, t) => ({id: t, label: 'T' + String(t).padStart(2, '0') + (labelOf(t) ? ' ' + shortLabel(labelOf(t).label, 8) : ''),
+      r: 5 + 13 * Math.sqrt(p / maxP)}));
+  } else {
+    let works;
+    if (nst.src === 'd2v' && D.d2v) { works = D.d2v.works; mat = D.d2v.sim; dir = 1; }
+    else { works = M.works; mat = M.workJsd; dir = -1; }
+    n = works.length;
+    const chunks = {}; M.works.forEach(w => { chunks[w[0]] = w[5]; });
+    const maxC = Math.max(1, ...Object.values(chunks));
+    nodes = works.map((w, i) => ({id: i, w, label: shortTitle(w[2]),
+      r: chunks[w[0]] ? 4 + 9 * Math.sqrt(chunks[w[0]] / maxC) : 7}));
+  }
+  const s = (i, j) => dir * mat[i][j];
+  const all = [];
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) all.push(s(i, j));
+  all.sort((a, b) => a - b);
+  const pct = v => { // v 以下の組の割合（二分探索）
+    let lo = 0, hi = all.length;
+    while (lo < hi) { const m = (lo + hi) >> 1; if (all[m] <= v) lo = m + 1; else hi = m; }
+    return all.length ? lo / all.length : 1;
+  };
+  const cut = 1 - nst.top / 100;
+  const key = new Map();
+  for (let i = 0; i < n; i++) {
+    const nb = [];
+    for (let j = 0; j < n; j++) if (j !== i) nb.push([j, s(i, j)]);
+    nb.sort((a, b) => b[1] - a[1]);
+    nb.slice(0, nst.k).forEach(([j, v]) => {
+      const a = Math.min(i, j), b = Math.max(i, j), id = a + ',' + b;
+      if (key.has(id)) return;
+      const w = pct(v);
+      if (w + 1e-12 < cut) return;
+      key.set(id, {a, b, w, v: mat[a][b]});
+    });
+  }
+  return {nodes, edges: [...key.values()], dir, mat};
+}
+
+function shortTitle(t){ t = String(t || ''); return t.length > 8 ? t.slice(0, 8) + '…' : t; }
+
+// ---- コミュニティ（Louvain 法の局所移動と集約）-------------------------
+function louvain(n, edges){
+  let comm = [...Array(n).keys()];
+  let nodesOf = comm.map(i => [i]);         // 集約後のノード → 元のノード
+  let E = edges.map(e => [e.a, e.b, e.w]);
+  let N = n;
+  for (let level = 0; level < 6; level++) {
+    const adj = Array.from({length: N}, () => new Map());
+    let m2 = 0;
+    const deg = new Array(N).fill(0);
+    E.forEach(([a, b, w]) => {
+      if (a === b) { adj[a].set(a, (adj[a].get(a) || 0) + 2 * w); deg[a] += 2 * w; m2 += 2 * w; return; }
+      adj[a].set(b, (adj[a].get(b) || 0) + w); adj[b].set(a, (adj[b].get(a) || 0) + w);
+      deg[a] += w; deg[b] += w; m2 += 2 * w;
+    });
+    if (m2 === 0) break;
+    const c = [...Array(N).keys()];
+    const tot = deg.slice();
+    let moved = true, any = false, pass = 0;
+    while (moved && pass++ < 30) {
+      moved = false;
+      for (let i = 0; i < N; i++) {
+        const ci = c[i];
+        const wTo = new Map();
+        adj[i].forEach((w, j) => { if (j !== i) wTo.set(c[j], (wTo.get(c[j]) || 0) + w); });
+        tot[ci] -= deg[i];
+        let best = ci, bestGain = (wTo.get(ci) || 0) - tot[ci] * deg[i] / m2;
+        wTo.forEach((w, cj) => {
+          const g = w - tot[cj] * deg[i] / m2;
+          if (g > bestGain + 1e-12) { bestGain = g; best = cj; }
+        });
+        tot[best] += deg[i];
+        if (best !== ci) { c[i] = best; moved = true; any = true; }
+      }
+    }
+    if (!any) break;
+    // 集約
+    const ids = [...new Set(c)]; const re = new Map(ids.map((x, i) => [x, i]));
+    const newNodesOf = ids.map(() => []);
+    for (let i = 0; i < N; i++) newNodesOf[re.get(c[i])].push(...nodesOf[i]);
+    const agg = new Map();
+    E.forEach(([a, b, w]) => {
+      const x = re.get(c[a]), y = re.get(c[b]);
+      const k = Math.min(x, y) + ',' + Math.max(x, y);
+      agg.set(k, (agg.get(k) || 0) + w);
+    });
+    E = [...agg.entries()].map(([k, w]) => { const [x, y] = k.split(',').map(Number); return [x, y, w]; });
+    nodesOf = newNodesOf; N = ids.length;
+  }
+  // 大きい順に番号を振る（色が安定する）
+  nodesOf.sort((a, b) => b.length - a.length || a[0] - b[0]);
+  nodesOf.forEach((ns, ci) => ns.forEach(i => { comm[i] = ci; }));
+  return comm;
+}
+
+// ---- 色分け ------------------------------------------------------------
+function categorise(nodes, edges){
+  let cat;
+  if (nst.col === 'community') {
+    const cm = louvain(nodes.length, edges);
+    cat = cm.map(c => 'コミュニティ ' + (c + 1));
+  } else if (NET.kind === 'topic') {
+    cat = nodes.map(nd => {
+      let best = -1, bi = -1;
+      M.periods.forEach((p, i) => { if (!/不明/.test(p) && M.periodTopic[i][nd.id] > best) { best = M.periodTopic[i][nd.id]; bi = i; } });
+      return bi >= 0 ? M.periods[bi].replace(/^\d_/, '') : '不明';
+    });
+  } else {
+    const idx = {period: 4, author: 1, genre: 6, style: 7}[nst.col];
+    cat = nodes.map(nd => {
+      const v = String(nd.w[idx] || '');
+      return (nst.col === 'period' ? v.replace(/^\d_/, '') : v) || '不明';
+    });
+  }
+  // 色の割り当て：時代区分は時代順，ほかは多い順。9 種目以降は灰色（その他）
+  const cnt = new Map(); cat.forEach(c => cnt.set(c, (cnt.get(c) || 0) + 1));
+  let order = [...cnt.keys()];
+  if (nst.col === 'period') {
+    const pos = new Map((NET.kind === 'topic' ? M.periods : [...new Set((nst.src === 'd2v' && D.d2v ? D.d2v.works : M.works).map(w => w[4]))].sort())
+      .map((p, i) => [String(p).replace(/^\d_/, ''), i]));
+    order.sort((a, b) => (pos.has(a) ? pos.get(a) : 99) - (pos.has(b) ? pos.get(b) : 99));
+  } else {
+    order.sort((a, b) => cnt.get(b) - cnt.get(a) || a.localeCompare(b, 'ja'));
+  }
+  const color = new Map();
+  let k = 0;
+  order.forEach(c => { color.set(c, (c === '不明' || k >= PAL.length) ? GRAY : PAL[k++]); });
+  return {cat, color, order, cnt};
+}
+
+// ---- 描く ---------------------------------------------------------------
+const SVGNS = 'http://www.w3.org/2000/svg';
+function svgEl(tag, attrs){ const e = document.createElementNS(SVGNS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; }
+
+function buildNet(){
+  cancelAnimationFrame(NET.raf);
+  const g = graphData();
+  NET.nodes = g.nodes; NET.edges = g.edges; NET.dir = g.dir; NET.mat = g.mat; NET.focus = null;
+  NET.userView = false; NET.scale = 1; NET.tx = NET.ty = 0;
+  const {cat, color, order, cnt} = categorise(g.nodes, g.edges);
+  NET.cat = cat;
+  // 初期配置は円周上（再現できるように乱数を使わない）
+  const n = g.nodes.length, R = Math.min(NET.W, NET.H) * 0.38;
+  g.nodes.forEach((nd, i) => {
+    const a = 2 * Math.PI * i / Math.max(1, n);
+    nd.x = NET.W / 2 + R * Math.cos(a); nd.y = NET.H / 2 + R * Math.sin(a);
+    nd.vx = 0; nd.vy = 0; nd.fixed = false;
+    nd.color = color.get(cat[i]); nd.cat = cat[i];
+  });
+  const svg = $('netsvg');
+  svg.innerHTML = '';
+  svg.setAttribute('viewBox', `0 0 ${NET.W} ${NET.H}`);
+  const vp = svgEl('g', {id: 'netvp'});
+  svg.appendChild(vp);
+  const eg = svgEl('g', {}), ng = svgEl('g', {}), lg = svgEl('g', {});
+  vp.append(eg, ng, lg);
+  // **線の太さと濃さ＝近さ。** 近さの順位 w（全組の中で 0〜1）を，いま表示している辺の中で
+  // 0〜1 に引き伸ばして太さにする（k 近傍の辺はどれも上位にあるので，そのままでは差が見えない）
+  const ws = g.edges.map(e => e.w), wmin = Math.min(...ws), wmax = Math.max(...ws);
+  const lab = i => NET.kind === 'topic' ? g.nodes[i].label : `${g.nodes[i].w[1]}『${g.nodes[i].w[2]}』`;
+  g.edges.forEach(e => {
+    e.rel = wmax > wmin ? (e.w - wmin) / (wmax - wmin) : 1;
+    e.el = svgEl('line', {class: 'edge', 'stroke-width': (0.7 + 4.8 * e.rel).toFixed(2),
+      'stroke-opacity': (0.28 + 0.6 * e.rel).toFixed(2)});
+    const tt = svgEl('title', {});
+    tt.textContent = `${lab(e.a)} — ${lab(e.b)}：${e.v.toFixed(3)}（全組の中で近いほうから ${(100 * (1 - e.w)).toFixed(1)}% の位置）`;
+    e.el.appendChild(tt);
+    eg.appendChild(e.el);
+  });
+  g.nodes.forEach((nd, i) => {
+    nd.el = svgEl('circle', {r: nd.r.toFixed(1), fill: nd.color, class: 'node'});
+    nd.el.dataset.i = i;
+    ng.appendChild(nd.el);
+    nd.tx = svgEl('text', {class: 'nlabel', 'text-anchor': 'middle'});
+    nd.tx.textContent = nd.label;
+    lg.appendChild(nd.tx);
+  });
+  lg.style.display = nst.lab ? '' : 'none';
+  applyView();
+  // 凡例
+  const shown = order.filter(c => color.get(c) !== GRAY || c === '不明');
+  const rest = order.filter(c => color.get(c) === GRAY && c !== '不明');
+  $('nleg').innerHTML = shown.map(c => `<span><i style="background:${color.get(c)}"></i>${esc(c)}（${cnt.get(c)}）</span>`).join('')
+    + (rest.length ? `<span title="${esc(rest.join('・'))}"><i style="background:${GRAY}"></i>その他 ${rest.length} 種（${rest.reduce((s, c) => s + cnt.get(c), 0)}）</span>` : '');
+  // 説明
+  const iso = g.nodes.filter((_, i) => !g.edges.some(e => e.a === i || e.b === i)).length;
+  let src;
+  if (NET.kind === 'topic') src = `指標：${RELS.find(x => x[0] === nst.meas)[1]}（${NET.dir > 0 ? '大きいほど近い' : '小さいほど近い'}）。円の大きさはトピックの割合。`;
+  else if (nst.src === 'd2v' && D.d2v) src = `指標：doc2vec の作品ベクトル（チャンクの document vector の平均，${D.d2v.dim} 次元）のコサイン類似度。${esc(D.d2v.dir)}`;
+  else src = `指標：作品のトピック構成（チャンクの θ の平均）どうしの Jensen–Shannon divergence（モデル「${esc(M.label)}」）。`
+    + (D.d2v ? '' : ' doc2vec の結果はビューアに入っていない（Step 7 のあと，--d2v を付けて作り直すと選べる）。');
+  $('nhint').innerHTML = `線が太く濃いほど近い（線にポインタを載せると値が出る）。${g.nodes.length} ノード・${g.edges.length} 辺（各ノードから近い順に ${nst.k} 本，全組の近さの上位 ${nst.top}% まで）`
+    + (iso ? `・辺の無いノード ${iso}` : '') + '。' + src;
+  $('ninfo').innerHTML = '';
+  NET.alpha = 1;
+  tick();
+}
+
+// 配置が落ち着いたら，全体が画面に収まるように拡大縮小する（利用者が動かしていなければ）
+function fitView(){
+  const N = NET.nodes; if (!N.length) return;
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  N.forEach(p => { x0 = Math.min(x0, p.x - p.r); y0 = Math.min(y0, p.y - p.r - 14); x1 = Math.max(x1, p.x + p.r); y1 = Math.max(y1, p.y + p.r); });
+  const pad = 24, w = Math.max(1, x1 - x0), h = Math.max(1, y1 - y0);
+  const s = Math.min(1.6, Math.max(0.3, Math.min((NET.W - 2 * pad) / w, (NET.H - 2 * pad) / h)));
+  NET.scale = s; NET.tx = (NET.W - s * (x0 + x1)) / 2; NET.ty = (NET.H - s * (y0 + y1)) / 2;
+  applyView();
+}
+function applyView(){
+  const vp = document.getElementById('netvp');
+  if (vp) vp.setAttribute('transform', `translate(${NET.tx},${NET.ty}) scale(${NET.scale})`);
+}
+
+function tick(){
+  const N = NET.nodes, E = NET.edges, a = NET.alpha;
+  const cx = NET.W / 2, cy = NET.H / 2;
+  for (let i = 0; i < N.length; i++) {
+    const p = N[i];
+    for (let j = i + 1; j < N.length; j++) {
+      const q = N[j];
+      let dx = p.x - q.x, dy = p.y - q.y, d2 = dx * dx + dy * dy;
+      if (d2 < 1) { dx = (i - j) * 0.01 + 0.1; dy = 0.1; d2 = 1; }
+      const d = Math.sqrt(d2), f = Math.min(2400 / d2, 40) * a;
+      const fx = f * dx / d, fy = f * dy / d;
+      p.vx += fx; p.vy += fy; q.vx -= fx; q.vy -= fy;
+    }
+  }
+  E.forEach(e => {
+    const p = N[e.a], q = N[e.b];
+    const dx = q.x - p.x, dy = q.y - p.y, d = Math.sqrt(dx * dx + dy * dy) || 1;
+    const L = 40 + 70 * (1 - e.rel);
+    const f = (d - L) * 0.06 * (0.4 + e.rel) * a;
+    const fx = f * dx / d, fy = f * dy / d;
+    p.vx += fx; p.vy += fy; q.vx -= fx; q.vy -= fy;
+  });
+  N.forEach(p => {
+    p.vx += (cx - p.x) * 0.012 * a; p.vy += (cy - p.y) * 0.012 * a;
+    if (p.fixed) { p.vx = p.vy = 0; return; }
+    p.vx *= 0.6; p.vy *= 0.6;
+    p.x += p.vx; p.y += p.vy;
+  });
+  draw();
+  NET.alpha *= 0.975;
+  if (NET.alpha > 0.02) NET.raf = requestAnimationFrame(tick);
+  else if (!NET.userView) fitView();
+}
+
+function draw(){
+  NET.edges.forEach(e => {
+    const p = NET.nodes[e.a], q = NET.nodes[e.b];
+    e.el.setAttribute('x1', p.x.toFixed(1)); e.el.setAttribute('y1', p.y.toFixed(1));
+    e.el.setAttribute('x2', q.x.toFixed(1)); e.el.setAttribute('y2', q.y.toFixed(1));
+  });
+  NET.nodes.forEach(p => {
+    p.el.setAttribute('cx', p.x.toFixed(1)); p.el.setAttribute('cy', p.y.toFixed(1));
+    p.tx.setAttribute('x', p.x.toFixed(1)); p.tx.setAttribute('y', (p.y - p.r - 3).toFixed(1));
+  });
+}
+
+function reheat(x){ NET.alpha = Math.max(NET.alpha, x); cancelAnimationFrame(NET.raf); NET.raf = requestAnimationFrame(tick); }
+
+// ---- 近傍を強調する ----------------------------------------------------
+function focusNode(i){
+  NET.focus = i;
+  const nb = new Set([i]);
+  NET.edges.forEach(e => { if (e.a === i) nb.add(e.b); if (e.b === i) nb.add(e.a); });
+  NET.nodes.forEach((p, j) => { p.el.classList.toggle('dim', i !== null && !nb.has(j)); p.tx.classList.toggle('dim', i !== null && !nb.has(j)); p.el.classList.toggle('foc', j === i); });
+  NET.edges.forEach(e => e.el.classList.toggle('dim', i !== null && e.a !== i && e.b !== i));
+  if (i === null) { $('ninfo').innerHTML = ''; return; }
+  // 近い順の一覧（辺の有無にかかわらず上位10）
+  const row = NET.mat[i];
+  const lst = row.map((v, j) => ({j, v})).filter(x => x.j !== i).sort((a, b) => NET.dir * (b.v - a.v)).slice(0, 10);
+  const nd = NET.nodes[i];
+  let head, extra = '';
+  if (NET.kind === 'topic') {
+    head = `${nd.label}　全体の ${(100 * M.prev[i]).toFixed(1)}%　<a href="#" data-go="${i}">このトピックの詳細へ</a>`;
+  } else {
+    const w = nd.w;
+    head = `${esc(w[1])}『${esc(w[2])}』${w[3] ? '（' + esc(w[3]) + '）' : ''}　${esc(String(w[4]).replace(/^\d_/, ''))}`;
+    // この作品で割合の高いトピック（いま選んでいるモデル）
+    const wi = M.works.findIndex(x => x[0] === w[0]);
+    if (wi >= 0) {
+      const tops = M.workTopic[wi].map((p, t) => ({t, p})).sort((a, b) => b.p - a.p).slice(0, 5);
+      extra = `<p class="hint">この作品で割合の高いトピック（モデル「${esc(M.label)}」）：` + tops.map(x =>
+        `<a href="#" data-go="${x.t}">T${String(x.t).padStart(2, '0')}</a> ${(100 * x.p).toFixed(1)}%`).join('・') + '</p>';
+    }
+  }
+  const name = j => NET.kind === 'topic'
+    ? `T${String(j).padStart(2, '0')}　<span class="hint">${ranked(j).list.slice(0, 6).map(x => esc(disp(M.vocab[x.j][0]))).join(' ')}</span>`
+    : `${esc(NET.nodes[j].w[1])}『${esc(NET.nodes[j].w[2])}』`;
+  $('ninfo').innerHTML = `<h3>${head}</h3>${extra}<table><tr><th>近い順</th><th></th><th class="num">値</th></tr>` +
+    lst.map((x, r) => `<tr class="go" data-f="${x.j}"><td class="num">${r + 1}</td><td>${name(x.j)}</td><td class="num">${x.v.toFixed(3)}</td></tr>`).join('') +
+    `</table><p class="hint">値は${NET.dir > 0 ? '大きいほど' : '小さいほど'}近い。行を押すとその${NET.kind === 'topic' ? 'トピック' : '作品'}に移る。背景を押すと強調を解く。</p>`;
+  $('ninfo').querySelectorAll('[data-go]').forEach(a => a.onclick = ev => { ev.preventDefault(); goTopic(+a.dataset.go); });
+  $('ninfo').querySelectorAll('tr[data-f]').forEach(tr => tr.onclick = () => focusNode(+tr.dataset.f));
+}
+
+// ---- 操作（ドラッグ・拡大縮小・ポインタ）-------------------------------
+function svgPoint(ev){
+  const svg = $('netsvg'), r = svg.getBoundingClientRect();
+  const x = (ev.clientX - r.left) * NET.W / r.width, y = (ev.clientY - r.top) * NET.H / r.height;
+  return {x, y, gx: (x - NET.tx) / NET.scale, gy: (y - NET.ty) / NET.scale};
+}
+let DRAG = null;
+function netEvents(){
+  const svg = $('netsvg');
+  svg.addEventListener('pointerdown', ev => {
+    const t = ev.target;
+    const pt = svgPoint(ev);
+    if (t.classList && t.classList.contains('node')) {
+      const nd = NET.nodes[+t.dataset.i];
+      DRAG = {kind: 'node', nd, moved: false, sx: pt.x, sy: pt.y};
+      nd.fixed = true;
+    } else {
+      DRAG = {kind: 'pan', sx: pt.x, sy: pt.y, tx: NET.tx, ty: NET.ty, moved: false};
+    }
+    svg.setPointerCapture(ev.pointerId);
+  });
+  svg.addEventListener('pointermove', ev => {
+    const pt = svgPoint(ev);
+    if (DRAG) {
+      if (Math.abs(pt.x - DRAG.sx) + Math.abs(pt.y - DRAG.sy) > 3) DRAG.moved = true;
+      if (DRAG.kind === 'node' && DRAG.moved) { NET.userView = true; DRAG.nd.x = pt.gx; DRAG.nd.y = pt.gy; reheat(0.15); draw(); }
+      if (DRAG.kind === 'pan' && DRAG.moved) { NET.userView = true; NET.tx = DRAG.tx + pt.x - DRAG.sx; NET.ty = DRAG.ty + pt.y - DRAG.sy; applyView(); }
+      $('ntip').hidden = true;
+      return;
+    }
+    const t = ev.target;
+    if (t.classList && t.classList.contains('node')) showTip(+t.dataset.i, ev); else $('ntip').hidden = true;
+  });
+  svg.addEventListener('pointerup', ev => {
+    if (!DRAG) return;
+    const d = DRAG; DRAG = null;
+    if (d.kind === 'node') {
+      if (!d.moved) { d.nd.fixed = false; focusNode(NET.nodes.indexOf(d.nd)); }
+    } else if (!d.moved) focusNode(null);
+  });
+  svg.addEventListener('pointerleave', () => { $('ntip').hidden = true; });
+  svg.addEventListener('dblclick', ev => {
+    const t = ev.target;
+    if (t.classList && t.classList.contains('node')) {
+      const nd = NET.nodes[+t.dataset.i];
+      if (NET.kind === 'topic') goTopic(nd.id); else { nd.fixed = false; reheat(0.2); }
+    }
+  });
+  svg.addEventListener('wheel', ev => {
+    ev.preventDefault();
+    const pt = svgPoint(ev);
+    const k = Math.exp(-ev.deltaY * 0.0015);
+    const s = Math.min(6, Math.max(0.3, NET.scale * k));
+    NET.tx = pt.x - (pt.x - NET.tx) * s / NET.scale;
+    NET.ty = pt.y - (pt.y - NET.ty) * s / NET.scale;
+    NET.scale = s; NET.userView = true; applyView();
+  }, {passive: false});
+}
+function showTip(i, ev){
+  const nd = NET.nodes[i], tip = $('ntip');
+  let h;
+  if (NET.kind === 'topic') {
+    const lb = labelOf(nd.id);
+    h = `<b>${esc(nd.label)}</b>　${(100 * M.prev[nd.id]).toFixed(1)}%・${esc(nd.cat)}<br>` +
+      (lb ? `ラベル：${esc(lb.label)}（${esc(lb.type)}・確信度 ${esc(lb.confidence)}）<br>` : `仮ラベル：${esc(autoLabel(nd.id))}<br>`) +
+      ranked(nd.id).list.slice(0, 8).map(x => esc(disp(M.vocab[x.j][0]))).join(' ');
+  } else {
+    const w = nd.w;
+    h = `<b>${esc(w[1])}『${esc(w[2])}』</b>${w[3] ? '　' + esc(w[3]) : ''}<br>${esc(String(w[4]).replace(/^\d_/, ''))}` +
+      (w[6] ? '・' + esc(w[6]) : '') + (w[7] ? '・' + esc(w[7]) : '') + `<br>色：${esc(nd.cat)}`;
+  }
+  tip.innerHTML = h; tip.hidden = false;
+  const r = $('netwrap').getBoundingClientRect();
+  let x = ev.clientX - r.left + 14, y = ev.clientY - r.top + 12;
+  if (x + 260 > r.width) x = Math.max(4, x - 280);
+  tip.style.left = x + 'px'; tip.style.top = y + 'px';
+}
+
+function netInit(){
+  document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => setView(b.dataset.v));
+  $('nmeas').onchange = e => { nst.meas = e.target.value; buildNet(); };
+  $('nsrc').onchange = e => { nst.src = e.target.value; netControls(); buildNet(); };
+  $('ncol').onchange = e => { nst.col = e.target.value; buildNet(); };
+  $('nk').oninput = e => { nst.k = +e.target.value; $('nkO').textContent = nst.k; buildNet(); };
+  $('ntop').oninput = e => { nst.top = +e.target.value; $('ntopO').textContent = nst.top + '%'; buildNet(); };
+  $('nlab').onchange = e => { nst.lab = e.target.checked; const g = document.querySelector('#netvp > g:last-child'); if (g) g.style.display = nst.lab ? '' : 'none'; };
+  $('nre').onclick = () => { NET.scale = 1; NET.tx = NET.ty = 0; buildNet(); };
+  netEvents();
+}
+
+// ======================================================================
+// ラベルづけ。① 診断資料（依頼文）を作って生成 AI に渡し，回答（JSON）を取り込む。
+// ② AI を使わない仮ラベルを機械的に付ける。ラベルはモデルの指紋（fp）に結び付ける
+// （トピックの番号は学習のたびに変わるので，別のモデルには当てはめない）。
+// ======================================================================
+const LTYPES = ['主題', '作品の目印', '作家の目印', '文体・機能語', '混成'];
+const LCONF = ['高', '中', '低'];
+const LSTORE = 'jlit-topic-labels';
+let LAB = {};
+const lst = {scope: 'all', batch: 10, page: 0, src: 'Claude'};
+
+function loadLabels(){
+  const base = (D.labels && D.labels.models) || {};
+  Object.entries(base).forEach(([fp, m]) => { LAB[fp] = Object.assign({}, m.topics || {}); });
+  try {
+    const loc = JSON.parse(localStorage.getItem(LSTORE) || '{}');
+    Object.entries(loc).forEach(([fp, tops]) => {
+      const cur = LAB[fp] || (LAB[fp] = {});
+      Object.entries(tops).forEach(([t, r]) => { if (!cur[t] || String(r.date || '') >= String(cur[t].date || '')) cur[t] = r; });
+    });
+  } catch (e) { /* ブラウザが保存を許さないときは，書き出したファイルだけが頼り */ }
+}
+// 日付は手元の時刻で（toISOString は UTC なので，日本の午前9時前は前日になる）
+function today(){ const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
+function saveLocal(){ try { localStorage.setItem(LSTORE, JSON.stringify(LAB)); } catch (e) {} }
+function labelsOf(){ return LAB[M.fp] || (LAB[M.fp] = {}); }
+function labelOf(t){ return labelsOf()[t] || null; }
+
+// ---- トピックの輪郭（依頼文と仮ラベルの材料。画面の絞り込みには左右されない）----
+function topWords(t, lam, n){
+  const Tt = M.topicTotals[t], N = M.N;
+  return M.tw[t].map(([j, c]) => {
+    const pwt = c / Tt, pw = M.vocab[j][5] / N;
+    return {j, pwt, r: lam * Math.log(pwt) + (1 - lam) * Math.log(pwt / pw)};
+  }).sort((a, b) => b.r - a.r).slice(0, n);
+}
+function topicProfile(t){
+  const mass = M.works.map((w, i) => M.workTopic[i][t] * w[5]);
+  const tot = mass.reduce((s, x) => s + x, 0) || 1;
+  const works = M.works.map((w, i) => ({w, v: M.workTopic[i][t], sh: mass[i] / tot}));
+  const byInside = works.slice().sort((a, b) => b.v - a.v);
+  const byShare = works.slice().sort((a, b) => b.sh - a.sh);
+  const au = {};
+  works.forEach(x => { const a = (au[x.w[1]] ||= {a: x.w[1], sh: 0, n: 0}); a.sh += x.sh; a.n++; });
+  const authors = Object.values(au).sort((a, b) => b.sh - a.sh);
+  const per = M.periods.map((p, i) => ({p: p.replace(/^\d_/, ''), v: M.periodTopic[i][t], raw: p}));
+  const known = per.filter(x => !/不明/.test(x.raw));
+  const mean = known.reduce((s, x) => s + x.v, 0) / Math.max(1, known.length);
+  const peak = known.slice().sort((a, b) => b.v - a.v)[0];
+  const rel = M.rel.jsd[t].map((v, u) => ({u, v})).filter(x => x.u !== t).sort((a, b) => a.v - b.v).slice(0, 3);
+  return {byInside, byShare, authors, per, peak, peakRatio: peak && mean ? peak.v / mean : 1, rel,
+          topW: byShare[0], topA: authors[0]};
+}
+function autoLabel(t){
+  const p = topicProfile(t);
+  const w = topWords(t, 0.6, 3).map(x => disp(M.vocab[x.j][0]));
+  if (p.topW && p.topW.sh > 0.5) return `⚠ 『${p.topW.w[2]}』の目印（${w.join('・')}）`;
+  if (p.topA && p.topA.sh > 0.5 && !/メタデータ無し/.test(p.topA.a)) return `⚠ ${p.topA.a}の目印（${w.join('・')}）`;
+  return w.join('・') + (p.peak && p.peakRatio >= 1.3 ? `（${p.peak.p}に多い）` : '');
+}
+function shortLabel(s, n){ s = String(s || ''); return s.length > n ? s.slice(0, n) + '…' : s; }
+
+// ---- 依頼文（診断資料）-------------------------------------------------
+function dossier(t){
+  const p = topicProfile(t);
+  const wl = (lam, n) => topWords(t, lam, n).map(x => `${disp(M.vocab[x.j][0])}（${M.vocab[x.j][1].split('-')[0] || '?'}）`).join('、');
+  const pct = x => (100 * x).toFixed(1) + '%';
+  const wrow = x => `${x.w[1]}『${x.w[2]}』（${x.w[3] || '初出年不明'}・${String(x.w[4]).replace(/^\d_/, '')}${x.w[6] ? '・' + x.w[6] : ''}${x.w[7] ? '・' + x.w[7] : ''}）作品内 ${pct(x.v)}／トピックに占める ${pct(x.sh)}`;
+  let warn = '';
+  if (p.topW && p.topW.sh > 0.5) warn = `このトピックの重みの ${pct(p.topW.sh)} が1作品（${p.topW.w[1]}『${p.topW.w[2]}』）から来ている。`;
+  else if (p.topA && p.topA.sh > 0.5) warn = `このトピックの重みの ${pct(p.topA.sh)} が1作家（${p.topA.a}）の作品から来ている。`;
+  return [
+    `### トピック ${t}（コーパス全体の ${pct(M.prev[t])}）`,
+    `- 上位語（トピック内の確率の順）：${wl(1, 15)}`,
+    `- 特有の語（relevance λ=0.6 の順）：${wl(0.6, 15)}`,
+    `- 時代区分ごとの割合：${p.per.map(x => `${x.p} ${pct(x.v)}`).join('、')}`,
+    `- このトピックの割合が高い作品：\n` + p.byInside.slice(0, 6).map(x => '  - ' + wrow(x)).join('\n'),
+    `- このトピックを担う作品（トピックに占める割合の順）：\n` + p.byShare.slice(0, 6).map(x => '  - ' + wrow(x)).join('\n'),
+    `- 担う作家：${p.authors.slice(0, 5).map(a => `${a.a} ${pct(a.sh)}`).join('、')}`,
+    warn ? `- 偏りの警告：${warn}` : '- 偏りの警告：なし',
+    `- 語分布の近いトピック：${p.rel.map(x => `トピック ${x.u}（${topWords(x.u, 0.6, 5).map(y => disp(M.vocab[y.j][0])).join('・')}）`).join('、')}`,
+  ].join('\n');
+}
+function promptFor(topics){
+  const head = `あなたは日本近代文学とテキスト分析に詳しい研究補助者です。
+近代日本文学のコーパス（青空文庫の作品，明治〜昭和戦後）を約2,000語のチャンクに分け，
+LDA（MALLET）でトピックモデルを学習しました。下の「診断資料」をもとに，各トピックを診断し，
+ラベルを付けてください。
+
+## 診断の手順
+1. 上位語と特有の語から，そのトピックが何でできているかを見る。
+2. 担う作品・作家と偏りの警告から，それが**主題**なのか，1作品・1作家の**目印**
+   （登場人物名・固有の語彙）なのか，**文体・機能語**の偏り（文語・会話体など）なのかを判断する。
+3. 時代区分ごとの割合も参考にする。
+
+## 守ること
+- 根拠は**資料にある語と作品だけ**から挙げる。作品について一般に知られていることを使ったときは，
+  「一般知識」と明記する。資料から言えないことは推測しない。
+- 判断がつかないときは，確信度を「低」にし，caution に理由を書く。
+- ラベルは日本語で15字以内。作品の目印なら「○○『△△』の登場人物」のように，そうと分かる名前にする。
+
+## 回答の形式
+次の JSON **だけ**を返してください（説明の文章は付けない）。
+
+{"model": "${M.fp}", "topics": [
+  {"topic": 番号, "label": "ラベル", "type": "${LTYPES.join('｜')} のどれか",
+   "confidence": "高｜中｜低", "evidence": "根拠（資料の語・作品を挙げて60字以内）",
+   "caution": "注意点（無ければ空文字）"}
+]}
+
+## 診断資料（モデル「${M.label}」・${M.K} トピック・指紋 ${M.fp}）
+`;
+  return head + '\n' + topics.map(dossier).join('\n\n') + '\n';
+}
+
+// ---- 回答を取り込む ------------------------------------------------------
+function parseAnswer(text){
+  let s = String(text || '').trim();
+  const fence = s.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (fence) s = fence[1];
+  const a = s.indexOf('{'), b = s.lastIndexOf('}'), c = s.indexOf('[');
+  let obj;
+  try { obj = JSON.parse(s); }
+  catch (e) {
+    try { obj = JSON.parse(a >= 0 && (c < 0 || a < c) ? s.slice(a, b + 1) : s.slice(c, s.lastIndexOf(']') + 1)); }
+    catch (e2) { throw new Error('JSON として読めない。回答の JSON の部分だけを貼り付けること。（' + e2.message + '）'); }
+  }
+  const model = Array.isArray(obj) ? null : obj.model;
+  const list = Array.isArray(obj) ? obj : (obj.topics || []);
+  return {model, list};
+}
+function importAnswer(){
+  const msg = $('lmsg');
+  let r;
+  try { r = parseAnswer($('lans').value); }
+  catch (e) { msg.className = 'warn'; msg.textContent = e.message; return; }
+  if (r.model && r.model !== M.fp) {
+    msg.className = 'warn';
+    msg.textContent = `別のモデル（指紋 ${r.model}）への回答である。いま開いているのはモデル「${M.label}」（指紋 ${M.fp}）。取り込まなかった。`;
+    return;
+  }
+  const L = labelsOf(), ok = [], ng = [];
+  const date = today();
+  const src = $('lsrc').value === 'その他' ? ($('lsrc2').value.trim() || 'その他') : $('lsrc').value;
+  r.list.forEach(x => {
+    const t = +x.topic;
+    if (!Number.isInteger(t) || t < 0 || t >= M.K || !String(x.label || '').trim()) { ng.push(x.topic); return; }
+    L[t] = {label: String(x.label).trim().slice(0, 40),
+            type: LTYPES.includes(x.type) ? x.type : '混成',
+            confidence: LCONF.includes(x.confidence) ? x.confidence : '低',
+            evidence: String(x.evidence || '').slice(0, 300),
+            caution: String(x.caution || '').slice(0, 300),
+            source: src, date, auto: autoLabel(t)};
+    ok.push(t);
+  });
+  saveLocal();
+  msg.className = ng.length ? 'warn' : 'hint';
+  msg.textContent = `${ok.length} 件を取り込んだ` + (ng.length ? `。読めなかった項目：${ng.join('，')}（番号の誤り・ラベルが空）` : '。')
+    + ' ラベルは AI の仮説である。根拠の語と作品を，詳細と KWIC で確かめること。';
+  render(); labelView();
+  if (NET.view === 'topicnet') buildNet();
+}
+
+// ---- 書き出し・読み込み ---------------------------------------------------
+function exportLabels(){
+  const models = {};
+  Object.entries(LAB).forEach(([fp, tops]) => {
+    if (!Object.keys(tops).length) return;
+    const m = D.models.find(x => x.fp === fp);
+    models[fp] = {label: m ? m.label : '', dir: m ? m.dir : '', topics: tops};
+  });
+  const out = {schema: 'jlit-topic-labels/1', exported: new Date().toISOString(), models};
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(out, null, 1)], {type: 'application/json'}));
+  a.download = 'topic_labels.json';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+function importFile(f){
+  const rd = new FileReader();
+  rd.onload = () => {
+    try {
+      const o = JSON.parse(rd.result);
+      let n = 0;
+      Object.entries(o.models || {}).forEach(([fp, m]) => {
+        const cur = LAB[fp] || (LAB[fp] = {});
+        Object.entries(m.topics || {}).forEach(([t, r]) => { cur[t] = r; n++; });
+      });
+      saveLocal(); render(); labelView();
+      $('lmsg').className = 'hint'; $('lmsg').textContent = `ファイルから ${n} 件を読み込んだ（いまのモデルに当たるものだけが表示される）。`;
+    } catch (e) { $('lmsg').className = 'warn'; $('lmsg').textContent = 'ラベルのファイルとして読めない: ' + e.message; }
+  };
+  rd.readAsText(f);
+}
+
+// ---- ラベルづけの画面 ------------------------------------------------------
+function targets(){
+  const L = labelsOf();
+  const all = [...Array(M.K).keys()];
+  return lst.scope === 'todo' ? all.filter(t => !L[t]) : all;
+}
+function labelView(){
+  const tg = targets();
+  const size = lst.batch === 0 ? Math.max(1, tg.length) : lst.batch;
+  const pages = Math.max(1, Math.ceil(tg.length / size));
+  lst.page = Math.min(lst.page, pages - 1);
+  const cur = tg.slice(lst.page * size, lst.page * size + size);
+  $('lpage').textContent = tg.length ? `${lst.page + 1} / ${pages} 回目（トピック ${cur.join('，')}）` : '対象のトピックが無い';
+  $('lprev').disabled = lst.page <= 0; $('lnext').disabled = lst.page >= pages - 1;
+  $('lprompt').value = cur.length ? promptFor(cur) : '';
+  $('lcount').textContent = `${$('lprompt').value.length.toLocaleString()} 字`;
+  $('lfp').textContent = `モデル「${M.label}」の指紋 ${M.fp}`;
+  // 一覧（手で直せる）
+  const L = labelsOf();
+  $('ltab').innerHTML = `<tr><th>トピック</th><th>仮ラベル（機械的）</th><th>ラベル</th><th>種類</th><th>確信度</th><th>根拠・注意</th><th>出典</th></tr>` +
+    [...Array(M.K).keys()].map(t => {
+      const r = L[t];
+      return `<tr data-t="${t}"><td><a href="#" data-go="${t}">T${String(t).padStart(2, '0')}</a></td>
+        <td class="hint">${esc(autoLabel(t))}</td>
+        <td><input type="text" class="lin" value="${esc(r ? r.label : '')}" placeholder="（未）"></td>
+        <td><select class="lty">${['', ...LTYPES].map(x => `<option${r && r.type === x ? ' selected' : ''}>${x}</option>`).join('')}</select></td>
+        <td><select class="lcf">${['', ...LCONF].map(x => `<option${r && r.confidence === x ? ' selected' : ''}>${x}</option>`).join('')}</select></td>
+        <td class="hint">${r ? esc(r.evidence || '') + (r.caution ? '<br>⚠ ' + esc(r.caution) : '') : ''}</td>
+        <td class="hint">${r ? esc(r.source || '') + '<br>' + esc(r.date || '') : ''}</td></tr>`;
+    }).join('');
+  $('ltab').querySelectorAll('tr[data-t]').forEach(tr => {
+    const t = +tr.dataset.t;
+    const upd = () => {
+      const lab = tr.querySelector('.lin').value.trim();
+      if (!lab) { delete labelsOf()[t]; }
+      else {
+        const old = labelsOf()[t] || {};
+        const changed = old.label !== lab || old.type !== tr.querySelector('.lty').value || old.confidence !== tr.querySelector('.lcf').value;
+        labelsOf()[t] = Object.assign({}, old, {label: lab, type: tr.querySelector('.lty').value || old.type || '混成',
+          confidence: tr.querySelector('.lcf').value || old.confidence || '中', auto: autoLabel(t)},
+          changed ? {source: (old.source && !/手で修正/.test(old.source) ? old.source + '→' : '') + '手で修正', date: today()} : {});
+      }
+      saveLocal(); render();
+      $('lstat').textContent = `ラベルの付いたトピック ${Object.keys(labelsOf()).length} / ${M.K}`;
+    };
+    tr.querySelector('.lin').onchange = upd; tr.querySelector('.lty').onchange = upd; tr.querySelector('.lcf').onchange = upd;
+  });
+  $('ltab').querySelectorAll('[data-go]').forEach(a => a.onclick = ev => { ev.preventDefault(); goTopic(+a.dataset.go); });
+  const nl = Object.keys(L).length;
+  $('lstat').textContent = `ラベルの付いたトピック ${nl} / ${M.K}`;
+}
+async function copyPrompt(){
+  const s = $('lprompt').value;
+  try { await navigator.clipboard.writeText(s); $('lcopied').textContent = 'コピーした'; }
+  catch (e) { $('lprompt').select(); try { document.execCommand('copy'); $('lcopied').textContent = 'コピーした'; } catch (e2) { $('lcopied').textContent = '選択したので ⌘C（Ctrl+C）でコピーすること'; } }
+  setTimeout(() => { $('lcopied').textContent = ''; }, 2500);
+}
+function labelInit(){
+  loadLabels();
+  $('lscope').onchange = e => { lst.scope = e.target.value; lst.page = 0; labelView(); };
+  $('lbatch').onchange = e => { lst.batch = +e.target.value; lst.page = 0; labelView(); };
+  $('lprev').onclick = () => { lst.page--; labelView(); };
+  $('lnext').onclick = () => { lst.page++; labelView(); };
+  $('lcopy').onclick = copyPrompt;
+  $('lsrc').onchange = e => { $('lsrc2').hidden = e.target.value !== 'その他'; };
+  $('limport').onclick = importAnswer;
+  $('lexport').onclick = exportLabels;
+  $('lfile').onchange = e => { if (e.target.files[0]) importFile(e.target.files[0]); e.target.value = ''; };
+  $('lclear').onclick = () => {
+    if (!Object.keys(labelsOf()).length) return;
+    LAB[M.fp] = {}; saveLocal(); render(); labelView();
+    $('lmsg').className = 'hint'; $('lmsg').textContent = 'このモデルのラベルを消した（書き出したファイルは残っている）。';
+  };
+}
+
+function labBox(t){
+  const lb = labelOf(t);
+  if (!lb) return `<div class="labbox auto">仮ラベル：${esc(autoLabel(t))}　<span class="hint">（機械的に付けたもの。「ラベルづけ」で生成 AI に診断させられる）</span></div>`;
+  return `<div class="labbox"><b>${esc(lb.label)}</b><span class="ty">${esc(lb.type)}</span><span class="ty">確信度 ${esc(lb.confidence)}</span>
+    <span class="hint">　${esc(lb.source || '')}・${esc(lb.date || '')}</span><br>
+    <span class="hint">根拠：${esc(lb.evidence || '')}${lb.caution ? '　⚠ ' + esc(lb.caution) : ''}　／仮ラベル：${esc(autoLabel(t))}</span></div>`;
+}
+
 $('model').innerHTML = D.models.map((m, i) => `<option value="${i}">${esc(m.label)}</option>`).join('');
 $('model').onchange = e => initModel(+e.target.value);
 const logInput = el => Math.round(Math.pow(10, +el.value));
@@ -637,6 +1564,8 @@ $('lam').oninput = e => { st.lam = +e.target.value; render(); };
 $('nw').oninput = e => { st.nw = Math.max(5, Math.min(50, +e.target.value || 12)); render(); };
 $('q').oninput = e => { st.q = e.target.value; render(); };
 $('sort').onchange = e => { st.sort = e.target.value; render(); };
+netInit();
+labelInit();
 initModel(0);
 </script>
 </body>
@@ -656,6 +1585,12 @@ def main() -> int:
                     help='各トピックについて保持する語の数（多いほど λ を下げたときに正確）')
     ap.add_argument('--min-count', type=int, default=3,
                     help='モデル内の度数がこれ未満の語はビューアに入れない')
+    ap.add_argument('--d2v', default=None, metavar='DIR',
+                    help='Step 7 の doc2vec の出力（work_vectors.csv のあるディレクトリ）。'
+                         '作品のネットワークに使う')
+    ap.add_argument('--labels', default=None, metavar='JSON',
+                    help='ビューアで書き出したトピックのラベル（topic_labels.json）。'
+                         '既定: --out と同じフォルダの topic_labels.json があれば読む')
     ap.add_argument('--rel-mfw', type=int, default=500,
                     help='トピック間の Delta・Cosine Delta に使う語の数（モデル内の度数の上位）')
     ap.add_argument('--out', default=os.path.join(ROOT, 'my_work', 'results', 'topic_viewer.html'))
@@ -678,11 +1613,24 @@ def main() -> int:
     if lex and unknown:
         print(f'[warn] 品詞表に無い語が {unknown:,} ある（別の辞書や別の 05 の出力で学習した可能性がある）')
 
-    data = json.dumps({'models': models}, ensure_ascii=False, separators=(',', ':'))
+    d2v = load_d2v(args.d2v, meta) if args.d2v else None
+    lab_path = args.labels or os.path.join(os.path.dirname(os.path.abspath(args.out)),
+                                           'topic_labels.json')
+    labels = load_labels(lab_path)
+    data = json.dumps({'models': models, 'd2v': d2v, 'labels': labels},
+                      ensure_ascii=False, separators=(',', ':'))
     data = data.replace('</', '<\\/')
     os.makedirs(os.path.dirname(os.path.abspath(args.out)) or '.', exist_ok=True)
     with open(args.out, 'w', encoding='utf-8') as fh:
         fh.write(HTML.replace('__DATA__', data))
+    # 操作マニュアルをビューアと同じフォルダに置く（ビューアから相対リンクで開く）
+    man_src = os.path.join(ROOT, 'scripts', 'topic_viewer_manual.html')
+    man_dst = os.path.join(os.path.dirname(os.path.abspath(args.out)), 'topic_viewer_manual.html')
+    if os.path.exists(man_src):
+        shutil.copyfile(man_src, man_dst)
+        print(f'[ok  ] 操作マニュアル → {man_dst}')
+    else:
+        print(f'[warn] 操作マニュアルが無い: {man_src}（ビューアの「操作マニュアル」は開かない）')
     print(f'[ok  ] {args.out}（{os.path.getsize(args.out) / 1e6:.1f} MB）')
     print('       ブラウザで開く。サーバは要らない。')
     return 0

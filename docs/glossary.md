@@ -2136,6 +2136,42 @@ MALLET の結果を1枚の HTML にする（サーバ不要）。上位語を品
 dp_in で絞り，relevance λ で並べ替え，トピックごとに時代別の割合と
 割合の大きい作品・作家を見る。複数のモデルを切り替えて比べられる。
 
+**ネットワーク。** 上部のタブで「トピックのネットワーク」「作品のネットワーク」に切り替える。
+近いものどうしを，各ノードから近い順に k 本の辺で結び（弱い辺は「全組の近さの上位 N%」で消す），
+力学モデルで配置する。トピックは上の5つの指標で，作品は **doc2vec の作品ベクトル**（Step 7。
+`--d2v` で渡す）のコサイン類似度か，**トピック構成**（θ の作品平均）の Jensen–Shannon divergence で結ぶ。
+色は時代区分・作家・ジャンル・文体・コミュニティ（Louvain 法; Blondel et al. 2008）。
+同じ作品の集合を2つの表現で結んで見比べると，それぞれが何を捉えているか（作家か時代か）が見える。
+⚠ 形とコミュニティは指標・k・残す割合で変わる。設定を変えても残るまとまりだけを読み，
+配置の上下左右や距離そのものは読まない。
+
+**ラベルづけ。** トピックの名前づけは LDA の難問である（Lau et al. 2011）。ビューアの「ラベルづけ」は2段構えにしてある。
+
+1. **仮ラベル**（生成 AI を使わない）：λ=0.6 の上位3語に，割合の目立って高い時代区分を添える。
+   1作品・1作家から重みの半分より多くが来ていれば「⚠ 『作品』の目印」「⚠ 作家の目印」とする。
+2. **診断資料による生成 AI のラベル**：トピックごとに，上位語（λ=1 と λ=0.6）・割合の高い作品と
+   担う作品（作家・初出年・時代区分・ジャンル・文体・2つの割合）・担う作家・時代別の割合・偏りの警告・
+   語分布の近いトピックをまとめた依頼文を作る。これを生成 AI（Claude・ChatGPT・Gemini などの無料プランでよい。
+   API キーは要らない）に貼り付け，返ってきた JSON（ラベル・種類・確信度・根拠・注意点）を取り込む。
+   種類は **主題／作品の目印／作家の目印／文体・機能語／混成** の5つ。
+
+ラベルは**モデルの指紋**（`topic-keys.txt` の中身から作る）に結び付けて記録する。トピックの番号は
+学習のたびに変わるので，学習し直したモデルには付かない。一覧で手で直すと出典に「手で修正」と残る。
+`topic_labels.json` に書き出してビューアと同じフォルダに置けば，ビューアを作り直しても読み込まれる。
+
+⚠ **ラベルは AI の仮説である。** 根拠に挙がった語と作品を詳細と KWIC で確かめ，種類
+（とくに主題か目印か）を自分で判断し直すこと。依頼文には本文そのものは入れない（上位語と書誌だけ）。
+
+**手元で動く言語モデル（設計のみ）。** DH ラボの iMac に Ollama と日本語の使えるオープンなモデルを入れれば，
+同じ依頼文を `http://127.0.0.1:11434` に送って全トピックを一括でラベルづけできる（外部に送信せず，
+温度と乱数を固定すれば再現できる）。モデルが数 GB あり，各マシンへの導入と admin 権限の方針の確認が要るので，
+教員が参照用のラベルを作るときの選択肢として残してある（出力は上の JSON と同じ形にすれば，そのまま取り込める）。
+
+**操作マニュアル**（`scripts/topic_viewer_manual.html`）は，ビューアと同じフォルダに
+`topic_viewer_manual.html` として書き出される。画面右上の「操作マニュアル ↗」と
+各欄の「？」から別のウィンドウで開き，画面と左右に並べて参照しながら使える。
+ビューアのファイルを移すときは，マニュアルも一緒に移すこと。
+
 **2つの割合を区別すること。** 作品表の「作品内の割合」は P(トピック｜作品)
 （その作品の中でこのトピックが占める割合），「トピックに占める割合」は
 P(作品｜トピック)（このトピックの重みのうちその作品から来る割合）である。
@@ -2754,6 +2790,8 @@ drift が大きい語は KWIC で用例を読む。トピックは，そのト�
 | 7 | Le & Mikolov (2014) Distributed representations of sentences and documents. *ICML*. |
 | 8 | Aitchison, J. (1986) *The Statistical Analysis of Compositional Data*. Chapman & Hall. |
 | 8 | Blei, Ng & Jordan (2003) Latent Dirichlet Allocation. *JMLR* 3. |
+| 8 | Blondel, V. D., Guillaume, J.-L., Lambiotte, R. & Lefebvre, E. (2008) Fast unfolding of communities in large networks. *Journal of Statistical Mechanics: Theory and Experiment* 2008(10): P10008. |
+| 8 | Lau, J. H., Grieser, K., Newman, D. & Baldwin, T. (2011) Automatic labelling of topic models. *Proceedings of the 49th Annual Meeting of the Association for Computational Linguistics*: 1536–1545. |
 | 8 | Lin, J. (1991) Divergence measures based on the Shannon entropy. *IEEE Transactions on Information Theory* 37(1): 145–151. |
 | 8 | Mimno et al. (2011) Optimizing semantic coherence in topic models. *EMNLP*. |
 | 8 | Sievert, C. & Shirley, K. (2014) LDAvis: a method for visualizing and interpreting topics. *Proceedings of the Workshop on Interactive Language Learning, Visualization, and Interfaces*: 63–70. |
@@ -2789,6 +2827,7 @@ drift が大きい語は KWIC で用例を読む。トピックは，そのト�
 | 形態素解析 | 3 |
 | 検証（FATAL 0 は目標ではない） | 3 |
 | 効果量 | 4 |
+| コミュニティ（Louvain 法。トピックビューアのネットワーク） | 8 |
 | カテゴリーの凝集度 | 5 |
 | culling | 4 |
 | Zeta / Iota | 4 |
@@ -2819,6 +2858,8 @@ drift が大きい語は KWIC で用例を読む。トピックは，そのト�
 | トピック数 K を選ぶ | 8 |
 | トピック分布のエントロピー | 8 |
 | トピックを読むときの規律 | 8 |
+| ネットワーク（トピック・作品。トピックビューア） | 8 |
+| ラベルづけ（トピック。仮ラベルと生成 AI） | 8 |
 | 長さに頑健な語彙指標 | 4 |
 | 二層の置き場 | 0 |
 | ハイパーパラミター | 5, 8 |
