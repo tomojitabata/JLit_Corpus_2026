@@ -120,6 +120,7 @@ JLit_Corpus_2026/
 │   ├── check_units.py           列名（_prop は 0–1／_pct は 0–100）と中身の尺度の照合
 │   ├── kwic_core.py             KWIC の中身（索引と検索。ノートブックからも使える）
 │   ├── kwic_app.html            KWIC の画面（外部資源を使わない1枚）
+│   ├── kwic_manual.html         KWIC の操作マニュアル（画面から別のウィンドウで開く）
 │   ├── 99_validate.py           健全性検査（重複・外字・奥付・踊り字・メタデータ）
 │   ├── make_notebooks.py        ノートブック生成
 │   ├── copy_notebooks.py        配布版を my_work/notebooks/ にコピー（教員が直した版は別名で置く）
@@ -288,6 +289,7 @@ python scripts/15_kwic_index.py \
 
 # 画面（127.0.0.1 でのみ待ち受ける。このマシンからしか見えない）
 python scripts/16_kwic_server.py --open
+# 操作マニュアルは画面右上の「操作マニュアル ↗」（http://127.0.0.1:8765/manual）
 
 # 結果をそのまま配れる HTML／CSV に書き出す（サーバは要らない）
 python scripts/16_kwic_server.py --query 汽車 --stream lemma \

@@ -52,6 +52,7 @@ from kwic_core import KwicIndex, QueryError, to_csv     # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 APP = Path(__file__).resolve().parent / 'kwic_app.html'
+MANUAL = Path(__file__).resolve().parent / 'kwic_manual.html'
 MAX_BODY = 1 << 20          # 1 MB。検索式にそれ以上は要らない
 
 
@@ -94,6 +95,12 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if u.path in ('/', '/index.html'):
                 self._send(200, APP.read_bytes(), 'text/html; charset=utf-8')
+            elif u.path in ('/manual', '/manual.html'):
+                # 操作マニュアル。画面から別のウィンドウで開く
+                if MANUAL.exists():
+                    self._send(200, MANUAL.read_bytes(), 'text/html; charset=utf-8')
+                else:
+                    self._json({'error': f'マニュアルが無い: {MANUAL}'}, 404)
             elif u.path == '/api/meta':
                 self._json(self.kw.facets())
             elif u.path == '/api/whoami':
@@ -124,6 +131,13 @@ class Handler(BaseHTTPRequestHandler):
                 import csv as _csv
                 buf = io.StringIO()
                 w = _csv.writer(buf)
+                # **1行目に由来を書く**（kwic_core.to_csv と同じ）。どの検索式・
+                # どの辞書の索引から何件のうち何件を出したかが分からない表は証拠にならない
+                pv = res.get('provenance', {})
+                w.writerow(['# query', res['query'], 'stream', res['stream'],
+                            'total', res['total'], 'shown', res['shown'],
+                            'dictionary', pv.get('dictionary', ''),
+                            'index_built', pv.get('built_at', '')])
                 w.writerow(['時代区分', '著者', '作品', '初出年', '文体',
                             '左文脈', 'キーワード', '右文脈',
                             '語彙素', '品詞', '作品内位置', '作品の語幹'])

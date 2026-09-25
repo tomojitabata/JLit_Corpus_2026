@@ -1441,6 +1441,7 @@ Dubossarsky et al. (2017) は，語をランダムにシャッフルした**偽�
 | `scripts/16_kwic_server.py` | 画面を出すサーバ（標準ライブラリだけ）／書き出し |
 | `scripts/kwic_core.py` | 中身（索引と検索）。**ノートブックからも使える** |
 | `scripts/kwic_app.html` | 画面1枚（外部の CDN・JS 枠組みを使わない） |
+| `scripts/kwic_manual.html` | **操作マニュアル**。画面の「操作マニュアル ↗」と各欄の「？」から別のウィンドウで開く（`/manual`） |
 | `scripts/check_kwic.py` | 意味論の検査（下項） |
 
 ```bash
@@ -1456,6 +1457,10 @@ kwi = KwicIndex(ROOT/'data'/'kwic')
 res = kwi.search('汽車', stream='lemma', context=7, sort='year')
 show(kwi.to_frame(res), align={'左文脈': 'right', 'キーワード': 'center'})
 ```
+
+**操作マニュアル**は画面右上の「操作マニュアル ↗」で別のウィンドウに開く。
+各欄の見出しの「？」を押すと，そのウィンドウが該当する節まで送られる。
+大きなモニターでは，画面とマニュアルを左右に並べて参照しながら操作するとよい。
 
 **入力は TSV である。** `tokens_lemma` / `tokens_surface`（空白区切りの列）
 には品詞が無く句読点も除かれているので，1行1形態素の TSV から索引を作る。

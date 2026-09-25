@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KWIC 操作マニュアル</title>
+<!--
+  JLit KWIC コンコーダンサの操作マニュアル。16_kwic_server.py が /manual で出す。
+  画面（kwic_app.html）の「操作マニュアル」と各欄の「？」から，別のウィンドウで開く。
+  ● 外部の資源は使わない（サーバの Content-Security-Policy と同じ条件で表示できる）。
+  ● 画面の機能を変えたら，このマニュアルも同じ変更で直すこと。
+-->
+<style>
+:root{
+  --ink:#1f1e1b; --ink2:#5a5a55; --ink3:#8a8a82; --line:#d8d7d0;
+  --surface:#ffffff; --wash:#f7f7f4; --key:#0d366b; --keybg:#eef4fb;
+  --accent:#0072B2; --warn:#8a3b12; --warnbg:#fdf1ea; --tip:#1d5c3a; --tipbg:#edf6f0;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:14px}
+body{margin:0;background:var(--wash);color:var(--ink);line-height:1.75;
+  font-family:"Hiragino Sans","Noto Sans JP","Yu Gothic",system-ui,sans-serif;font-size:15px}
+a{color:var(--accent)}
+.wrap{display:grid;grid-template-columns:250px minmax(0,1fr);max-width:1180px;margin:0 auto}
+nav{position:sticky;top:0;align-self:start;max-height:100vh;overflow:auto;
+  padding:22px 14px 30px 18px;border-right:1px solid var(--line);font-size:13px}
+nav .t{font-weight:700;font-size:14px;margin-bottom:10px;line-height:1.4}
+nav ol{margin:0;padding-left:1.3em}
+nav li{margin:3px 0}
+nav a{text-decoration:none;color:var(--ink2)}
+nav a:hover{color:var(--accent);text-decoration:underline}
+main{padding:22px 34px 60px;min-width:0}
+h1{font-size:1.35rem;margin:0 0 .2em}
+.lead{color:var(--ink2);margin:0 0 1.4em}
+h2{font-size:1.1rem;margin:2.2em 0 .6em;padding-top:.4em;border-top:1px solid var(--line)}
+h2 .n{color:var(--accent);margin-right:.35em}
+h3{font-size:.98rem;margin:1.5em 0 .4em}
+p,li{max-width:52em}
+table{border-collapse:collapse;width:100%;max-width:54em;font-size:13.5px;margin:.6em 0 1em;
+  background:var(--surface)}
+th,td{padding:6px 9px;border:1px solid #e3e1d9;vertical-align:top;text-align:left}
+th{background:#f0efe9;color:var(--ink2);font-weight:600;white-space:nowrap}
+code,kbd{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:.9em}
+code{background:#efeee8;padding:1px 5px;border-radius:4px}
+kbd{background:#fff;border:1px solid #cfcdc4;border-bottom-width:2px;border-radius:4px;padding:0 5px}
+pre{background:#23221f;color:#f3f2ec;padding:12px 14px;border-radius:8px;overflow:auto;
+  font-size:13px;line-height:1.55;max-width:54em}
+pre code{background:none;padding:0;color:inherit}
+.ui{display:inline-block;background:var(--keybg);color:var(--key);border:1px solid #c9dbef;
+  border-radius:5px;padding:0 6px;font-size:.9em;white-space:nowrap}
+.box{border-radius:8px;padding:10px 14px;margin:1em 0;max-width:54em;font-size:14px}
+.warn{background:var(--warnbg);border:1px solid #e6bfa6;color:var(--warn)}
+.tip{background:var(--tipbg);border:1px solid #b9d9c4;color:var(--tip)}
+.box b:first-child{margin-right:.3em}
+figure{margin:1em 0 1.4em;max-width:54em}
+figcaption{font-size:12.5px;color:var(--ink2);margin-top:4px}
+svg text{font-family:inherit}
+.steps li{margin:.35em 0}
+.top{font-size:12px;margin-left:.6em}
+@media (max-width:860px){
+  .wrap{grid-template-columns:1fr}
+  nav{position:static;max-height:none;border-right:0;border-bottom:1px solid var(--line)}
+  main{padding:18px 16px 50px}
+}
+@media print{nav{display:none}.wrap{grid-template-columns:1fr}h2{break-after:avoid}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav aria-label="目次">
+  <div class="t">JLit KWIC コンコーダンサ<br>操作マニュアル</div>
+  <ol>
+    <li><a href="#intro">この道具で何をするか</a></li>
+    <li><a href="#twoscreen">マニュアルを横に並べて使う</a></li>
+    <li><a href="#start">起動と終了</a></li>
+    <li><a href="#layout">画面の構成</a></li>
+    <li><a href="#search">検索する</a></li>
+    <li><a href="#options">表示の条件を変える</a></li>
+    <li><a href="#filter">作品を絞り込む</a></li>
+    <li><a href="#kwic">用例を読む・本文へ広げる</a></li>
+    <li><a href="#dist">分布と一致した語形</a></li>
+    <li><a href="#coll">共起語</a></li>
+    <li><a href="#variants">異綴形</a></li>
+    <li><a href="#vlist">表記の揺れが大きい語彙素</a></li>
+    <li><a href="#export">書き出す</a></li>
+    <li><a href="#prov">由来（どの索引を読んでいるか）</a></li>
+    <li><a href="#notebook">ノートブックから使う</a></li>
+    <li><a href="#trouble">困ったとき</a></li>
+  </ol>
+</nav>
+
+<main>
+<h1>JLit KWIC コンコーダンサ 操作マニュアル</h1>
+<p class="lead">Step 3「再構築からKWICへ」で作る KWIC コンコーダンサの使い方。
+画面の各欄の見出しにある <span class="ui">？</span> を押すと，このマニュアルの該当する節が開く。</p>
+
+<!-- ================================================================ -->
+<h2 id="intro"><span class="n">1</span>この道具で何をするか</h2>
+<p>KWIC（KeyWord In Context）は，検索した語を中央にそろえ，その前後の文脈を並べて見せる形式である。
+頻度表・特徴語・word embedding は<b>問いを作る道具</b>で，答えは本文にある。
+数えたあとに本文へ戻り，<b>その語が実際にどう使われているか</b>を読むために使う。</p>
+<ul>
+  <li>語彙素（辞書の見出し）でも，本文に現れたままの表層形でも引ける</li>
+  <li>用例には出典（時代区分・著者・作品）が付き，行を押すと前後の本文が開く</li>
+  <li>時代区分ごとの分布（1万語あたり），共起語，異綴形（表記の違い）を同じ画面で見る</li>
+</ul>
+<div class="box warn"><b>⚠</b>この画面が見せているのは，UniDic が切り分けた単位である。
+「語彙素」「品詞」は辞書の判断であって，原文の事実ではない。誤解析は用例を読まなければ見つからない。</div>
+
+<!-- ================================================================ -->
+<h2 id="twoscreen"><span class="n">2</span>マニュアルを横に並べて使う</h2>
+<p>画面右上の <span class="ui">操作マニュアル ↗</span> と，各欄の <span class="ui">？</span> は，
+このマニュアルを<b>別のウィンドウ</b>で開く。何度押しても同じウィンドウが使われ，該当する節まで送られる。</p>
+<ol class="steps">
+  <li>コンコーダンサの画面で <span class="ui">操作マニュアル ↗</span> を押す（別のウィンドウが開く）</li>
+  <li>macOS では，ウィンドウ左上の緑のボタンにポインタを載せ，出てくるメニューから
+    画面の左半分に並べる項目を選ぶ（macOS の版によって表記が違う）。もう一方のウィンドウを右半分に選ぶ</li>
+  <li>大きなモニターや2台目のモニターがあれば，マニュアルのウィンドウをそちらへ移す</li>
+</ol>
+<div class="box tip"><b>ヒント</b>マニュアルは幅 860px 未満になると目次が上に移り，1列で読める。
+コンコーダンサの画面は幅 1040px 未満で右の欄が下に回るので，画面を2分割するときは
+コンコーダンサ側を広めにするとよい。</div>
+
+<!-- ================================================================ -->
+<h2 id="start"><span class="n">3</span>起動と終了</h2>
+<h3>ノートブックから（ふつうはこちら）</h3>
+<ol class="steps">
+  <li>Step 3 の「索引を作る」のセルを実行する（<code>15_kwic_index.py</code>）。
+    05（UniDic 解析）を実行し直したら，索引も必ず作り直す</li>
+  <li>「画面を起動する」のセルを実行し，出てきたリンク
+    <span class="ui">KWIC コンコーダンサを開く（127.0.0.1:8765）</span> を押す</li>
+  <li>使い終わったら，「止める」のセルで <code>STOP_KWIC = True</code> にして実行する</li>
+</ol>
+<p>サーバはカーネルを再起動しても止まらない。ポート 8765 がほかの人のサーバ
+（ログアウトせずに離れた人のもの）に使われていれば，8766, 8767, … の空きを自動で使う。</p>
+<h3>ターミナルから</h3>
+<pre><code>python3 scripts/15_kwic_index.py            # 索引（05 のあと・辞書を替えたら作り直す）
+python3 scripts/16_kwic_server.py --open    # 画面（ブラウザが開く）。終わるときは Ctrl-C</code></pre>
+<div class="box warn"><b>⚠</b>サーバは <code>127.0.0.1</code>（このマシンの中）でだけ待ち受ける。
+認証の無い簡易サーバなので，学内のネットワークに公開しないための仕様である。</div>
+
+<!-- ================================================================ -->
+<h2 id="layout"><span class="n">4</span>画面の構成</h2>
+<figure>
+<svg viewBox="0 0 720 400" width="100%" role="img" aria-label="画面の構成図">
+  <rect x="1" y="1" width="718" height="398" rx="10" fill="#fff" stroke="#d8d7d0"/>
+  <rect x="12" y="12" width="696" height="92" rx="7" fill="#eef4fb" stroke="#c9dbef"/>
+  <text x="24" y="36" font-size="14" font-weight="700" fill="#0d366b">① 検索の欄</text>
+  <text x="24" y="58" font-size="12" fill="#3d3c37">語彙素／表層形・検索語・検索・CSV・HTML で保存・操作マニュアル</text>
+  <text x="24" y="76" font-size="12" fill="#3d3c37">文脈・並べ替え・表示・間引き・句読点・共起語・ウィンドウ</text>
+  <text x="24" y="94" font-size="12" fill="#3d3c37">絞り込み（時代区分・著者・文体・作品）・検索式の書き方</text>
+  <rect x="12" y="116" width="470" height="84" rx="7" fill="#f7f7f4" stroke="#d8d7d0"/>
+  <text x="24" y="140" font-size="14" font-weight="700" fill="#1f1e1b">② 用例</text>
+  <text x="24" y="162" font-size="12" fill="#3d3c37">時代区分・著者・作品｜左文脈｜キーワード｜右文脈</text>
+  <text x="24" y="180" font-size="12" fill="#3d3c37">行を押すと ⑧ 本文が下から開く</text>
+  <rect x="12" y="208" width="470" height="56" rx="7" fill="#f7f7f4" stroke="#d8d7d0"/>
+  <text x="24" y="232" font-size="14" font-weight="700" fill="#1f1e1b">③ 共起語</text>
+  <text x="24" y="252" font-size="12" fill="#3d3c37">指標・最小共起頻度・件数・品詞で絞る</text>
+  <rect x="12" y="272" width="470" height="56" rx="7" fill="#f7f7f4" stroke="#d8d7d0"/>
+  <text x="24" y="296" font-size="14" font-weight="700" fill="#1f1e1b">④ 異綴形（書字形基本形）</text>
+  <text x="24" y="316" font-size="12" fill="#3d3c37">件数と，時代区分・作家・作品ごとの内訳</text>
+  <rect x="12" y="336" width="470" height="52" rx="7" fill="#f7f7f4" stroke="#d8d7d0"/>
+  <text x="24" y="360" font-size="14" font-weight="700" fill="#1f1e1b">⑤ 表記の揺れが大きい語彙素</text>
+  <text x="24" y="378" font-size="12" fill="#3d3c37">コーパス全体の一覧（開くと出る）</text>
+  <rect x="494" y="116" width="214" height="84" rx="7" fill="#f7f7f4" stroke="#d8d7d0"/>
+  <text x="506" y="140" font-size="14" font-weight="700" fill="#1f1e1b">⑥ 時代区分ごとの分布</text>
+  <text x="506" y="162" font-size="12" fill="#3d3c37">ヒット数と1万語あたり</text>
+  <rect x="494" y="208" width="214" height="56" rx="7" fill="#f7f7f4" stroke="#d8d7d0"/>
+  <text x="506" y="232" font-size="14" font-weight="700" fill="#1f1e1b">⑦ 一致した語形</text>
+  <text x="506" y="252" font-size="12" fill="#3d3c37">当たった語形とその件数</text>
+  <rect x="494" y="272" width="214" height="116" rx="7" fill="#f7f7f4" stroke="#d8d7d0"/>
+  <text x="506" y="296" font-size="14" font-weight="700" fill="#1f1e1b">⑧ 作品ごとのヒット</text>
+  <text x="506" y="316" font-size="12" fill="#3d3c37">著者・作品・ヒット・1万語</text>
+</svg>
+<figcaption>画面の構成（幅の広いとき）。幅が 1040px 未満では ⑥〜⑧ が下に回る。
+本文（⑧ の説明の「本文」）は用例の行を押すと画面の下から開く。</figcaption>
+</figure>
+
+<!-- ================================================================ -->
+<h2 id="search"><span class="n">5</span>検索する</h2>
+<p>検索語を入れて <kbd>Enter</kbd> を押すか，<span class="ui">検索</span> を押す。</p>
+<h3>語彙素で検索／表層形で検索</h3>
+<table>
+  <tr><th>ボタン</th><th>当てる列</th><th>例</th></tr>
+  <tr><td><span class="ui">語彙素で検索</span>（既定）</td><td>辞書の見出し。活用や異表記をまとめる</td>
+      <td><code>言う</code> で 言う・云ふ・言つた・いう… がすべて当たる</td></tr>
+  <tr><td><span class="ui">表層形で検索</span></td><td>本文に現れたままの形</td>
+      <td><code>云ふ</code> は 云ふ だけ。<code>言う</code> では 云ふ は当たらない</td></tr>
+</table>
+<p>どちらで引いても，用例の表示は本文どおり（表層形）である。「語彙素で検索して表層形で読む」ができる。</p>
+<h3>検索式の書き方</h3>
+<table>
+  <tr><th>書き方</th><th>意味</th></tr>
+  <tr><td><code>汽車</code></td><td>そのままの一致（上で選んだ列）</td></tr>
+  <tr><td><code>汽車|電車</code></td><td>どちらか</td></tr>
+  <tr><td><code>乗*</code>　<code>*車</code></td><td>前方一致・後方一致（<code>*</code> は0文字以上）</td></tr>
+  <tr><td><code>re:^汽.$</code></td><td>正規表現（語彙に当てる）</td></tr>
+  <tr><td><code>*</code></td><td>任意の1語</td></tr>
+  <tr><td><code>/動詞</code></td><td>品詞だけで指定（大分類の前方一致）</td></tr>
+  <tr><td><code>言う/動詞</code></td><td>語形と品詞の両方</td></tr>
+  <tr><td><code>L:言う</code>　<code>S:云ふ</code></td><td>この項だけ語彙素（L:）／表層形（S:）で当てる。1つの式の中で混ぜられる</td></tr>
+  <tr><td><code>汽車 に 乗る</code></td><td><b>語の連なり</b>（空白で区切る）。<b>文境界は越えない</b></td></tr>
+</table>
+<div class="box tip"><b>例</b><code>L:なり /名詞</code> は「語彙素が なり で，その次が名詞」の連なり。
+助動詞「なり」と名詞「成り」の誤解析を探すのに使える。</div>
+<h3>0件にならず，理由が出るとき</h3>
+<p>語彙に無い語形を引くと，「0件」ではなく<b>理由</b>が赤い枠に出る。次を疑う。</p>
+<ul>
+  <li>列の選び違い（表層形でしか現れない綴りを語彙素で引いた，など）</li>
+  <li>辞書の切り方（「非常に」は「非常」＋「に」に切られる → <code>非常 に</code> と連なりで引く）</li>
+  <li>旧仮名の表記（<code>云ふ</code> は表層形。語彙素なら <code>言う</code>）</li>
+</ul>
+
+<!-- ================================================================ -->
+<h2 id="options"><span class="n">6</span>表示の条件を変える</h2>
+<table>
+  <tr><th>項目</th><th>働き</th></tr>
+  <tr><td><span class="ui">文脈</span></td><td>キーワードの前後に出す語数（3〜20）</td></tr>
+  <tr><td><span class="ui">並べ替え</span></td><td>本文の順・左1語・左1→2語・右1語・右1→2語・初出年・著者・作品・無作為。
+      左右の語で並べると，<b>決まった言い回し</b>がかたまって見える。文境界の先の語は並べ替えに使わない</td></tr>
+  <tr><td><span class="ui">表示</span></td><td>1頁に出す用例の数。<span class="ui">次の頁 →</span> で先へ進む</td></tr>
+  <tr><td><span class="ui">間引き</span></td><td>用例を無作為にこの件数に減らす（0 で全件）。
+      <b>同じシードなら同じ標本</b>になり，見出しに「間引いた」ことが出る。総ヒット数と分布は全件のまま</td></tr>
+  <tr><td><span class="ui">句読点を外す</span></td><td>句読点に当たった用例を除く（<code>/補助記号</code> を引いたときなど）</td></tr>
+  <tr><td><span class="ui">共起語も出す</span></td><td>外すと共起語を数えない（ヒットが非常に多い式で速くなる）</td></tr>
+  <tr><td><span class="ui">ウィンドウ</span></td><td>共起語を数える範囲（前後それぞれの語数）</td></tr>
+</table>
+<p>これらを変えると，いまの検索式で自動的に検索し直す。</p>
+
+<!-- ================================================================ -->
+<h2 id="filter"><span class="n">7</span>作品を絞り込む</h2>
+<p><span class="ui">時代区分</span>・<span class="ui">著者</span>・<span class="ui">文体</span>・<span class="ui">作品</span> の欄から選ぶ。
+複数を選ぶには，macOS では <kbd>⌘</kbd>，Windows では <kbd>Ctrl</kbd> を押しながらクリックする。
+種類の違う欄を組み合わせると，両方に当てはまる作品だけになる。</p>
+<p>選んだら <span class="ui">検索</span> を押す。<span class="ui">絞り込みを解除</span> で選択をすべて外す。</p>
+<div class="box warn"><b>⚠</b>メタデータに突合できない作品は，著者が「（メタデータ無し）」と出る。
+出典の出ない用例は証拠にならないので，メタデータを直すこと。</div>
+
+<!-- ================================================================ -->
+<h2 id="kwic"><span class="n">8</span>用例を読む・本文へ広げる</h2>
+<p>見出しに総ヒット数，表示している件数，100万語あたりの頻度，検索にかかった時間が出る。</p>
+<ul>
+  <li><b>行を押す</b>と，その用例の前後の本文が画面の下から開く（前後およそ140語。文の途中では切らない）</li>
+  <li><span class="ui">前後をもっと広げる</span> で，前後400語まで広げられる。作品の境界は越えない</li>
+  <li>本文の語にポインタを載せると <b>語彙素／品詞／活用形／語種</b> が出る</li>
+  <li><span class="ui">閉じる</span> か <kbd>Esc</kbd> で閉じる</li>
+</ul>
+<div class="box tip"><b>読む順序</b>数える前に読む。自分が追う語は，数値を出す前に用例を10件は読み，
+どういう文脈で使われているかを確かめてから仮説を立てる。</div>
+
+<!-- ================================================================ -->
+<h2 id="dist"><span class="n">9</span>分布と一致した語形</h2>
+<h3>時代区分ごとの分布</h3>
+<p>ヒット数と<b>1万語あたり</b>の頻度を，時代区分ごとに出す。棒は1万語あたりの値である。</p>
+<div class="box warn"><b>⚠</b>時代区分ごとに作品数も語数も違うので，<b>生のヒット数で時代を比べてはいけない</b>。
+比べるのは1万語あたりの値である。</div>
+<h3>一致した語形</h3>
+<p>検索式に当たった語形（ワイルドカードや <code>|</code> で複数の語形に当たったとき，その内訳）と件数。
+連なりは全体を1つの語形として数える。</p>
+<h3>作品ごとのヒット</h3>
+<p>作品ごとのヒット数と1万語あたりの頻度。1作品に偏っていないかを確かめる。</p>
+
+<!-- ================================================================ -->
+<h2 id="coll"><span class="n">10</span>共起語</h2>
+<p>検索語の前後の窓（<span class="ui">ウィンドウ</span> の語数）に現れた語を数え，
+<b>選んだ指標で上位の語を選ぶ</b>。窓は句読点を数えず，文境界を越えない。</p>
+<h3>操作</h3>
+<table>
+  <tr><th>項目</th><th>働き</th></tr>
+  <tr><td><span class="ui">並べ替えの指標</span></td><td>下の表の8つから選ぶ。表の見出し（LogDice・MI・MI3・t・G²・ΔP→・ΔP←・共起）を押しても切り替わる</td></tr>
+  <tr><td><span class="ui">最小共起頻度</span></td><td>窓の中での共起がこの回数未満の語は出さない（既定 2）。頻度 3 未満の語も出さない</td></tr>
+  <tr><td><span class="ui">件数</span></td><td>出す語の数</td></tr>
+  <tr><td><span class="ui">共起語の品詞で絞る</span></td><td>開くと品詞の木が出る（大分類と中分類）。チェックを変えると数え直す</td></tr>
+</table>
+<div class="box warn"><b>⚠</b>指標を替えると，<b>表の並べ替えではなく，上位に来る語そのものが変わる</b>。
+たとえば MI では低頻度の固有名詞が，t では助詞や助動詞が上に来やすい。</div>
+<h3>指標</h3>
+<p>記号：O11＝窓の中での共起頻度，W＝窓に入った形態素の延べ数，f(c)＝共起語の頻度，
+N＝句読点を除く全形態素数，E11＝W·f(c)/N（期待値）。</p>
+<table>
+  <tr><th>指標</th><th>式</th><th>性質</th></tr>
+  <tr><td>LogDice（既定）</td><td>14 + log2(2·O11/(f(検索語)+f(c)))</td><td>頻度の偏りの影響を受けにくい（Rychlý 2008）。上限は 14</td></tr>
+  <tr><td>MI</td><td>log2(O11/E11)</td><td><b>低頻度語を過大に評価する</b>。固有名詞や誤解析が上位に来やすい</td></tr>
+  <tr><td>MI3</td><td>log2(O11³/E11)</td><td>MI の低頻度語への偏りを，共起頻度の3乗で補う</td></tr>
+  <tr><td>t</td><td>(O11−E11)/√O11</td><td>高頻度の語（機能語など）が上に来る</td></tr>
+  <tr><td>G²</td><td>対数尤度比（Step 4 と同じ）</td><td>期待より少ない（反発する）語は負にしてある</td></tr>
+  <tr><td>ΔP（検索語→共起語）</td><td>O11/W − O21/(N−W)</td><td>検索語の窓の中にいると，その語が現れる確率がどれだけ上がるか（Gries 2013）</td></tr>
+  <tr><td>ΔP（共起語→検索語）</td><td>O11/f(c) − O12/(N−f(c))</td><td>その語が現れると，そこが検索語の窓である確率がどれだけ上がるか</td></tr>
+  <tr><td>共起頻度</td><td>O11</td><td>生の回数</td></tr>
+</table>
+<p>O12＝W−O11，O21＝f(c)−O11。ΔP は<b>向きのある指標</b>で，2つの値は一致しない。
+「汽車」の窓に「乗る」が出やすいことと，「乗る」の窓に「汽車」が出やすいことは別のことである。</p>
+<h3>品詞で絞る</h3>
+<ul>
+  <li>大分類（名詞・動詞…）にチェックを入れると，その下の中分類すべてに当たる</li>
+  <li><span class="ui">内容語（自立語）だけ</span>：普通名詞・固有名詞・自立の動詞・形容詞・形状詞・副詞に限る。
+    「いる」「する」「なる」のような非自立の動詞と，助詞・助動詞が外れる</li>
+  <li><span class="ui">すべて</span> で絞り込みを外す。<span class="ui">すべて外す</span> で全部のチェックを外してから選び直せる</li>
+</ul>
+<p>品詞で絞ったときは，f(c) も同じ品詞で数える（名詞だけを選んだのに，頻度に別の品詞としての出現まで入れると期待値がずれるため）。
+W と N は変わらない。表の下に，W・N・品詞の条件がいつも出る。</p>
+
+<!-- ================================================================ -->
+<h2 id="variants"><span class="n">11</span>異綴形</h2>
+<p>語彙素で引くと，当たった語の<b>書字形基本形</b>（UniDic の orthBase）ごとの件数が出る。
+書字形基本形は活用を基本形にまとめ，表記の違い（漢字か仮名か・どの漢字か・仮名遣い）を残す。
+したがって<b>活用の違いは異綴形に数えない</b>。上位12種より後は「（その他 n 種）」にまとめる。</p>
+<h3>内訳</h3>
+<ul>
+  <li><span class="ui">時代区分</span>／<span class="ui">作家</span>／<span class="ui">作品</span> で，どこでどの表記が使われているかを表にする</li>
+  <li><span class="ui">件数</span>／<span class="ui">行ごとの割合</span> で数え方を替える。時代区分や作家を比べるときは，件数の違いに左右されない「行ごとの割合」で見る</li>
+  <li>セルにポインタを載せると，件数と割合の両方が出る。「·」は0件</li>
+</ul>
+<div class="box warn"><b>⚠</b>UniDic の語彙素は，意味で書き分ける別字（伯父／叔父，指す／刺す）や，
+読みの違う語（縁：えん／ふち）も1つにまとめる。ここに並ぶのは綴りの揺れだけではない。
+また，表記の違いには作家の選択だけでなく，<b>底本・入力者の方針</b>（新字新仮名への改め）も混ざる。
+<b>作品ごとの内訳</b>と，広げた本文で確かめること。</div>
+<p>書字形基本形がどう残るかは辞書による（歴史的仮名遣いの「云つた」を 云ふ とする辞書も 云う とする辞書もある）。</p>
+
+<!-- ================================================================ -->
+<h2 id="vlist"><span class="n">12</span>表記の揺れが大きい語彙素</h2>
+<p>画面の下の <span class="ui">表記の揺れが大きい語彙素（コーパス全体）</span> を開くと，
+語彙素ごとに書字形基本形を数えた一覧が出る。<b>行を押すと，その語彙素で検索する</b>。</p>
+<table>
+  <tr><th>項目</th><th>働き</th></tr>
+  <tr><td><span class="ui">品詞</span></td><td>大分類で絞る</td></tr>
+  <tr><td><span class="ui">最小頻度</span></td><td>頻度がこれ未満の語彙素は出さない（既定 20）</td></tr>
+  <tr><td><span class="ui">異綴形と数える最小回数</span></td><td>この回数未満の書字形は異綴形の数に入れない（既定 2。頻度には入れる）。
+      誤解析や一回きりの表記を除くため</td></tr>
+  <tr><td><span class="ui">並べ方</span></td><td>主要形以外の割合（揺れの大きさ）・異綴形の数・頻度</td></tr>
+</table>
+<p>「主要形以外」は，最も多い書字形以外が占める割合である。0% に近いほど表記が1つにそろっている。
+条件を変えたら <span class="ui">一覧を出す</span> を押す。</p>
+
+<!-- ================================================================ -->
+<h2 id="export"><span class="n">13</span>書き出す</h2>
+<table>
+  <tr><th>ボタン</th><th>書き出すもの</th></tr>
+  <tr><td><span class="ui">CSV</span></td><td>いまの検索式と条件の用例を最大2000件，CSV（Excel で開ける）に書き出す。
+      1行目に検索式・列・総ヒット数・辞書名・索引の作成時刻が入る</td></tr>
+  <tr><td><span class="ui">HTML で保存</span></td><td>いま表示している頁の用例を，そのまま配れる HTML 1枚にする。
+      検索式・条件・辞書・索引の作成時刻を冒頭に書く</td></tr>
+</table>
+<p>リポートに用例を引くときは，<b>どの検索式で，何件のうちどの用例か</b>が分かるように，書き出したファイルごと残す。</p>
+
+<!-- ================================================================ -->
+<h2 id="prov"><span class="n">14</span>由来（どの索引を読んでいるか）</h2>
+<p>画面のいちばん下に，索引の入力・辞書名と版・作成時刻・作品数・形態素数がいつも出る。
+画面上部の題の横にも辞書と規模が出る。</p>
+<div class="box warn"><b>⚠</b>05（UniDic 解析）を実行し直したら，索引も作り直す。
+辞書を替えれば切り方が変わり，古い索引のままでは用例が本文と食い違う。
+<b>どの辞書で切った本文を読んでいるか分からない用例は，証拠にならない。</b></div>
+
+<!-- ================================================================ -->
+<h2 id="notebook"><span class="n">15</span>ノートブックから使う</h2>
+<p>画面と同じ検索を，ノートブックの中で表として得られる。</p>
+<pre><code>from kwic_core import KwicIndex
+kwi = KwicIndex(ROOT/'data'/'kwic')
+res = kwi.search('汽車', stream='lemma', context=7, sort='year',
+                 collocates=40, coll_sort='logdice',
+                 coll_pos=['名詞-普通名詞', '動詞-一般'])
+show(kwi.to_frame(res), align={'左文脈': 'right', 'キーワード': 'center'})
+res['collocates'][:5]           # 共起語（全指標の値つき）
+res['variants']['forms']        # 異綴形の件数
+kwi.variant_table(min_freq=20, sort='minor')['rows'][:10]   # 表記の揺れが大きい語彙素</code></pre>
+<p><code>coll_sort</code> には <code>logdice</code>・<code>mi</code>・<code>mi3</code>・<code>t</code>・<code>g2</code>・
+<code>dp_fwd</code>・<code>dp_bwd</code>・<code>co</code> を渡す。</p>
+
+<!-- ================================================================ -->
+<h2 id="trouble"><span class="n">16</span>困ったとき</h2>
+<table>
+  <tr><th>症状</th><th>原因と対処</th></tr>
+  <tr><td>「サーバに接続できない」</td><td>サーバが止まっている。ノートブックの「画面を起動する」のセルを実行し直す。
+      ログは <code>my_work/results/kwic_server.log</code></td></tr>
+  <tr><td>リンクを押しても別の人の画面が出る／索引が違う</td><td>前の人のサーバが残っている。起動のセルは自分の索引のサーバを探し，
+      無ければ別のポートを使うので，<b>セルに出たリンク</b>から開く</td></tr>
+  <tr><td>「索引を作り直すこと（この索引は版 1）」と出る</td><td>異綴形と品詞の中分類は新しい索引（版 2）で使える。
+      「索引を作る」のセル（<code>15_kwic_index.py</code>）を実行し，サーバを止めてから起動し直す</td></tr>
+  <tr><td>「○○ に当たる語形が語彙に無い」</td><td><a href="#search">5 検索する</a> の「0件にならず，理由が出るとき」を見る</td></tr>
+  <tr><td>用例は出るが本文と食い違う</td><td>05 を実行し直したのに索引を作り直していない。索引を作り直す</td></tr>
+  <tr><td>共起語が出ない</td><td><span class="ui">共起語も出す</span> が外れている，最小共起頻度が大きすぎる，
+      品詞の絞り込みで何も選ばれていない，のどれか</td></tr>
+  <tr><td>検索が遅い</td><td><code>/動詞</code> や <code>語*</code> のように何十万件も当たる式では数秒かかることがある。
+      <span class="ui">共起語も出す</span> を外すか，作品を絞り込む</td></tr>
+</table>
+
+<p style="margin-top:3em;color:var(--ink3);font-size:12px">JLit_Corpus_2026 — KWIC コンコーダンサ操作マニュアル。
+中身は <code>scripts/kwic_core.py</code>，画面は <code>scripts/kwic_app.html</code>，
+このマニュアルは <code>scripts/kwic_manual.html</code>。用語の説明は <code>docs/glossary.md</code> の Step 3 にある。</p>
+</main>
+</div>
+</body>
+</html>

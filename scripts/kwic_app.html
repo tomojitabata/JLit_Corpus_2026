@@ -91,6 +91,13 @@ details.help code{background:#f3f2ec;padding:1px 5px;border-radius:4px}
 #bandtab td:first-child{white-space:nowrap;font-size:12px}
 #pane .widen{margin-left:8px}
 button.sm{padding:3px 9px;font-size:12px}
+a.manual{padding:6px 12px;border:1px solid var(--line);border-radius:7px;background:#fff;
+  color:var(--ink2);font-size:13px;text-decoration:none;white-space:nowrap}
+a.manual:hover{border-color:var(--accent);color:var(--accent)}
+a.help-q{display:inline-block;width:1.35em;height:1.35em;line-height:1.35em;text-align:center;
+  border:1px solid var(--line);border-radius:50%;font-size:11px;font-weight:600;
+  color:var(--ink2);text-decoration:none;margin-left:6px;vertical-align:1px;background:#fff}
+a.help-q:hover{border-color:var(--accent);color:var(--accent)}
 th.sortable{cursor:pointer}
 th.sortable:hover{color:var(--accent)}
 th.on,td.on{background:var(--keybg);color:var(--key)}
@@ -127,6 +134,7 @@ summary.h2{cursor:pointer;font-size:.86rem;color:var(--ink2);font-weight:650}
     <button id="go">検索</button>
     <button class="ghost" id="csv">CSV</button>
     <button class="ghost" id="save">HTML で保存</button>
+    <a class="manual" href="/manual" target="jlit-kwic-manual" title="操作マニュアルを別のウィンドウで開く。横に並べて参照しながら使える">操作マニュアル ↗</a>
   </div>
 
   <div class="row" style="margin-top:8px">
@@ -164,6 +172,7 @@ summary.h2{cursor:pointer;font-size:.86rem;color:var(--ink2);font-weight:650}
   </div>
 
   <details class="help"><summary>検索式の書き方（クリックで開く）</summary>
+  <p class="sub"><a href="/manual#search" target="jlit-kwic-manual">マニュアルの「検索する」を別のウィンドウで開く ↗</a></p>
   <table>
     <tr><td><code>汽車</code></td><td>そのままの一致（上で選んだ列）</td></tr>
     <tr><td><code>汽車|電車</code></td><td>どちらか</td></tr>
@@ -188,7 +197,7 @@ summary.h2{cursor:pointer;font-size:.86rem;color:var(--ink2);font-weight:650}
 <div class="cols">
   <div>
     <div class="card">
-      <h2 id="hits-h">用例</h2>
+      <h2><span id="hits-h">用例</span><a class="help-q" href="/manual#kwic" target="jlit-kwic-manual" title="この欄の使い方（マニュアルを別のウィンドウで開く）">？</a></h2>
       <div class="scroll"><table id="kwic">
         <thead><tr>
           <th>時代区分</th><th>著者</th><th>作品</th>
@@ -207,7 +216,7 @@ summary.h2{cursor:pointer;font-size:.86rem;color:var(--ink2);font-weight:650}
     </div>
 
     <div class="card" id="collcard">
-      <h2 id="coll-h">共起語</h2>
+      <h2><span id="coll-h">共起語</span><a class="help-q" href="/manual#coll" target="jlit-kwic-manual" title="この欄の使い方（マニュアルを別のウィンドウで開く）">？</a></h2>
       <div class="row">
         <label class="f">並べ替えの指標 <select id="collsort"></select></label>
         <label class="f">最小共起頻度 <input id="collmin" type="number" min="1"
@@ -251,7 +260,7 @@ summary.h2{cursor:pointer;font-size:.86rem;color:var(--ink2);font-weight:650}
     </div>
 
     <div class="card" id="varcard">
-      <h2 id="var-h">異綴形（書字形基本形）</h2>
+      <h2><span id="var-h">異綴形（書字形基本形）</span><a class="help-q" href="/manual#variants" target="jlit-kwic-manual" title="この欄の使い方（マニュアルを別のウィンドウで開く）">？</a></h2>
       <table id="varforms"><tbody></tbody></table>
       <div class="row" style="margin:10px 0 6px">
         <span class="sub">内訳</span>
@@ -271,7 +280,7 @@ summary.h2{cursor:pointer;font-size:.86rem;color:var(--ink2);font-weight:650}
     </div>
 
     <details class="card" id="vlist">
-      <summary class="h2">表記の揺れが大きい語彙素（コーパス全体）</summary>
+      <summary class="h2">表記の揺れが大きい語彙素（コーパス全体）<a class="help-q" href="/manual#vlist" target="jlit-kwic-manual" title="この欄の使い方（マニュアルを別のウィンドウで開く）">？</a></summary>
       <div class="row" style="margin-top:8px">
         <label class="f">品詞 <select id="vpos"><option value="">すべて</option></select></label>
         <label class="f">最小頻度 <input id="vminf" type="number" min="1" value="20"
@@ -293,12 +302,12 @@ summary.h2{cursor:pointer;font-size:.86rem;color:var(--ink2);font-weight:650}
   </div>
 
   <div>
-    <div class="card"><h2>時代区分ごとの分布</h2>
+    <div class="card"><h2>時代区分ごとの分布<a class="help-q" href="/manual#dist" target="jlit-kwic-manual" title="この欄の使い方（マニュアルを別のウィンドウで開く）">？</a></h2>
       <table id="bandtab"><tbody></tbody></table>
       <p class="sub" id="bandnote"></p></div>
-    <div class="card"><h2>一致した語形</h2>
+    <div class="card"><h2>一致した語形<a class="help-q" href="/manual#dist" target="jlit-kwic-manual" title="この欄の使い方（マニュアルを別のウィンドウで開く）">？</a></h2>
       <table id="typetab"><tbody></tbody></table></div>
-    <div class="card"><h2>作品ごとのヒット</h2>
+    <div class="card"><h2>作品ごとのヒット<a class="help-q" href="/manual#dist" target="jlit-kwic-manual" title="この欄の使い方（マニュアルを別のウィンドウで開く）">？</a></h2>
       <div class="scroll" style="max-height:30vh">
         <table id="worktab"><tbody></tbody></table></div></div>
   </div>
