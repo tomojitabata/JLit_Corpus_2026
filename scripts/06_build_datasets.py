@@ -6,11 +6,11 @@
 解析用データセットの組み立て。作品長の極端な不均衡を扱うための分割と，
 用途別の語彙フィルタを行う。
 
-なぜ分割が要るか
+なぜ分割が必要か
 ----------------
 本コーパスの作品長は最小 30,555 語（鴎外『大塩平八郎』）から
 最大 502,937 語（藤村『夜明け前』）まで **16倍** の開きがある。
-文書単位でトピックモデルを回すと，長篇 1 作が数トピックを独占し，
+文書単位でトピックモデルを実行すると，長篇 1 作が数トピックを独占し，
 短篇の主題は検出されない。stylo 系の距離計算でも同じ問題が起きる。
 
 したがって
@@ -22,7 +22,7 @@
 抜き出しは既定で **層化無作為**（``--sample stratified``）である。作品を
 ``max_chunks`` 個の区画に等分し，各区画から1つ無作為に引く。単純無作為だと
 連続した区間がまるごと抜けることがあり，物語の位置と主題が相関する長篇では
-その区間の話題が標本から落ちる。層化すれば冒頭・中盤・結末が必ず入る。
+その区間の話題が標本から除外される。層化すれば冒頭・中盤・結末が必ず入る。
 
 抜き出しは **``--seed`` で再現できる**。シードは作品ごとに作るので，コーパスに
 作品を足しても既存作品の標本は変わらない。
@@ -57,9 +57,9 @@ def check_token_provenance(tokens_dir: str, config: str,
                            strict: bool = False) -> dict:
     """トークン列が**どの辞書で作られたか**を確かめる。
 
-    なぜ要るか
+    なぜ必要か
     ----------
-    辞書を替えて 05 を回すとき ``--out`` を分け忘れると，前の辞書で作った
+    辞書を替えて 05 を実行するとき ``--out`` を分け忘れると，前の辞書で作った
     ファイルの上に新しい辞書のファイルが混ざる。入力の数は変わらないので
     件数では気づけず，エラーも出ない。**混ざった列で数えた頻度表は，もう
     何を測ったものでもない。** v1 コーパスで起きたのはこの種の事故である。
@@ -74,7 +74,7 @@ def check_token_provenance(tokens_dir: str, config: str,
         print(f'[warn] 辞書の記録が無い（{p}）。'
               '\n       古い 05 で作ったトークン列である。'
               '**どの辞書で数えたか分からない。**'
-              '\n       05_tokenise_unidic.py を今の版で回し直すこと。')
+              '\n       05_tokenise_unidic.py を今の版で実行し直すこと。')
         return {}
     with open(p, encoding='utf-8') as fh:
         prov = json.load(fh)
@@ -89,7 +89,7 @@ def check_token_provenance(tokens_dir: str, config: str,
     want = want_ver = ''
     if not config:
         # 辞書を比べる工程（13_pipeline_compare.py）からは照合を切る。
-        # そこでは辞書ごとに --out を分けて**わざと別の辞書で回す**ので，
+        # そこでは辞書ごとに --out を分けて**わざと別の辞書で実行する**ので，
         # config と食い違うのが正しい。警告を出すと本当の事故が埋もれる。
         return prov
     try:
@@ -104,7 +104,7 @@ def check_token_provenance(tokens_dir: str, config: str,
     if want and got != want:
         msg = (f'トークン列は **{got}** で作られているが，'
                f'config/pipeline.yaml は **{want}** と記録している。\n'
-               f'        どちらかが古い。辞書を替えたのなら 05 を回し直し，'
+               f'        どちらかが古い。辞書を替えたのなら 05 を実行し直し，'
                f'替えていないのなら設定を直すこと。\n'
                f'        辞書ごとに比べたいのなら --out を分けること'
                f'（例 data/dict_runs/{got}/）。')
@@ -134,7 +134,7 @@ def load_meta(path: str) -> tuple[dict, dict, dict]:
     ``labels``    語幹 → ``作者『作品』``。除外した行も引ける
 
     ``excluded`` を分けるのが肝心である。分けずに ``usable`` から
-    落とすだけだと，呼び出し側からは「メタデータに行が無い」のと
+    除くだけだと，呼び出し側からは「メタデータに行が無い」のと
     区別がつかない。**本当は行があって，こちらが外したのだ**という
     ことが分からないと，「追補してからやり直せ」という無意味な指示が
     出続ける。
@@ -182,7 +182,7 @@ def main() -> int:
     ap.add_argument('--min-chunk', type=int, default=None,
                     help='この語数に満たないチャンクは捨てる。既定は --chunk の半分。'
                          '1チャンクにも満たない作品はチャンク0となり，'
-                         'コーパスから落ちて名指しで報告される')
+                         'コーパスから除外されて名指しで報告される')
     ap.add_argument('--max-chunks', type=int, default=40,
                     help='1作品あたりのチャンク上限（既定 40）。0 で無制限。'
                          '結合後の『夜明け前』は約107チャンクあり，無制限だと'
@@ -208,7 +208,7 @@ def main() -> int:
     if not os.path.isdir(args.tokens):
         raise SystemExit(
             f'トークンのディレクトリが無い: {args.tokens}\n'
-            '  05_tokenise_unidic.py を先に走らせること。渡すのは '
+            '  05_tokenise_unidic.py を先に実行すること。渡すのは '
             'tokens_content である。')
     if not os.path.exists(args.meta):
         raise SystemExit(
@@ -217,7 +217,7 @@ def main() -> int:
             '（自分の版は metadata/corpus_metadata_v3_local.csv）。')
 
     # **どの辞書で作った列か**を先に確かめる。ここで止まるほうが，
-    # 辞書の混ざった頻度表で半日考えるより安い。
+    # 辞書の混ざった頻度表を前に半日悩むよりずっとよい。
     prov = check_token_provenance(
         args.tokens, '' if args.no_dict_check else args.config,
         args.strict_dict)
@@ -240,8 +240,8 @@ def main() -> int:
         if not name.endswith('.txt'):
             continue
         stem = name[:-4]
-        # **意図して外した行のトークン列は，そもそも刻まない。**
-        # ここで刻むと period も genre も空のチャンクが索引に並び，
+        # **意図して外した行のトークン列は，そもそもチャンクに分割しない。**
+        # ここで分割すると period も genre も空のチャンクが索引に並び，
         # 通時分析の分母を静かに汚す。統合した分冊のトークン列が
         # 消し忘れで残っている場合も，ここで止まる。
         if stem in excluded:
@@ -260,7 +260,7 @@ def main() -> int:
         # 2000語のチャンクと同じ1行としてチャンク索引に並ぶ。
         # トピックモデルでは語数の足りない文書の分布が退化し，
         # チャンク単位の keyness や doc2vec では分散の大きい外れ値になる。
-        # **短すぎる作品は「チャンク0」として落とし，名指しで報告する**のが正しい。
+        # **短すぎる作品は「チャンク0」として除外し，名指しで報告する**のが正しい。
         minlen = args.min_chunk if args.min_chunk is not None else args.chunk // 2
         while pieces and len(pieces[-1]) < minlen:
             pieces.pop()
@@ -388,16 +388,16 @@ def main() -> int:
                 print(f'           {s_}  {lab_}')
         if 'merged' in by_reason:
             print('         **merged のトークン列が残っているのは消し忘れである。**')
-            print('         03b_merge_volumes.py を走らせた後は，'
+            print('         03b_merge_volumes.py を実行した後は，'
                   'data/plain と data/tokens を')
-            print('         いったん空にしてから 04 → 05 を走らせ直すこと。')
+            print('         いったん空にしてから 04 → 05 を実行し直すこと。')
             print('         古い巻別ファイルが残っていると，'
                   '統合前の巻がコーパスに混ざる。')
 
     # --- メタデータとの突合を検査する ------------------------------------
     # 一致しないまま進むと period も genre も空のチャンク索引ができ，
     # 以降の分析（時代別 keyness・doc2vec のカテゴリ効果・トピックの通時変化）
-    # がすべて空振りする。**黙って通してはいけない工程である。**
+    # がすべて意味をなさなくなる。**黙って通してはいけない工程である。**
     if unmatched:
         dest = os.path.join(args.out, 'meta_unmatched.csv')
         with open(dest, 'w', newline='', encoding='utf-8-sig') as fh:
@@ -415,7 +415,7 @@ def main() -> int:
         if len(unmatched) > 8:
             print(f'           …ほか {len(unmatched) - 8} 件')
 
-    # 上限に当たった作品。**どのチャンクを捨てたかは結果に効く。**
+    # 上限に当たった作品。**どのチャンクを捨てたかは結果に影響する。**
     # chunks_index.csv の chunk_no を見れば選ばれた番号は分かるが，
     # 「何点が何チャンクから何チャンクに削られたか」は一覧で出す。
     if capped:
@@ -428,7 +428,7 @@ def main() -> int:
             print('           シードは作品ごとに作るので，コーパスに作品を足しても'
                   '既存作品の標本は変わらない。')
 
-    # 1チャンクにも満たない作品。**分析から落ちたことを黙っていてはいけない。**
+    # 1チャンクにも満たない作品。**分析から除外されたことを黙っていてはいけない。**
     # 「コーパス 108 点」と書いた論文の統計が実は 105 点だった，という
     # ことになる。差し替えるか，チャンク長を下げるかは編者が決めること。
     if too_short:
@@ -438,7 +438,7 @@ def main() -> int:
             w.writerow(['work_stem', 'tokens', 'author_ja', 'title', 'reason'])
             for s, n_, a_, t_ in sorted(too_short):
                 w.writerow([s, n_, a_, t_, f'--chunk {args.chunk} に満たない'])
-        print(f'\n  [warn] **1チャンクに満たず，コーパスから落ちた作品が '
+        print(f'\n  [warn] **1チャンクに満たず，コーパスから除外された作品が '
               f'{len(too_short)} 件ある**')
         print(f'         一覧 → {dest}')
         for s, n_, a_, t_ in sorted(too_short, key=lambda x: x[1]):
@@ -446,7 +446,7 @@ def main() -> int:
         print('         短い作品を残したいなら --chunk を下げること。ただし'
               'チャンク長を変えると')
         print('         トピックモデルも keyness も全作品で作り直しになる。'
-              '差し替えるほうが普通は安い。')
+              '通常は作品を差し替えるほうが手間が少ない。')
 
     blank = sum(1 for r in index if not r.get('period'))
     if blank:

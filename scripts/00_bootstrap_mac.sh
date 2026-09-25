@@ -3,8 +3,8 @@
 # 00_bootstrap_mac.sh — macOS のセットアップ（共用 iMac／自分の Mac 共通）
 # -----------------------------------------------------------------------------
 # sudo を一度も使わない。Homebrew も使わない（導入自体に admin が要るため）。
-# JDK は Temurin の tar.gz を展開するだけで，インストーラを走らせない。
-# したがって共用機でも自分の機械でも同じ手順で通る。
+# JDK は Temurin の tar.gz を展開するだけで，インストーラを実行しない。
+# したがって，共用機でも自分の Mac でも同じ手順でセットアップできる。
 #
 # 使い方
 # 置き方（受講生・教員の動作確認とも）
@@ -19,12 +19,12 @@
 #   --zshrc=append（既定）|replace|skip        # 授業用 .zshrc の入れ方（下記）
 #
 # **CPU（Apple Silicon／Intel）は自動で判定する。** 持ち込みの Mac には両方ある。
-#   * JDK は機種に合った版を取る（aarch64／x64）
+#   * JDK は機種に合った版を取得する（aarch64／x64）
 #   * Intel では umap-learn が使う numba・llvmlite を Intel 用の最後の版に固定する
 #     （llvmlite の Intel 用 wheel は 0.45.1 が最後。固定しないとソースからの
-#      ビルドに回って失敗する）
+#      ビルドに切り替わって失敗する）
 #   * Apple Silicon なのにターミナルが Rosetta（Intel 互換）で動いているときは，
-#     ネイティブで実行し直す（Intel 用の Python が入って遅く・壊れやすくなるため）
+#     ネイティブで実行し直す（Intel 用の Python が入り，動作が遅く不安定になるため）
 #   * 既存の仮想環境・JDK が別の CPU 用なら（移行アシスタントで引き継いだ場合など）
 #     バックアップに退避して作り直す
 #
@@ -66,8 +66,8 @@ set -uo pipefail
 
 # ---- CPU の判定 -------------------------------------------------------------
 # uname -m は「いま動いているプロセスの」CPU を返す。Apple Silicon でも
-# ターミナルが Rosetta で動いていると x86_64 と答えるので，機械そのものは
-# hw.optional.arm64 で見る。
+# ターミナルが Rosetta で動いていると x86_64 と答えるので，マシン本体の CPU は
+# hw.optional.arm64 で判定する。
 RUN_ARCH="$(uname -m)"
 HW_ARCH="$RUN_ARCH"
 [ "$(sysctl -n hw.optional.arm64 2>/dev/null)" = "1" ] && HW_ARCH="arm64"
@@ -77,7 +77,7 @@ if [ "$HW_ARCH" = arm64 ] && [ "$RUN_ARCH" != arm64 ]; then
     JLIT_REEXEC=1 exec arch -arm64 /bin/bash "$0" "$@"
   fi
   echo "  [ERR ] Apple Silicon の Mac で，Rosetta（Intel 互換）のまま動いている。"
-  echo "         ターミナル.app の「情報を見る」で「Rosetta を使用して開く」を外して開き直すこと。"
+  echo "         ターミナル.app の「情報を見る」で「Rosetta を使用して開く」のチェックを外し，ターミナルを開き直すこと。"
   exit 1
 fi
 case "$HW_ARCH" in
@@ -94,7 +94,7 @@ JDK_URL="https://api.adoptium.net/v3/binary/latest/21/ga/mac/${JDK_ARCH}/jdk/hot
 MALLET_URL="https://github.com/mimno/Mallet/releases/download/v202108/Mallet-202108-bin.tar.gz"
 
 # -----------------------------------------------------------------------------
-# 辞書。2026-09-22 の比較実験（4 辞書・111 点）で本番を決めた。
+# 辞書。2026-09-22 の比較実験（4 辞書・111 点）で本番用の辞書を決めた。
 # 経緯と数値は docs/dictionary_comparison.md §10。
 #
 #   本番   unidic-novel v202512（近現代口語小説UniDic）未知語率 0.17%
@@ -103,7 +103,7 @@ MALLET_URL="https://github.com/mimno/Mallet/releases/download/v202108/Mallet-202
 # 現代書き言葉（cwj）はこのプロジェクトでは**使わない**。同じ 111 点で
 # 未知語率が novel の 3.9 倍（0.66%）であり，平均語長も短い。
 # NINJAL の配布は日付版（v202512）に移っている。3.1.x を指す URL を
-# 残しておくと，版が動いたとたんに 404 になる。
+# 残しておくと，版が更新されたとたんに 404 になる。
 # -----------------------------------------------------------------------------
 UNIDIC_DIR_NAME="unidic-novel-v202512"
 UNIDIC_URL="https://clrd.ninjal.ac.jp/unidic_archive/2512/unidic-novel-v202512.zip"
@@ -162,7 +162,7 @@ share_dir() {   # $1: ディレクトリ。無ければ作り，自分の持ち�
   if [ "$KIND" = lab ] && [ -O "$1" ]; then chmod 1777 "$1" 2>/dev/null; fi
   return 0
 }
-# 取得中のロック。前の人がファストユーザスイッチで離れ，その人の
+# 取得中はロックを掛ける。前の人がファストユーザスイッチで離れ，その人の
 # セットアップが裏で動き続けていると，同じ辞書を2人が同時に展開してしまう。
 LOCKS=""
 release_locks() { local d; for d in $LOCKS; do rmdir "$d" 2>/dev/null; done; }
@@ -184,7 +184,7 @@ take_lock() {   # $1: 名前。取れたら 0，別のユーザーが取得中�
 }
 need_write() {  # $1: 何を入れるか。共有ディレクトリに書けなければ止める
   [ -w "$SHARED" ] && return 0
-  die "$1 が ${SHARED} に無く，そこに書く権限も無い。このマシンで ${SHARED} を作った人に 00_bootstrap_mac.sh を再実行してもらうか（権限が直る），--personal を付けて実行すること"
+  die "$1 が ${SHARED} に無く，そこに書く権限も無い。このマシンで ${SHARED} を作った人に 00_bootstrap_mac.sh を再実行してもらう（これで権限が直る）か，--personal を付けて実行すること"
 }
 busy() {        # $1: 何を, $2: ロックの名前
   die "$1 は，このマシンの別のユーザーが取得中である（${SHARED}/.lock.${2}）。数分待ってから再実行すること（前の人がログアウトせずに離れ，その人のセットアップが裏で動いている可能性がある）"
@@ -194,8 +194,8 @@ busy() {        # $1: 何を, $2: ロックの名前
 say "0. 環境の確認"
 printf '  マシン名        %s\n' "$(scutil --get ComputerName 2>/dev/null || hostname)"
 printf '  ホスト名        %s\n' "$(hostname -s)"
-# set -u で走らせているので，USER が無い環境（cron・一部の CI）で
-# ここが未定義変数エラーになる。id にも聞けるようにしておく。
+# set -u で実行しているので，USER が無い環境（cron・一部の CI）で
+# ここが未定義変数エラーになる。その場合は id から取得する。
 printf '  ユーザ          %s\n' "${USER:-$(id -un)}"
 printf '  ホーム          %s\n' "$HOME"
 printf '  macOS           %s\n' "$(sw_vers -productVersion)"
@@ -261,7 +261,7 @@ if [ "$MODE" = check ]; then
     && skip "検算用   $SHARED/$BUNGO_DIR_NAME" \
     || warn "検算用の辞書なし（${BUNGO_DIR_NAME}。--with-bungo で入る）"
   [ -d "$SHARED/unidic" ] \
-    && warn "旧 cwj が $SHARED/unidic に残っている（本番ではない。消してよい）"
+    && warn "以前の辞書（cwj）が $SHARED/unidic に残っている（本番では使わない。消してよい）"
   [ -d "$VENV" ]           && skip "仮想環境 $VENV"           || warn "仮想環境なし（${VENV}）"
   [ -f "$ENVFILE" ]        && skip "env.sh   $ENVFILE"        || warn "env.sh なし"
   exit 0
@@ -318,7 +318,7 @@ fi
 [ -d "$ROOT/.venv" ] && [ "$ROOT/.venv" != "$VENV" ] \
   && warn "旧い仮想環境 $ROOT/.venv が残っている。使わないので消してよい"
 if [ "$HW_ARCH" = x86_64 ]; then
-  # Intel：新しい llvmlite は Intel 用 wheel が無く，ソースからのビルドに回って
+  # Intel：新しい llvmlite は Intel 用 wheel が無く，ソースからのビルドに切り替わって
   # 失敗する。使える最後の組み合わせを先に入れ，requirements.txt にも同じ制約を掛ける。
   echo "  Intel Mac なので numba・llvmlite・numpy の版を固定する: ${INTEL_PINS[*]}"
   CONSTRAINTS="$(mktemp)"
@@ -339,7 +339,7 @@ uv pip install --python "$PY" ipykernel >/dev/null 2>&1
   && ok "Jupyter カーネル 'Python (JLit)' を登録した"
 
 # -----------------------------------------------------------------------------
-say "3. JDK（MALLET が Java を要る。admin 権限は使わない）"
+say "3. JDK（MALLET には Java が要る。admin 権限は使わない）"
 # 既存の JDK が別の CPU 用なら退避して取り直す
 JAVA_BIN="$SHARED/jdk/Contents/Home/bin/java"
 if [ -x "$JAVA_BIN" ]; then
@@ -375,7 +375,7 @@ else
     rm -rf "$part" 2>/dev/null
   else
     warn "JDK を取得できなかった。Step 8 の MALLET が使えない。"
-    warn "  代替：uv pip install tomotopy（Java 不要の LDA）を使い，レポートに明記する"
+    warn "  代替：uv pip install tomotopy（Java 不要の LDA）を使い，リポートに明記する"
   fi
   rm -rf "$tmp"
 fi
@@ -424,7 +424,7 @@ fi
 #
 # 展開は失敗しても**それらしいディレクトリを残す**ことがある
 # （macOS のアーカイブユーティリティで起きる）。一見すると成功して
-# いるように見えて，解析を始めた段階で「./dicrc が無い」と落ちる。
+# いるように見えて，解析を始めた段階で「./dicrc が無い」というエラーで止まる。
 # そこで /usr/bin/unzip を明示して使い，展開後に必ず検査する。
 fetch_dict() {
   local name="$1" url="$2" label="$3" tmp src
@@ -448,7 +448,7 @@ fetch_dict() {
     src="$(find "$tmp/x" -maxdepth 3 -name 'sys.dic' | head -1)"
     if [ -n "$src" ]; then
       # 仮の名前で置いてから名前を変える。展開の途中で別の人が見ても
-      # 「dicrc はあるが sys.dic が無い」といった半端な辞書を掴まない
+      # 「dicrc はあるが sys.dic が無い」といった半端な辞書を読み込むことがない
       local part="$SHARED/.$name.part.$$"
       if mkdir -p "$part" && cp -R "$(dirname "$src")"/* "$part/"; then
         rm -rf "$SHARED/$name" 2>/dev/null

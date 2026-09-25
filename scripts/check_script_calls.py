@@ -5,7 +5,7 @@ check_script_calls.py
 =====================
 **ノートブックがスクリプトを正しく呼んでいるか**を突き合わせる。
 
-なぜ要るのか
+なぜ必要か
 ------------
 ノートブックとスクリプトは別々に育つ。片方だけ直すと，次のどれかが起きる。
 
@@ -16,7 +16,7 @@ check_script_calls.py
 
 どれも**何のエラーも出ない**。とくに最後のものは，ノートブックを古い
 生成器（``make_notebooks.py``）から作り直すと，あとから足したスクリプトを
-呼ぶセルが黙って消える。だから機械に見張らせる。
+呼ぶセルが黙って消える。だから機械的に検査する。
 
 検査すること
 ------------
@@ -57,7 +57,7 @@ def script_options(path: Path) -> tuple[set[str], bool]:
 
     返り値は ``(選択肢の集合, 静的に読み切れたか)``。
     ``add_argument`` の第1引数が文字列でない（変数・ループ）ときは
-    読み切れないので，突き合わせを ``[warn]`` に落とす。
+    読み切れないので，突き合わせを ``[warn]`` に切り替える。
     """
     opts: set[str] = set()
     complete = True
@@ -100,7 +100,7 @@ def calls_in_notebooks(nb_dir: Path, mentioned: set[str] | None = None
             mentioned.update(re.findall(r"'([0-9A-Za-z_]+\.py)'", src))
         found = []
         for m in CALL_RE.finditer(src):
-            # 呼び出し1つぶんの括弧の中を取り出す（入れ子の括弧に耐える）
+            # 呼び出し1つぶんの括弧の中を取り出す（入れ子の括弧にも対応する）
             i = src.index('(', m.start())
             depth, j = 0, i
             while j < len(src):

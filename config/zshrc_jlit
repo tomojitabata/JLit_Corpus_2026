@@ -27,11 +27,11 @@ add-zsh-hook precmd vcs_info
 zstyle ':vcs_info:git:*' formats '(%b)'
 PROMPT='%F{cyan}%n%f@%F{green}%m%f %F{yellow}%~%f %F{magenta}${vcs_info_msg_0_}%f$ '
 
-# Apple Silicon なのに Rosetta（Intel 互換）で動いているターミナルを知らせる。
+# Apple Silicon なのにターミナルが Rosetta（Intel 互換）で動いていれば知らせる。
 # このまま作業すると Intel 用の Python やパッケージが混ざる
 if [[ "$(sysctl -n hw.optional.arm64 2>/dev/null)" == 1 && "$(uname -m)" == x86_64 ]]; then
   print -P "%F{red}[warn] このターミナルは Rosetta（Intel 互換）で動いている。%f"
-  print    "       ターミナル.app の「情報を見る」で「Rosetta を使用して開く」を外すこと。"
+  print    "       ターミナル.app の「情報を見る」で「Rosetta を使用して開く」のチェックを外すこと。"
 fi
 
 # ------------------------------------------------------------------------------

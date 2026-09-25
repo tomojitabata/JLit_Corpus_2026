@@ -5,7 +5,7 @@
 ==================
 **MALLET の結果を，品詞と頻度帯で絞り込みながら読むビューア**（Step 8）。
 
-1 枚の HTML を書く。外部の資源は使わない（ネットに出ない。サーバも要らない）。
+1 枚の HTML を書く。外部の資源は使わない（ネットワークに接続せず，サーバも要らない）。
 ブラウザで開くと，次ができる。
 
 * **品詞**でトピックの上位語を絞る（普通名詞・動詞・形容詞・固有名詞…）
@@ -19,7 +19,7 @@
 * 複数のモデル（例：内容語すべて／名詞・動詞・形容詞）を切り替えて比べる
 
 ⚠ **ビューアで語を隠すことと，その語を除いて学習し直すことは違う。**
-隠した語もトピックの形成には効いている。固有名詞が作ったトピックは，
+隠した語もトピックの形成には寄与している。固有名詞が作ったトピックは，
 固有名詞を隠しても「その作品のトピック」のままである。本当に除くには
 18_pos_select.py で語を選び直して学習し直し，ここで 2 つのモデルを並べる。
 
@@ -295,7 +295,7 @@ svg .mut{fill:var(--mut)}
   <h1>JLit トピックビューア</h1>
   <label>モデル <select id="model"></select></label>
   <div class="note">上位語を<b>品詞・頻度帯</b>で絞り，<b>λ</b>で並べ替えて読む。
-  ⚠ ここで語を隠しても，その語は学習には効いている。除いて学習し直した結果と比べるには，
+  ⚠ ここで語を隠しても，その語は学習には寄与している。除いて学習し直した結果と比べるには，
   モデルを切り替えること。</div>
 </header>
 <div class="wrap">
@@ -318,7 +318,7 @@ svg .mut{fill:var(--mut)}
   <div class="hint">同じ作家の複数作品に出る人物名（「素子」など）は，作品ではなく作家に集中する</div>
   <label>散らばり dp_in（最大）</label>
   <div class="rng"><input type="range" id="maxdp" min="0.2" max="1" step="0.05" value="1"><output id="maxdpO"></output></div>
-  <div class="hint">Gries の DP を，その語がいちばん濃い時代の中で測ったもの。1 に近いほど少数の作品に固まる（bursty）。時代への偏りは罰しない</div>
+  <div class="hint">Gries の DP を，その語がいちばん濃い時代の中で測ったもの。1 に近いほど少数の作品に固まる（bursty）。時代への偏りは不利に扱わない</div>
 
   <h2>並べ方</h2>
   <label>relevance λ</label>
@@ -534,7 +534,7 @@ def main() -> int:
     ap.add_argument('--lexicon', default=os.path.join(ROOT, 'data', 'tokens', 'lexicon.tsv'),
                     help='18_pos_select.py が書く語の品詞・頻度帯の表')
     ap.add_argument('--top', type=int, default=400,
-                    help='各トピックから持っておく語の数（多いほど λ を下げたときに正確）')
+                    help='各トピックについて保持する語の数（多いほど λ を下げたときに正確）')
     ap.add_argument('--min-count', type=int, default=3,
                     help='モデル内の度数がこれ未満の語はビューアに入れない')
     ap.add_argument('--out', default=os.path.join(ROOT, 'my_work', 'results', 'topic_viewer.html'))
@@ -544,7 +544,7 @@ def main() -> int:
     lex = load_lexicon(args.lexicon)
     if not lex:
         print(f'[warn] 語の品詞表が無い: {args.lexicon}\n'
-              '       品詞と頻度帯の絞り込みが効かない。18_pos_select.py を先に走らせること。')
+              '       品詞と頻度帯の絞り込みが効かない。18_pos_select.py を先に実行すること。')
     models = []
     for spec in args.model:
         label, _, d = spec.partition('=')
@@ -555,7 +555,7 @@ def main() -> int:
         models.append(build_model(label, d, meta, lex, args.top, args.min_count))
     unknown = sum(1 for m in models for v in m['vocab'] if v[1] == '不明')
     if lex and unknown:
-        print(f'[warn] 品詞表に無い語が {unknown:,} ある（別の辞書・別の 05 の出力で学習した？）')
+        print(f'[warn] 品詞表に無い語が {unknown:,} ある（別の辞書や別の 05 の出力で学習した可能性がある）')
 
     data = json.dumps({'models': models}, ensure_ascii=False, separators=(',', ':'))
     data = data.replace('</', '<\\/')

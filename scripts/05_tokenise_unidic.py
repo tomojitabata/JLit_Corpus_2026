@@ -66,7 +66,7 @@ novel は cwj に対して未知語率・平均語長・助動詞率の3点す�
 ``…/unidic-novel`` > ``…/unidic``（旧・cwj）> ``unidic`` パッケージ >
 ``unidic_lite``
 
-**本番以外の辞書に落ちたときは ``[warn]`` を出す。** 辞書が違えば語数も
+**本番以外の辞書に切り替わったときは ``[warn]`` を出す。** 辞書が違えば語数も
 未知語率も語彙素も変わるので，気づかずに混ぜると比較が成り立たない。
 ``--expect-dict unidic-novel`` を付けると，本番以外なら止まる。
 
@@ -106,7 +106,7 @@ from collections import Counter
 try:
     import fugashi
 except ImportError:                                            # pragma: no cover
-    sys.exit("fugashi が必要です:  pip install fugashi")
+    sys.exit("fugashi が必要である:  pip install fugashi")
 
 try:                                    # fugashi は版により __version__ を持たない
     from importlib.metadata import version as _pkg_version
@@ -126,8 +126,8 @@ PROD_VERSION = 'v202512'
 PROD_DIRNAME = f'{PROD_DICT}-{PROD_VERSION}'
 PROD_URL = f'https://clrd.ninjal.ac.jp/unidic_archive/2512/{PROD_DIRNAME}.zip'
 
-# 辞書の名前を basename から言い当てるための表。長いものを先に照合する
-# （``unidic-kindai-bungo`` が ``unidic-kindai`` に先取りされないように）。
+# 辞書の名前を basename から推定するための表。長いものを先に照合する
+# （``unidic-kindai-bungo`` が ``unidic-kindai`` と誤って照合されないように）。
 DICT_NAMES = ('unidic-kindai-bungo', 'unidic-kinsei-kamigata',
               'unidic-kinsei-edo', 'unidic-kinsei-bungo',
               'unidic-chusei-kougo', 'unidic-chusei-bungo',
@@ -204,8 +204,8 @@ def resolve_dicdir(dicdir: str | None) -> tuple[str, str]:
 
     ``unidic`` を最後に回してあるのは意図である。2026-09-22 の判定で
     現代書き言葉辞書（cwj）は落選した（未知語率が novel の 3.9 倍）。
-    自動検出で cwj に落ちると，気づかないまま別の辞書で数えた列が
-    混ざる。**落ちたことが分かるように，呼び出し側で警告を出す。**
+    自動検出で cwj に切り替わると，気づかないまま別の辞書で数えた列が
+    混ざる。**切り替わったことが分かるように，呼び出し側で警告を出す。**
     """
     if dicdir:
         return os.path.expanduser(dicdir), '--dicdir'
@@ -282,7 +282,7 @@ def probe_features(tagger, policy: str, allow_mismatch: bool) -> int:
 
     古文・近代語の UniDic は現代語版と素性の数が違い（17 / 26 / 29），
     ``orthBase`` や ``lemma`` が無いことがある。無い素性を当てにすると
-    ``lemma_key`` が**黙って表層形に落ちる**。「語彙素で数えたつもりが
+    ``lemma_key`` が**黙って表層形に切り替わる**。「語彙素で数えたつもりが
     表層形だった」という事故は，出力を見ても分からない。
     """
     f = list(tagger(PROBE))[0].feature
@@ -293,11 +293,11 @@ def probe_features(tagger, policy: str, allow_mismatch: bool) -> int:
             'surface': ()}[policy]
     miss = [k for k in need if not hasattr(f, k)]
     print(f'[dic ] 素性 {n if n > 0 else "不明"} 個。'
-          f'--lemma-policy {policy} が要る素性: '
+          f'--lemma-policy {policy} が必要とする素性: '
           f'{"，".join(need) if need else "なし"}')
     if miss:
         msg = (f'この辞書には {"，".join(miss)} が無い。'
-               f'--lemma-policy {policy} は黙って表層形に落ちる。\n'
+               f'--lemma-policy {policy} は黙って表層形に切り替わる。\n'
                f'        --lemma-policy surface を明示して意図を記録するか，'
                f'別の辞書を使うこと。\n'
                f'        どうしても続けるなら --allow-feature-mismatch。')
@@ -320,7 +320,7 @@ def lemma_key(w, policy: str = 'mixed', strip_homograph: bool = True) -> str:
     """分析単位となる語形を決める。
 
     UniDic の語彙素は同形異義を ``私-代名詞`` ``行く-行く`` のように接尾辞で
-    区別する。トピックモデルの可読性のため既定では接尾辞を落とすが，
+    区別する。トピックモデルの可読性のため既定では接尾辞を除くが，
     厳密な語彙素同定が必要なときは ``--keep-homograph-suffix`` を使う。
     """
     f = w.feature
@@ -355,7 +355,7 @@ def drop_stale(outdirs, keep_stems, label='出力'):
     03b_merge_volumes.py で『夜明け前』の4巻を1ファイルに統合すると，
     data/xml から巻別の XML は消えるが，**すでに作ってある
     data/plain と data/tokens の巻別ファイルは残る**。06 はそれを
-    そのまま刻むので，統合前の巻と統合後の作品が二重にコーパスへ入る。
+    そのままチャンクに分割するので，統合前の巻と統合後の作品が二重にコーパスへ入る。
     しかもエラーは出ない。
 
     出力ディレクトリは毎回この工程が作り直すものなので，入力に対応が
@@ -396,14 +396,14 @@ def main() -> int:
     ap.add_argument('--expect-dict', default=None, metavar='NAME',
                     help=f'この辞書でなければ止まる（本番は {PROD_DICT}）')
     ap.add_argument('--allow-feature-mismatch', action='store_true',
-                    help='--lemma-policy が要る素性が無くても続ける（非推奨）')
+                    help='--lemma-policy が必要とする素性が無くても続ける（非推奨）')
     args = ap.parse_args()
 
     # 辞書の用意より先に入力を確かめる。UniDic の読み込みは重いので，
-    # 入力が無いときに何十秒も待たせてから落ちるのは筋が悪い。
+    # 入力が無いときに何十秒も待たせてからエラーで止まるのは望ましくない。
     if not os.path.isdir(args.indir):
         sys.exit(f'入力のディレクトリが無い: {args.indir}\n'
-                 '  04_normalise.py を先に走らせること。渡すのは '
+                 '  04_normalise.py を先に実行すること。渡すのは '
                  'data/plain/full であって data/plain ではない。')
 
     tagger, dic = build_tagger(args.dicdir, args.expect_dict)
@@ -453,7 +453,7 @@ def main() -> int:
 
         # utf-8-sig（BOM 付き）で書く。この TSV は受講生が Excel で開いて
         # 品詞や語彙素を確かめるためのものである。BOM が無いと macOS の
-        # Excel は Shift_JIS と推定して全部が化ける。
+        # Excel は Shift_JIS と推定し，すべて文字化けする。
         with open(os.path.join(dirs['tsv'], stem + '.tsv'), 'w',
                   newline='', encoding='utf-8-sig') as fh:
             # 「どの辞書のどの語形か」を1行目に残す。**auto と書くのでは
@@ -497,7 +497,7 @@ def main() -> int:
             w = csv.writer(fh)
             w.writerow(['surface', 'freq'])
             w.writerows(unk_global.most_common(3000))
-        print(f'\n[ok  ] {len(report)} ファイル。レポート → {dest}')
+        print(f'\n[ok  ] {len(report)} ファイル。リポート → {dest}')
         print(f'[ok  ] 未知語リスト（頻度順3000件）→ {dest2}')
         print('      未知語率が高いファイルは，底本の正書法（旧仮名・踊り字・外字）を疑うこと。')
 

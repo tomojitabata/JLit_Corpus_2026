@@ -3,9 +3,9 @@
 """
 check_units.py
 ==============
-**列名と中身の尺度が合っているか**を見張る。
+**列名と中身の尺度が合っているか**を検査する。
 
-なぜ要るのか
+なぜ必要か
 ------------
 たとえば ``df_all_pct`` という名前の列に ``0.1584`` のような値を入れると，
 名前は per cent（百分率）なのに中身は 0–1 の割合になる。**1 が最大値に
@@ -13,8 +13,8 @@ check_units.py
 ``df_all_prop`` / ``df_in_prop`` と呼ぶ（旧名 ``df_all_pct`` / ``df_in_pct``）。
 
 この種の誤りは**例外を出さない**。``df < 10%`` の culling を
-``df_all_prop >= 10`` と書けば，閾値が 100 倍ずれたまま一語も落ちず，
-図も表も何事もなく出る。気づけない誤りは機械に見張らせる
+``df_all_prop >= 10`` と書けば，閾値が 100 倍ずれたまま一語も除外されず，
+図も表も何事もなく出る。気づきにくい誤りは機械的に検査する
 （``check_stem_keys.py`` ``check_script_calls.py`` と同じ考え方）。
 
 列名の約束
@@ -62,7 +62,7 @@ PCT = ('_pct', '_percent')                       # 0–100 のはず
 PROP = ('_prop', '_ratio', '_share', '_rate')    # 0–1 のはず
 SUFFIX = PCT + PROP
 
-# 旧名。出力に残っていたら 07 を走らせ直す合図
+# 旧名。出力に残っていたら 07 を実行し直す合図
 LEGACY = {'df_all_pct': 'df_all_prop', 'df_in_pct': 'df_in_prop'}
 
 # ``'name': 式`` と ``name = 式`` と ``name=式``（キーワード引数・assign）
@@ -118,7 +118,7 @@ def scan_text(src: str, where: str, out: list[tuple[str, str]]) -> None:
                                 f'\n        {s[:96]}'))
 
     # ---- 2. 閾値の桁 -----------------------------------------------------
-    # 0–1 の量を 10 と比べていれば，閾値が 100 倍ずれている（一語も落ちない）。
+    # 0–1 の量を 10 と比べていれば，閾値が 100 倍ずれている（一語も除外されない）。
     for i, line in enumerate(lines, start=1):
         s = line.strip()
         if s.startswith('#') or not s:
@@ -181,7 +181,7 @@ def scan_outputs(res: Path, out: list[tuple[str, str]]) -> None:
             out.append((WARN, f'{rel} に旧名の列が残っている: '
                               + '，'.join(f'{k} → {LEGACY[k]}' for k in hit)
                               + '\n        07_descriptive_stats.py を'
-                                '走らせ直すこと（ノートブックは読み替える）。'))
+                                '実行し直すこと（ノートブックは読み替える）。'))
 
 
 def main() -> int:

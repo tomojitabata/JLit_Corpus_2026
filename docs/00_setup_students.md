@@ -17,7 +17,7 @@ A と B は**同じスクリプト1本**で済む。違いは「重い共有物�
 ### 1.0 コマンドは1行ずつ貼ること — zsh では `#` がコメントにならない
 
 macOS の既定のシェルは **zsh** で，対話的に使っているときは
-`interactive_comments` が**切れている**。つまり
+`interactive_comments` が**無効になっている**。つまり
 
 ```
 stat -f%z ~/Downloads/foo.zip  # 手元の大きさ
@@ -34,7 +34,7 @@ stat: 手元の大きさ: stat: No such file or directory
 という，本題と無関係なエラーである。**コマンド自体は間違っていない。**
 
 本手順書のコマンド例は注釈を**行の先頭**に置いてあるので，
-ブロックごと貼っても通る。ただし複数行を一度に貼ると，どの行で失敗したのか
+ブロックごと貼ってもそのまま実行できる。ただし複数行を一度に貼ると，どの行で失敗したのか
 分からなくなるので，**うまくいかないときは1行ずつ貼る**こと。
 
 （注釈を後ろに書けるようにしたい場合は `setopt interactive_comments` を
@@ -55,7 +55,7 @@ zsh: command not found: --dict
 正しい。長いコマンドを貼ってこうなったら，**末尾を見て `\` が1つか
 確かめる**こと。
 
-長いコマンドは，貼らずに用意したスクリプトを走らせるのが安全である
+長いコマンドは，貼り付けずに，用意したスクリプトを実行するのが安全である
 （例: `bash scripts/run_dict_compare.sh`）。
 
 ### 1.1 共用 iMac はホームがマシンごとに別々
@@ -73,7 +73,7 @@ DH Lab の iMac は **XCreds** で認証する。どのマシンにもログイ�
 これは故障でも設定ミスでもなく，そういう仕組みである。したがって：
 
 - **どのマシンを使ったかを控えておく。** 本体に貼ってあるラベル番号（例 2021-03）を
-  メモし，`00_env_check.py` が毎回表示するマシン名もレポートに書く。
+  メモし，`00_env_check.py` が毎回表示するマシン名もリポートに書く。
   できるだけ同じマシンを使うと，環境構築をやり直さずに済む
 - **自分の作業は自分の GitHub にバックアップする。** 別のマシンで続きをするには，
   `my_work/` を push しておき，移った先で pull するのがいちばん確実である（§5）
@@ -91,16 +91,16 @@ DH Lab の iMac は **XCreds** で認証する。どのマシンにもログイ�
 （Homebrew の導入自体に admin が要るため）。
 
 - Python は **uv** がユーザ領域に入れる
-- Java は Temurin の tar.gz を展開するだけ（インストーラを走らせない）
+- Java は Temurin の tar.gz を展開するだけ（インストーラを実行しない）
 - MALLET も tar.gz を展開するだけ
 
 自分の Mac なら Homebrew を使っても構わないが，**授業では同じ手順に揃える**。
-共用機で詰まったときに，教員も他の受講生も同じ画面を見られるほうが早い。
+共用機で詰まったときに，教員も他の受講生も同じ画面を見て考えられるほうが，解決が早い。
 
 ### 1.3 二層の置き場
 
 ```
-/Users/Shared/jlit/        ← 共用 iMac：このマシンの全員で共有する重い物
+/Users/Shared/jlit/        ← 共用 iMac：このマシンの全員で共有する大きなファイル
    jdk/                       Java（約 300 MB）
    mallet/                    MALLET（約 15 MB）
    unidic-novel-v202512/      **本番の辞書**（近現代口語小説UniDic・zip で約 1.7 GB）
@@ -122,7 +122,7 @@ DH Lab の iMac は **XCreds** で認証する。どのマシンにもログイ�
 - リポジトリで `uv add <パッケージ>` を実行すると，uv は親へ遡って
   `dh_project/pyproject.toml` を見つけ，**Jupyter のカーネルと同じ `.venv`** に入れる。
   リポジトリの中に `.venv` を置く旧い方式では，uv が別の場所に入れてしまい，
-  「入れたのに import できない」が起きていた（§7）
+  「入れたのに import できない」という問題が起きていた（§7）
 - リポジトリを消して clone し直しても，仮想環境はそのまま残る
 
 `.venv` と `pyproject.toml` は `00_bootstrap_mac.sh` が作る。
@@ -167,7 +167,7 @@ python3 ~/Documents/dh_project/JLit_Corpus_2026/scripts/check_unidic_dir.py /Use
 ### 1.5 CPU の自動判定と授業用 `.zshrc`
 
 持ち込みの Mac には **Apple Silicon（M シリーズ）と Intel** の両方がある。
-`00_bootstrap_mac.sh` は最初に CPU を判定し，その機械に合うものを入れる。
+`00_bootstrap_mac.sh` は最初に CPU を判定し，そのマシンに合うものを入れる。
 受講生が機種を意識して手順を変える必要はない。
 
 | | Apple Silicon | Intel |
@@ -179,7 +179,7 @@ python3 ~/Documents/dh_project/JLit_Corpus_2026/scripts/check_unidic_dir.py /Use
 さらに次の2つも自動で処理する。
 
 - **Apple Silicon なのにターミナルが Rosetta（Intel 互換）で動いている**ときは，
-  ネイティブで実行し直す。Rosetta のままだと Intel 用の Python が入り，遅く壊れやすい
+  ネイティブで実行し直す。Rosetta のままだと Intel 用の Python が入り，動作が遅く不安定になる
 - **既存の仮想環境や JDK が別の CPU 用**（移行アシスタントで Intel 機から引き継いだ
   場合など）なら，消さずに名前を変えて退避し，作り直す
 
@@ -192,7 +192,7 @@ python3 ~/Documents/dh_project/JLit_Corpus_2026/scripts/check_unidic_dir.py /Use
 - **`jlit` と打つだけで**，仮想環境が有効になりリポジトリに移動する
 - `jl`（または `jn`）で JupyterLab が起動する
 - 行の後ろの `#` がコメントになる（§1.0）。プロンプトに git のブランチ名が出る
-- Rosetta で動いているターミナルを警告する
+- ターミナルが Rosetta で動いていれば警告する
 
 セットアップの後，**そのターミナルで一度だけ `exec zsh`** を実行すると反映される。
 
@@ -211,7 +211,7 @@ bash scripts/00_bootstrap_mac.sh --zshrc=skip
 （リポジトリの `requirements.txt` を上書きしてしまう）。
 
 ⚠ 共用 iMac ではホームがマシンごとに分かれる（§1.1）。マシンを移ったら
-`00_bootstrap_mac.sh` をもう一度実行すれば，`.zshrc` も入り直す。
+`00_bootstrap_mac.sh` をもう一度実行すれば，`.zshrc` も入れ直される。
 
 ---
 
@@ -230,7 +230,7 @@ cd JLit_Corpus_2026
 
 Git の使い方は §5 で扱う。まず clone だけできればよい。
 
-### 2.2 セットアップを走らせる
+### 2.2 セットアップを実行する
 
 ```bash
 bash scripts/00_bootstrap_mac.sh
@@ -246,7 +246,7 @@ bash scripts/00_bootstrap_mac.sh
 3. Jupyter カーネル「Python (JLit)」を登録
 4. JDK 21 を `/Users/Shared/jlit/jdk` に展開（既にあれば飛ばす）
 5. MALLET を `/Users/Shared/jlit/mallet` に展開し，**ヒープを搭載メモリの 1/4 に設定**
-   （16 GB 機なら 4 GB。既定の 1 GB では本コーパスで落ちる）
+   （16 GB 機なら 4 GB。既定の 1 GB では本コーパスでメモリ不足になって止まる）
 6. **本番の辞書**（近現代口語小説UniDic v202512）を
    `/Users/Shared/jlit/unidic-novel-v202512` に展開し，
    `check_unidic_dir.py` で本当に読めるかを確かめる
@@ -274,7 +274,7 @@ source ~/Documents/dh_project/.venv/bin/activate
 cd ~/Documents/dh_project/JLit_Corpus_2026
 ```
 
-プロンプト頭に `(.venv)` が付けば有効。
+プロンプトの先頭に `(.venv)` が付けば有効になっている。
 
 ### 2.4 別のマシンに移ったとき
 
@@ -323,7 +323,7 @@ bash scripts/00_bootstrap_mac.sh --personal
 ```
 
 `--personal` を付けると，共有物が `/Users/Shared/jlit` ではなく
-**`~/.jlit`** に入る。自分の機械では共有する相手がいないので，ホームのほうが
+**`~/.jlit`** に入る。自分の Mac では共有する相手がいないので，ホームのほうが
 片づけやすい。**それ以外は共用 iMac とまったく同じ手順である。**
 
 ### 3.3 毎回の作業開始
@@ -389,10 +389,10 @@ Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
 
 ### 4.3 UniDic と MALLET
 
-**辞書は本番の `unidic-novel-v202512` を取る**（§1.4）。
+**辞書は本番の `unidic-novel-v202512` を取得する**（§1.4）。
 `pip install unidic` → `python -m unidic download` で入るのは
 **現代書き言葉の cwj であって本番の辞書ではない**。これで解析すると
-未知語率が 4 倍近くになり，Mac 勢の結果と比べられなくなる。
+未知語率が 4 倍近くになり，Mac を使う受講生の結果と比べられなくなる。
 
 ```powershell
 # C:\JLit\ のように空白と日本語を含まないパスに置く
@@ -644,21 +644,21 @@ bash scripts/update.sh
 | `ModuleNotFoundError: fugashi` | 仮想環境が有効でない | `source ~/Documents/dh_project/.venv/bin/activate` |
 | `[ERR ] リポジトリが作業フォルダ dh_project の中にない` | `~/Documents` などに直接 clone した | 表示される手順で `~/Documents/dh_project` の中に clone し直す |
 | `UniDic 辞書 未導入` | 共有辞書が無いマシン | `bash scripts/00_bootstrap_mac.sh` を再実行 |
-| `[warn] **本番の辞書ではない。**` | cwj か unidic-lite に落ちている | §1.4。`JLIT_UNIDIC_DIR` を `unidic-novel-v202512` に向け直す |
-| `[FATAL] param.cpp ... no such file: ./dicrc` | 辞書の展開が途中で切れている | `python3 scripts/check_unidic_dir.py <辞書のパス>`。`docs/dictionary_comparison.md` §9 |
-| `[warn] トークン列は … で作られているが config は …` | 辞書を替えて 05 を回し直していない | 05 から順に回し直す。比較なら `--out` を分ける |
+| `[warn] **本番の辞書ではない。**` | cwj か unidic-lite で代替されている | §1.4。`JLIT_UNIDIC_DIR` を `unidic-novel-v202512` に向け直す |
+| `[FATAL] param.cpp ... no such file: ./dicrc` | 辞書の展開が途中で失敗している | `python3 scripts/check_unidic_dir.py <辞書のパス>`。`docs/dictionary_comparison.md` §9 |
+| `[warn] トークン列は … で作られているが config は …` | 辞書を替えて 05 を実行し直していない | 05 から順に実行し直す。比較なら `--out` を分ける |
 | `param.cpp ... no such file: mecabrc` | MeCab の設定ファイルがない | `mkdir -p ~/.jlit/etc && touch ~/.jlit/etc/mecabrc` |
 | 図のラベルが □（豆腐） | 日本語フォント未設定 | macOS は Hiragino Sans が既定。`00_env_check.py` のフォント欄を見る |
 | セルを実行しても**何も出ない** | 前の工程の生成物が無い | `[未実行] … がありません` が出るので，示されたセルを先に実行する |
 | 図は出るが `period` が空の棒が1本だけ | メタデータが v1 の64点のまま | Step 3 の `00_extend_metadata.py` のセルを実行して v3 を作る |
-| 図が画面に出ない | 上と同じか，`fig` を作る前でセルが止まった | エラーが出ていないか出力欄を最後まで見る |
+| 図が画面に出ない | 上と同じか，`fig` を作る前にセルが止まった | エラーが出ていないか出力欄を最後まで見る |
 | 画面の図が PNG に見える | 仕様 | 画面表示は PNG，**保存されるファイルは SVG**。`save_fig` が出すパスを見る |
 | `java: command not found` | `env.sh` を source していない | §2.3 / §3.3 の2行を実行 |
 | MALLET が `OutOfMemoryError` | ヒープ不足 | `$MALLET` の `MEMORY=` を増やす。8 GB 機では 2 GB が上限の目安 |
 | MALLET が Windows で動かない | パスに空白・日本語 | `C:\JLit\` に置き直す |
 | `UnicodeDecodeError`（Windows） | CP932 で読んでいる | §4.4 の `PYTHONUTF8=1` |
 | 青空文庫の取得が遅い | 1 秒/件の間隔を守っている | 正常。共有キャッシュがあれば2回目から一瞬で済む |
-| Jupyter のカーネルが違う | 既定カーネルを見ている | `Kernel → Change Kernel` で `Python (JLit)` |
+| Jupyter のカーネルが違う | 既定のカーネルを使っている | `Kernel → Change Kernel` で `Python (JLit)` |
 | **KWIC の画面が開かない** | サーバが起動していない／ポートが使われている | `my_work/results/kwic_server.log` を見る。`Address already in use` なら，まず前に起動したサーバが残っていないか確かめる（Step 3 の「止める」セル）。それでも駄目なら `PORT` を 8766 などに変える（マシンごとに別なので，隣の人と番号を分ける必要はない） |
 | `git pull` が `Your local changes to the following files would be overwritten by merge` で止まる | 配布版の `notebooks/*.ipynb` を直接開いて実行した（出力がファイルに書き込まれた） | `bash scripts/update.sh`（退避してから更新する，§6.1）。以後は `my_work/notebooks/` のコピーを開く |
 | `git pull` が `untracked working tree files would be overwritten` で止まる | 新しく配られるファイルと同名のファイルを手で置いていた | 同上。`update.sh` が `my_work/_backup/<日時>/` へ退避する |
@@ -673,19 +673,19 @@ bash scripts/update.sh
 | `[ERR ] 50 MB を超えるファイルはバックアップに入れない` | モデルなど大きい生成物をコミットしようとした | 表示のとおり `git restore --staged` で外す。作り直せるものはバックアップに入れない |
 | `git pull` で `corpus_metadata_v3.csv` が衝突する | 旧い版のスクリプトで配布版を上書きした | `bash scripts/update.sh`（上書きされた版は退避される）。いまの版は `_local.csv` に書く |
 | KWIC の画面が「サーバに接続できません」（セルは `[ok  ] 起動した` と出た） | 続けて「止める」のセルまで実行した，またはカーネルを止めた | 「画面を起動する」のセルをもう一度実行する。いまの版では「止める」は `STOP_KWIC = True` にしたときだけ止める |
-| KWIC が `索引が無い` と言う | `15_kwic_index.py` を走らせていない | Step 3 §5.5 の索引のセルを実行する。05 を走らせ直したら索引も作り直す |
+| KWIC が `索引が無い` と言う | `15_kwic_index.py` を実行していない | Step 3 §5.5 の索引のセルを実行する。05 を実行し直したら索引も作り直す |
 | KWIC の用例の著者が「（メタデータ無し）」 | その作品がメタデータに無い | 自分の版 `metadata/corpus_metadata_v3_local.csv` に行を足す（配布版 `corpus_metadata_v3.csv` は編集しない）。**出典の出ない用例は証拠にならない** |
-| KWIC で「語彙に無い」と言われる | 列（語彙素／表層形）の選び違い・辞書の切り方・旧仮名 | 画面上の切替で列を変える。`S:` を付けるとその項だけ表層形で当たる |
+| KWIC で「語彙に無い」と言われる | 列（語彙素／表層形）の選び違い・辞書の切り方・旧仮名 | 画面上の切替で列を変える。`S:` を付けるとその項だけ表層形で検索する |
 | **UMAP を入れたのに図が t-SNE になる** | カーネルが `uv` の環境でない／`umap` という別パッケージ／numba と numpy の版違い | `python3 scripts/check_umap.py`（**ノートブックと同じカーネルで**）。原因別の対処が出る |
-| `uv add umap-learn` したのに `ModuleNotFoundError` | **`uv add` はプロジェクト（`pyproject.toml` のある場所）単位。** `dh_project/pyproject.toml` が無い，または `dh_project` の外に clone したので，別の `.venv` に入った | `bash scripts/00_bootstrap_mac.sh` を実行し直す（`pyproject.toml` を作る）。急ぐときはカーネルの Python を名指し：`uv pip install --python "<sys.executable の値>" umap-learn` → **カーネルを再起動** |
+| `uv add umap-learn` したのに `ModuleNotFoundError` | **`uv add` はプロジェクト（`pyproject.toml` のある場所）単位。** `dh_project/pyproject.toml` が無い，または `dh_project` の外に clone したので，別の `.venv` に入った | `bash scripts/00_bootstrap_mac.sh` を実行し直す（`pyproject.toml` を作る）。急ぐときはカーネルの Python を明示して入れる：`uv pip install --python "<sys.executable の値>" umap-learn` → **カーネルを再起動** |
 | 同上（カーネル自体が別の Python） | JupyterLab のカーネルが `dh_project/.venv` 以外の Python | `Kernel → Change Kernel` で `Python (JLit)` に切り替えて**再起動**。無ければ `bash scripts/00_bootstrap_mac.sh` を実行し直す |
 | `uv sync` のあと fugashi などが消えた | `uv sync` は `pyproject.toml` に無いものを消す | **`uv sync` は使わない。** `bash scripts/00_bootstrap_mac.sh` で入れ直す |
 | `umap.UMAP` が無いというエラー | PyPI の `umap`（別物）が入っている | `uv remove umap` してから `uv add umap-learn`。`umap.__file__` が `umap/umap_.py` を指すこと |
-| UMAP の初回だけ十数秒止まる | numba の JIT | 正常。2回目から速い。書けないマシンでは `NUMBA_CACHE_DIR` を自分の領域に向ける |
+| UMAP の初回だけ十数秒止まる | numba の JIT | 正常。2回目から速い。キャッシュを書き込めないマシンでは `NUMBA_CACHE_DIR` を自分の領域に向ける |
 | **`Failed to build llvmlite` / `LLVM version is 20, llvmlite only officially supports 22`** | **Intel Mac**。llvmlite の x86_64 wheel は 0.45.1 が最後で，新しい版はソースからビルドしに行く | `bash scripts/00_bootstrap_mac.sh` を実行し直す（Intel なら版を自動で固定する，§1.5）。手で入れるなら：`uv pip install --python "<sys.executable>" --only-binary :all: "numba==0.62.1" "llvmlite==0.45.1" "numpy<2.4" umap-learn` |
 | `00_env_check.py` の CPU 欄が「Python は x86_64 用（Rosetta）」 | Apple Silicon でターミナルを Rosetta で開いた／Intel 機から移行した仮想環境 | Rosetta を外したターミナルで `bash scripts/00_bootstrap_mac.sh` を実行し直す（別の CPU 用の仮想環境は自動で退避して作り直す） |
-| ターミナルを開くと `[warn] このターミナルは Rosetta…` | 同上（授業用 `.zshrc` が警告している） | ターミナル.app を選んで「情報を見る」→「Rosetta を使用して開く」を外し，開き直す |
-| Java がどうしても入らない | ネットワーク制限など | `uv pip install tomotopy` で LDA を代替し，**レポートに明記する** |
+| ターミナルを開くと `[warn] このターミナルは Rosetta…` | 同上（授業用 `.zshrc` が警告している） | ターミナル.app を選んで「情報を見る」→「Rosetta を使用して開く」のチェックを外し，開き直す |
+| Java がどうしても入らない | ネットワーク制限など | `uv pip install tomotopy` で LDA を代替し，**リポートに明記する** |
 
 ---
 

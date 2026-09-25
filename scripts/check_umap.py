@@ -6,10 +6,10 @@ check_umap.py
 **UMAP が使えるかどうかを切り分ける。** 使えないときは，原因ごとに何をすれば
 よいかを出す。
 
-なぜ要るのか
+なぜ必要か
 ------------
 Step 5 §4 の語彙のギャラクシーは UMAP で射影し，入っていなければ t-SNE に
-落ちる。この「落ちる」仕掛けが曲者で，**入れたはずなのに t-SNE の図が出る**
+切り替わる。この「切り替わる」仕掛けが曲者で，**入れたはずなのに t-SNE の図が出る**
 ことがある。図は出るので壊れているようには見えず，しかも t-SNE と UMAP では
 塊の見え方が違うので，**設定の問題を分析結果と読み違える。**
 
@@ -33,12 +33,12 @@ Step 5 §4 の語彙のギャラクシーは UMAP で射影し，入っていな
 2. **``umap`` という別のパッケージが入っている**
    PyPI には ``umap``（別物・古い）と ``umap-learn``（本物）がある。
    ``pip install umap`` をしてしまうと ``import umap`` はそちらを拾い，
-   ``umap.UMAP`` が無いので実行時に落ちる。
+   ``umap.UMAP`` が無いので実行時にエラーで止まる。
 3. **numba / llvmlite が numpy の版と合わない**
    UMAP は numba で JIT する。numpy 2.x に対して numba が古いと
    ``import umap`` 自体が例外になる。
 4. **numba のキャッシュを書けない**
-   共用機で ``site-packages`` に書き込めないと，初回の JIT で落ちることが
+   共用機で ``site-packages`` に書き込めないと，初回の JIT でエラーで止まることが
    ある。``NUMBA_CACHE_DIR`` を自分の書ける場所に向ければ通る。
 5. **Intel Mac で新しい llvmlite を入れようとしている**
    llvmlite の macOS **x86_64** wheel は **0.45.1 が最後**で，0.46 以降は
@@ -54,7 +54,7 @@ Step 5 §4 の語彙のギャラクシーは UMAP で射影し，入っていな
     python3 scripts/check_umap.py --fit 2000     # 2000点で実際に射影してみる
     python3 scripts/check_umap.py --quiet        # 結論だけ
 
-**ノートブックと同じカーネルで走らせること。** 端末の python3 で通っても，
+**ノートブックと同じカーネルで実行すること。** 端末の python3 で通っても，
 ノートブックが別の Python なら意味がない。ノートブックのセルから
 
     !python3 scripts/check_umap.py
@@ -63,7 +63,7 @@ Step 5 §4 の語彙のギャラクシーは UMAP で射影し，入っていな
 
     import sys; print(sys.executable)
 
-を先に見て，この診断を**その Python で**走らせる（下に出るコマンドを使う）。
+を先に見て，この診断を**その Python で**実行する（下に出るコマンドを使う）。
 """
 from __future__ import annotations
 
@@ -174,7 +174,7 @@ def main() -> int:
 
     # ---- 1. どの Python で動いているか ------------------------------------
     if not args.quiet:
-        print('■ この診断を走らせている Python')
+        print('■ この診断を実行している Python')
         print(f'  sys.executable = {sys.executable}')
         print(f'  版             = {sys.version.split()[0]}')
         print(f'  site-packages  = {"; ".join(site.getsitepackages()[:2])}')
@@ -212,7 +212,7 @@ def main() -> int:
     if not projs:
         if not args.quiet:
             print(f'{WARN} {ROOT} とその親に pyproject.toml が無い')
-            print('       この状態で uv add を走らせると，uv は**さらに親を'
+            print('       この状態で uv add を実行すると，uv は**さらに親を'
                   '探すか新しく作る**。カーネルの .venv には入らない。')
             print(f'       bash scripts/00_bootstrap_mac.sh が {project_dir()} に'
                   ' pyproject.toml を作る。')
@@ -341,7 +341,7 @@ def main() -> int:
             print(f'{OK} 射影できた: {P.shape}（{time.time() - t0:.1f} 秒）')
             print('       初回は numba の JIT に十数秒かかる。2回目は速い。')
         except Exception as e:                               # noqa: BLE001
-            print(f'{NG} 射影で落ちた: {type(e).__name__}: {e}')
+            print(f'{NG} 射影の段でエラーで止まった: {type(e).__name__}: {e}')
             if not args.quiet:
                 traceback.print_exc()
             low = f'{type(e).__name__} {e}'.lower()
@@ -354,7 +354,7 @@ def main() -> int:
                     "os.path.expanduser('~/.cache/numba')")
             else:
                 remedies.append(
-                    'import は通るが射影で落ちる。版の組み合わせを疑う:\n'
+                    'import は通るが射影の段でエラーで止まる。版の組み合わせを疑う:\n'
                     '    uv add "umap-learn>=0.5.6" "numba>=0.60" '
                     '"pynndescent>=0.5.11"')
 
@@ -365,14 +365,14 @@ def main() -> int:
               '**セルが別のカーネルで動いている**か，'
               'GAL_PROJ が "tsne" になっていないか確かめること。')
         print('       Step 5 §4 で GAL_PROJ = "umap" にすると，'
-              '落ちずに**止まって理由を出す**（黙って t-SNE にしない）。')
+              't-SNE に切り替わらずに**止まって理由を出す**（黙って t-SNE にしない）。')
         return 0
 
     print(f'{NG} UMAP は使えない。対処（上から順に試す）:')
     for i, r in enumerate(remedies, 1):
         print(f'\n  {i}. {r}')
     print('\n  直したら，**ノートブックのカーネルを再起動して**'
-          'この診断をもう一度走らせること。')
+          'この診断をもう一度実行すること。')
     exe = shutil.which('uv')
     if exe:
         print(f'\n  ※ uv の環境で確かめるには:\n'

@@ -3,9 +3,9 @@
 """
 check_interactive.py
 ====================
-対話版の図（``save_interactive``）を**実際に走らせて**検査する。
+対話版の図（``save_interactive``）を**実際に実行して**検査する。
 
-なぜ要るのか
+なぜ必要か
 ------------
 対話版の HTML は「点の位置」「吹き出しの中身」「表の行」の3つを別々の
 経路で作る。**どれかがずれても図は出来上がり，エラーも出ない。**
@@ -18,7 +18,7 @@ check_interactive.py
   * 近傍語の並びは書かず，``links`` の先の語を**JS 側で組む**
 
 という省略をしている。この省略は速さのためだが，**省略の実装を壊すと
-吹き出しが空になる**。ノートブックを配る前に一度走らせて確かめること。
+吹き出しが空になる**。ノートブックを配る前に一度実行して確かめること。
 
 検査すること
 ------------
@@ -26,9 +26,9 @@ check_interactive.py
 2. 見出しが点ごとに違うときは ``fields`` を各点に残す（省略しない）
 3. 面が2つある図（Step 7 の doc2vec）で，``links`` が**同じ面**を指す
 4. 表の行が論理点のぶんだけ（面の数だけ重複しない）
-5. ``table_idx`` が重複と範囲外を落とし，件数を HTML に明記する
+5. ``table_idx`` が重複と範囲外を除き，件数を HTML に明記する
 6. ``coords``（面ごとの座標）で，主成分分析と UMAP のように**面ごとに
-   座標系が違う**図でも，2面めの当たり判定がその面の座標で置かれる
+   座標系が違う**図でも，2面めのポインタの判定範囲がその面の座標で置かれる
 6. プロジェクトの外の入力から描いた図に**赤字の警告**が出る
 7. （``--browser``）実際のブラウザで吹き出し・近傍の線・検索が動く
 
@@ -58,14 +58,14 @@ ROOT = Path(__file__).resolve().parent.parent
 def load_preamble(outdir: Path) -> dict:
     """ノートブックの先頭セル（共通の準備）を読み込んで名前空間を返す。
 
-    **助手関数の定義を二重に持たない。** 検査するのは配布物そのもので
-    なければ意味がないので，ノートブックから取り出して走らせる。
+    **補助関数の定義を二重に持たない。** 検査するのは配布物そのもので
+    なければ意味がないので，ノートブックから取り出して実行する。
     """
     import matplotlib
     matplotlib.use('Agg')
     nbp = ROOT / 'notebooks' / '05_word2vec_basics.ipynb'
     if not nbp.exists():
-        print(f'{NG} {nbp} が無い。先に make_notebooks.py を走らせること。')
+        print(f'{NG} {nbp} が無い。先に make_notebooks.py を実行すること。')
         raise SystemExit(1)
     nb = json.loads(nbp.read_text(encoding='utf-8'))
     src = [''.join(c['source']) for c in nb['cells'] if c['cell_type'] == 'code']
@@ -207,7 +207,7 @@ def main() -> int:
     raw, s4 = payload(Path(html))
     chk(re.findall(r'<tr data-i="(\d+)">', s4) == ['3', '1']
         and '表は 2 件（図の点は 5 件' in s4,
-        '5) table_idx は重複と範囲外を落とし，件数を明記する')
+        '5) table_idx は重複と範囲外を除き，件数を明記する')
 
     # ---- 長さの不一致は必ず例外にする ------------------------------------
     fig, ax = plt.subplots()

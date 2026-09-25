@@ -185,7 +185,7 @@ def drop_stale(outdirs, keep_stems, label='出力'):
     03b_merge_volumes.py で『夜明け前』の4巻を1ファイルに統合すると，
     data/xml から巻別の XML は消えるが，**すでに作ってある
     data/plain と data/tokens の巻別ファイルは残る**。06 はそれを
-    そのまま刻むので，統合前の巻と統合後の作品が二重にコーパスへ入る。
+    そのままチャンクに分割するので，統合前の巻と統合後の作品が二重にコーパスへ入る。
     しかもエラーは出ない。
 
     出力ディレクトリは毎回この工程が作り直すものなので，入力に対応が
@@ -220,12 +220,12 @@ def main() -> int:
     ap.add_argument('--streams', nargs='*', default=None)
     args = ap.parse_args()
 
-    # 素の FileNotFoundError を投げると，何を先に走らせればよいのかが
+    # 素の FileNotFoundError を投げると，何を先に実行すればよいのかが
     # 分からない。前の工程の名前まで書く。
     if not os.path.isdir(args.indir):
         sys.exit(f'入力のディレクトリが無い: {args.indir}\n'
                  '  03_aozora2xml.py（分冊があれば 03b_merge_volumes.py も）を'
-                 '先に走らせること。')
+                 '先に実行すること。')
 
     cfg = load_config(args.config)
     streams = args.streams or cfg['streams']
@@ -290,7 +290,7 @@ def main() -> int:
 
     if report:
         # 列は全行の和集合。作品によって embedded_chars が無かったりするので，
-        # 最初の行の keys だけを使うと落ちる。
+        # 最初の行の keys だけを使うとエラーで止まる。
         keys = []
         for r in report:
             for k in r:
@@ -303,7 +303,7 @@ def main() -> int:
             w.writerows(report)
         na = [r for r in report if r.get('speech_ratio') == '']
         emb = [r for r in report if r.get('embedded_chars')]
-        print(f'\n[ok  ] {len(report)} ファイル。レポート → {dest}')
+        print(f'\n[ok  ] {len(report)} ファイル。リポート → {dest}')
         if na:
             print(f'[note] 会話文比率を欠測にした作品 {len(na)} 件: '
                   + '，'.join(f"{r['title']}({r['speech_markup']})" for r in na))

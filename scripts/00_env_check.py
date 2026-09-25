@@ -182,8 +182,8 @@ def check_unidic():
 
     本番は近現代口語小説UniDic（``unidic-novel`` v202512）である。
     それ以外の辞書しか無いマシンでは，**使えるが本番ではない**ことを
-    はっきり出す。cwj（現代書き言葉）は 2026-09-22 の判定で落選した
-    （未知語率が novel の 3.9 倍）。気づかずに混ぜると比較が壊れる。
+    はっきり表示する。cwj（現代書き言葉）は 2026-09-22 の判定で採用しなかった
+    （未知語率が novel の 3.9 倍）。気づかずに混ぜると比較が成り立たなくなる。
     """
     root = shared_root()
     cands = []
@@ -210,7 +210,7 @@ def check_unidic():
             d = getattr(m, 'DICDIR', '')
             if d and os.path.exists(os.path.join(d, 'sys.dic')):
                 note = '（現代書き言葉。本番ではない）' if mod == 'unidic' else \
-                    '（軽量版。未知語率が上がる。レポートに明記すること）'
+                    '（軽量版。未知語率が上がる。リポートに明記すること）'
                 add(WARN, 'UniDic 辞書', f'{mod}{note}',
                     f'本番の {PROD_DIRNAME} を入れるには '
                     'bash scripts/00_bootstrap_mac.sh を実行する'
@@ -226,7 +226,7 @@ def check_unidic():
 
 
 def check_mecab_rc():
-    """fugashi が探す mecabrc の有無。macOS でのつまずきの最頻原因。"""
+    """fugashi が探す mecabrc の有無。macOS で最もよくあるつまずきの原因。"""
     if IS_WIN:
         return
     for p in (f'{BREW_PREFIX}/etc/mecabrc', '/usr/local/etc/mecabrc', '/etc/mecabrc'):
@@ -319,7 +319,7 @@ def check_arch():
     """CPU と，この Python がその CPU 用かを確かめる。
 
     Apple Silicon でもターミナルが Rosetta で動いていると，Intel 用の Python と
-    パッケージが入る。動くが遅く，numba・llvmlite などで壊れやすい。
+    パッケージが入る。動作はするが遅く，numba・llvmlite などで不具合が起きやすい。
     """
     if sys.platform != 'darwin':
         return
@@ -361,7 +361,7 @@ def check_machine():
     そのマシンには保持される。**ただしマシンどうしでは共有されない。** 別の iMac に
     移るとそのマシンの新しいホームから始まる（前のマシンの作業はそちらに残る）。
     受講生がこれを知らないまま2台目に移ると，作業が消えたように見える。
-    毎回ここでマシン名を表示し，レポートに書かせる。
+    毎回ここでマシン名を表示し，リポートに書かせる。
     """
     host = platform.node().split('.')[0]
     try:
@@ -387,7 +387,7 @@ def check_machine():
     if not root:
         return
     if os.path.isdir(root):
-        # 辞書は名前が増えるので決め打ちにしない。unidic で始まるものは
+        # 辞書の種類は増えることがあるので，名前を決め打ちにしない。unidic で始まるものは
         # すべて挙げる（どの辞書が置いてあるマシンかが一目で分かる）。
         have = [n for n in ('jdk', 'mallet', 'aozora-cache')
                 if os.path.isdir(os.path.join(root, n))]

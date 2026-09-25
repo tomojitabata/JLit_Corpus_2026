@@ -60,7 +60,7 @@ from lib.aozora import resolve_gaiji  # noqa: E402
 try:
     from lxml import html as LH
 except ImportError:                                            # pragma: no cover
-    sys.exit("lxml が必要です:  pip install lxml")
+    sys.exit("lxml が必要である:  pip install lxml")
 
 
 GAIJI_ALT_RE = re.compile(r'※?\(?(?P<ch>[^,()]*),\s*(?P<men>\d)-(?P<ku>\d{1,2})-(?P<ten>\d{1,2})\)?')
@@ -107,7 +107,7 @@ class Stats:
         self.speech_markup = ''  # full / partial / none
         self.extract_ratio = 1.0 # 本文／body 全体。低いと抽出が切れている
         self.div_dropped = 0     # 取り除いた余剰の </div>（底本 HTML の破れ）
-        self.old_format = False  # main_text を持たない旧形式。奥付を手で落とした
+        self.old_format = False  # main_text を持たない旧形式。奥付を手で除いた
         self.said_density = 0.0  # 1万字あたりの会話数
         self.chars_body = 0
 
@@ -293,7 +293,7 @@ P_RE = re.compile(r'(<p>)(.*?)(</p>)', re.S)
 
 # 会話の連鎖を打ち切る境界は**見出しだけ**にする。
 # 字下げブロック ``<ab>`` を境界に含めると，会話の中に引用詩歌が
-# 字下げで入る型（岡本かの子ほか）で会話が復帰できなくなるため。
+# 字下げで入る型（岡本かの子ほか）で会話の追跡が途切れてしまうため。
 HEAD_BOUNDARY_RE = re.compile(r'<head')
 
 MAX_PAR_DEFAULT = 150      # 会話が何段落続くまで追跡するか
@@ -352,7 +352,7 @@ def plan_spans(paras: list[tuple[str, bool]], openc: str, closec: str,
                max_par: int, embed_min: int, st: Stats) -> dict:
     """**第一走査**。括弧を文書全体で対応づけ，位置ごとの役割を決める。
 
-    括弧の対応は正規言語ではないので，走査で決めるほかない。ここでは
+    対応の取れた括弧の列は正規言語ではない（正規表現では扱えない）ので，走査で決めるほかない。ここでは
     次の三つを区別する。
 
     継続引用符
@@ -655,8 +655,8 @@ def trim_old_format(text: str) -> tuple[str, bool]:
     99_validate の奥付混入の検査（FATAL）に掛かるのはこの型である。
 
     旧形式は ``<hr>`` で前付・本文・奥付を区切る。奥付を示す語が直後に
-    現れる ``<hr>`` を見つけて，そこから後ろを落とす。前付側も，文書の
-    冒頭近くに ``<hr>`` があればそこまでを落とす。
+    現れる ``<hr>`` を見つけて，そこから後ろを除く。前付側も，文書の
+    冒頭近くに ``<hr>`` があればそこまでを除く。
     戻り値は ``(切り出した文字列, 切り出したか)``。
     """
     if MAIN_OPEN_RE.search(text):
@@ -697,7 +697,7 @@ def repair_main_text_divs(text: str) -> tuple[str, int]:
     青空文庫が生成する XHTML には ``<div>`` と ``</div>` の数が合わない
     ものがある。島崎藤村『夜明け前（五）』は開き 72 に対し閉じ 125 で，
     余分な閉じタグが本文の途中に現れる。lxml は最初の余剰で
-    ``<div class="main_text">`` を閉じてしまうので，**本文の 94% が落ちる**。
+    ``<div class="main_text">`` を閉じてしまうので，**本文の 94% が失われる**。
     例外も警告も出ない。
 
     そこで解析の前に文字列として直す。``main_text`` の開始から奥付
@@ -808,7 +808,7 @@ def convert(path: str, meta: dict, st: Stats,
     text = decode_html(raw)
     # 文字列から解析するので，残っている XML 宣言は取り除く（lxml が拒否する）
     text = XMLDECL_RE.sub('', text, count=1)
-    # main_text を持たない旧形式は，奥付を落としてから解析する。
+    # main_text を持たない旧形式は，奥付を除いてから解析する。
     # 順序に注意: repair_main_text_divs より**先**に呼ぶこと。
     text, st.old_format = trim_old_format(text)
     text, st.div_dropped = repair_main_text_divs(text)
@@ -831,7 +831,7 @@ def convert(path: str, meta: dict, st: Stats,
     st.grade_speech_markup(min_density)
 
     # 本文抽出が途中で切れていないかを見る。<div class="main_text"> の中に
-    # </div> が紛れていると lxml がそこで閉じ，本文の大半が落ちる。
+    # </div> が紛れていると lxml がそこで閉じ，本文の大半が失われる。
     # 島崎藤村『夜明け前（五）』では body 215,718 字に対し main_text が
     # 13,944 字しか取れていなかった。エラーは出ないので，比で検知する。
     #
@@ -895,7 +895,7 @@ def convert(path: str, meta: dict, st: Stats,
            f'  <text><body>\n{body}\n  </body></text>\n</TEI>\n')
 
     # 整形式（well-formed）であることをここで確かめる。
-    # 壊れた XML を書き出すと，後段の 04_normalise.py が読めずに落ちる。
+    # 壊れた XML を書き出すと，後段の 04_normalise.py が読めずに止まる。
     try:
         ET.fromstring(xml)
     except ET.ParseError as e:
@@ -1016,7 +1016,7 @@ def main() -> int:
                 print(f'[note] 会話標示 {grade} が {len(g)} 件 — '
                       '会話文比率は 0 ではなく**欠測**として扱うこと: '
                       + '，'.join(f"{r['title']}" for r in g))
-        print(f'[ok  ] レポート → {dest}')
+        print(f'[ok  ] リポート → {dest}')
     return 0
 
 

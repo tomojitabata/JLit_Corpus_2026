@@ -43,7 +43,7 @@ command -v git >/dev/null 2>&1 || { echo "[ERR ] git が無い（xcode-select --
 
 # ---- 0. 名前とメールアドレス（コミットに記録される） ------------------------
 if [ -z "$(git config --global user.name)" ] || [ -z "$(git config --global user.email)" ]; then
-  echo "[ERR ] git に名前とメールアドレスが設定されていない。次の2行を実行してから，もう一度："
+  echo "[ERR ] git に名前とメールアドレスが設定されていない。次の2行を実行してから，もう一度実行すること："
   echo '         git config --global user.name  "<氏名またはローマ字>"'
   echo '         git config --global user.email "<GitHub に登録したメールアドレス>"'
   exit 1
@@ -122,7 +122,7 @@ if [ ! -f README.md ]; then
 JLit_Corpus_2026（テクスト分析論）の自分の作業のバックアップ。
 
 - \`notebooks/\` … 実行したノートブック（配布版のコピー）
-- \`results/\`   … 図（SVG）・表・レポート原稿
+- \`results/\`   … 図（SVG）・表・リポート原稿
 
 教材そのものは https://github.com/tomojitabata/JLit_Corpus_2026 にある（ここには入れない）。
 EOF

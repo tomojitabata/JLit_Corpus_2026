@@ -64,7 +64,7 @@ def setup_svg(fonttype: str = 'path') -> None:
 
     ``svg.fonttype``
         ``path`` … 文字をアウトライン化。フォントの無い環境でも崩れない
-        ``none`` … 文字を <text> のまま残す。軽く編集できるがフォント依存
+        ``none`` … 文字を <text> のまま残す。軽量で編集もできるがフォントに依存する
     """
     plt.rcParams['svg.fonttype'] = fonttype
     plt.rcParams['savefig.bbox'] = 'tight'
@@ -81,7 +81,7 @@ def save_fig(fig, out: str, stem: str) -> str:
 
 
 def setup_japanese_font(preferred: str | None = None) -> str:
-    """日本語が豆腐（□）にならないようフォントを設定する。
+    """日本語が □ で表示されないようフォントを設定する。
 
     macOS: Hiragino Sans / Hiragino Maru Gothic ProN
     Windows: Yu Gothic / MS Gothic / Meiryo

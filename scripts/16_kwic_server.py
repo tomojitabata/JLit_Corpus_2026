@@ -4,7 +4,7 @@
 16_kwic_server.py
 =================
 KWIC コンコーダンサをブラウザで使う。**標準ライブラリだけ**で動く小さな
-サーバ（外部の web 枠組みも CDN も使わない）。
+サーバ（外部の Web フレームワークも CDN も使わない）。
 
     python3 scripts/16_kwic_server.py --open
 
@@ -28,7 +28,7 @@ KWIC コンコーダンサをブラウザで使う。**標準ライブラリだ�
 書き出し
 --------
 ``--export`` を付けると，与えた検索式の結果を**そのまま読める HTML**に
-落とす（授業の配布・レポートの付録用。サーバは要らない）。
+書き出す（授業の配布・リポートの付録用。サーバは要らない）。
 
     python3 scripts/16_kwic_server.py --export my_work/results/kwic_汽車.html \\
         --query 汽車 --stream lemma --limit 200
@@ -83,7 +83,7 @@ class Handler(BaseHTTPRequestHandler):
                    'application/json; charset=utf-8')
 
     def log_message(self, fmt, *args):                  # noqa: D102
-        # 既定の1行ログは検索ごとに出て騒がしい。要るときだけ出す
+        # 既定の1行ログは検索ごとに出て煩わしい。必要なときだけ出す
         if os.environ.get('JLIT_KWIC_VERBOSE'):
             super().log_message(fmt, *args)
 
@@ -134,7 +134,7 @@ class Handler(BaseHTTPRequestHandler):
                            {'Content-Disposition':
                             f"attachment; filename*=UTF-8''{name}"})
             else:
-                self._json({'error': f'知らない道: {u.path}'}, 404)
+                self._json({'error': f'存在しないパス: {u.path}'}, 404)
         except QueryError as e:
             self._json({'error': str(e), 'kind': 'query'}, 400)
         except Exception as e:                          # noqa: BLE001
@@ -144,7 +144,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:                          # noqa: N802
         u = urllib.parse.urlparse(self.path)
         if u.path != '/api/search':
-            self._json({'error': f'知らない道: {u.path}'}, 404)
+            self._json({'error': f'存在しないパス: {u.path}'}, 404)
             return
         try:
             n = int(self.headers.get('Content-Length', '0'))
@@ -185,7 +185,7 @@ class Handler(BaseHTTPRequestHandler):
 # 書き出し（サーバの要らない1枚）
 # ---------------------------------------------------------------------------
 def export_html(kw: KwicIndex, res: dict, path: str | os.PathLike) -> Path:
-    """検索結果を，そのまま読める HTML に落とす。
+    """検索結果を，そのまま読める HTML に書き出す。
 
     **由来を必ず書く**（検索式・列・辞書・索引の作成時刻・総ヒット数）。
     間引いたときはそのことも書く。
@@ -271,9 +271,9 @@ def main() -> int:
                     help='既定は 127.0.0.1（このマシンからだけ見える）')
     ap.add_argument('--open', action='store_true', help='ブラウザを開く')
     ap.add_argument('--export', default=None, metavar='HTML',
-                    help='検索結果を HTML に落として終わる（サーバは起動しない）')
+                    help='検索結果を HTML に書き出して終わる（サーバは起動しない）')
     ap.add_argument('--csv', default=None, metavar='CSV',
-                    help='検索結果を CSV に落とす（--export と併用できる）')
+                    help='検索結果を CSV に書き出す（--export と併用できる）')
     ap.add_argument('--query', default=None)
     ap.add_argument('--stream', default='lemma', choices=['lemma', 'surface'])
     ap.add_argument('--context', type=int, default=7)
@@ -294,7 +294,7 @@ def main() -> int:
 
     if args.export or args.csv:
         if not args.query:
-            sys.exit('--export / --csv には --query が要る')
+            sys.exit('--export / --csv には --query が必要である')
         res = kw.search(args.query, stream=args.stream, context=args.context,
                         limit=args.limit, sort=args.sort)
         print(f'[hit ] {res["total"]:,} 件（{res["elapsed_ms"]} ms）')

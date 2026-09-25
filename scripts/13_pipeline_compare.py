@@ -3,16 +3,16 @@
 """
 13_pipeline_compare.py
 ======================
-辞書ごとに Step 3–8 を最後まで通し，**外在的な**指標で比べる。
+辞書ごとに Step 3–8 を最後まで通し，**外的評価の**指標で比べる。
 
-なぜ外在的な指標が要るのか
+なぜ外的評価の指標が必要か
 --------------------------
-``12_dict_compare.py`` が出すのは内在的な指標（未知語率・境界一致率）で，
-**「よく解析できたか」しか言わない。** 私たちが本当に知りたいのは
+``12_dict_compare.py`` が出すのは内的評価の指標（未知語率・境界一致率）で，
+**「よく解析できたか」しか示さない。** 私たちが本当に知りたいのは
 「**どちらの辞書で解析したほうが，やりたい分析がうまくいくか**」である。
 
 そこで，同じテクストを辞書ごとに解析し直し，そのトークン列で
-Step 4・7・8 を回して，分析の成績を比べる。
+Step 4・7・8 を実行して，分析の成績を比べる。
 
 ======================  ==================================================
 指標                    何を意味するか
@@ -23,7 +23,7 @@ doc2vec 最近傍          同上を document vector で
 カテゴリ効果（作家）    document vector が作家を捉えている強さ
 LDA coherence           トピックの上位語が実際に共起するか。0 に近いほど良い
 LDA exclusivity         トピックが固有の語を持つか。高いほど良い
-語彙（ストップ語除去後）小さすぎれば刻みすぎ，大きすぎれば統合不足を疑う
+語彙（ストップ語除去後）小さすぎれば分割しすぎ，大きすぎれば統合不足を疑う
 ======================  ==================================================
 
 **比べてよいもの・いけないもの**
@@ -34,7 +34,7 @@ LDA exclusivity         トピックが固有の語を持つか。高いほど�
   語彙素の体系が違うので，**同じ語が別の見出しになる**。
   「こちらの辞書のほうが良い語が出た」という比較は成り立たない
 
-**成績が同点なら内在指標で決める。** 逆に成績が大きく違うなら，
+**成績が同点なら内的評価で決める。** 逆に成績が大きく違うなら，
 なぜ違うのかを ``dict_disagreements.csv`` の実例で説明できるまで
 結論を出さないこと。
 
@@ -48,7 +48,7 @@ LDA exclusivity         トピックが固有の語を持つか。高いほど�
         --work data/dict_runs --out results/dict_compare \\
         --topics 40
 
-    # 途中まで走っているときは，出来ている工程を飛ばす
+    # 途中まで実行されているときは，出来ている工程を飛ばす
     python3 13_pipeline_compare.py … --skip-existing
 
 **時間がかかる。** 1辞書あたり，形態素解析 5–15 分，doc2vec 5–10 分，
@@ -162,7 +162,7 @@ def main() -> int:
     ap.add_argument('--seed', type=int, default=20260920)
     ap.add_argument('--stages', nargs='*',
                     default=['tokenise', 'datasets', 'descriptive', 'doc2vec', 'lda'],
-                    help='回す工程。既定は全部')
+                    help='実行する工程。既定は全部')
     ap.add_argument('--skip-existing', action='store_true',
                     help='出力が既にある工程を飛ばす')
     ap.add_argument('--dry-run', action='store_true')
@@ -198,9 +198,9 @@ def main() -> int:
 
         if 'tokenise' in args.stages and not have(os.path.join(tok, 'tokenise_report.csv')):
             # --allow-feature-mismatch を付ける理由。
-            # 05 は単独で走るとき，--lemma-policy mixed が要る素性
+            # 05 は単独で実行されるとき，--lemma-policy mixed が必要とする素性
             # （lemma / orthBase）が無い辞書では**止まる**。黙って表層形に
-            # 落ちるほうが危ないからである。しかしここは**辞書を比べる**
+            # 切り替わるほうが危ないからである。しかしここは**辞書を比べる**
             # 工程なので，素性の少ない辞書で止まると比較そのものが進まない。
             # 警告は出るので記録には残る。**その警告を読んでから結果を
             # 解釈すること**（docs/dictionary_comparison.md §8）。
@@ -215,7 +215,7 @@ def main() -> int:
                                    '--meta', args.meta, '--out', ds,
                                    '--chunk', args.chunk, '--max-chunks', args.max_chunks,
                                    '--sample', args.sample, '--seed', args.seed,
-                                   # ここでは**わざと**本番以外の辞書で回すので，
+                                   # ここでは**わざと**本番以外の辞書で実行するので，
                                    # config との照合は切る（切らないと辞書ごとに
                                    # 警告が出て，本当の事故が埋もれる）
                                    '--no-dict-check',
@@ -314,7 +314,7 @@ def main() -> int:
         print(f'{lab:<24}' + ''.join(cells))
     print('\n  * は「その指標では有利」という印にすぎない。')
     print('  **指標ごとに勝者が割れるのが普通である。** 総合点は付けない。')
-    print('  どの層で誰が勝ったかは dict_by_stratum.csv を，なぜ違うかは')
+    print('  どの層でどの辞書が勝ったかは dict_by_stratum.csv を，なぜ違うかは')
     print('  dict_disagreements.csv を見ること。判断の基準は')
     print('  docs/dictionary_comparison.md に書いてある。')
     return 0

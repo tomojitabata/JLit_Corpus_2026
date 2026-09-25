@@ -38,7 +38,7 @@ normalise:
   normalise_latin_digits: true    # 全角ラテン文字・数字を半角へ
   keep_ruby_base: true            # ルビの基底文字を残し，読み(@rt)は除く
   narration_excludes_embedded: false
-  # 真にすると，書簡・手記など <quote type="embedded"> の地の文を narration
+  # true にすると，書簡・手記など <quote type="embedded"> の地の文を narration
   # から外す。『こころ』下「先生と遺書」を語りから切り離して上・中と対照する
   # ときに使う。既定は含める（先生の一人称の語りだから）
 
@@ -69,14 +69,14 @@ tokenise:
 # --- 06_build_datasets.py ----------------------------------------------------
 datasets:
   chunk_tokens: 2000
-  min_chunk_tokens: 1000          # 既定は chunk_tokens の半分。満たない作品は落ちる
-  max_chunks_per_work: 40         # 長篇の支配を防ぐ。0 で無制限
+  min_chunk_tokens: 1000          # 既定は chunk_tokens の半分。これに満たない作品は除外される
+  max_chunks_per_work: 40         # 長篇の影響が過大になるのを防ぐ。0 で無制限
   sampling: stratified            # head / random / spread / stratified
   # 上限を超える作品は 40 の区画に等分し，各区画から1つ無作為に抜く
   # （層化無作為）。単純無作為だと連続区間がまるごと抜けることがある。
   # シードは
   # f'{seed}:{作品の語幹}' で作品ごとに作るので，
-  #   * 同じ seed なら何度走らせても同じチャンクが選ばれる
+  #   * 同じ seed なら何度実行しても同じチャンクが選ばれる
   #   * コーパスに作品を足しても既存作品の標本は変わらない
   # 論文にはこの3行（chunk_tokens / max_chunks_per_work / seed）を必ず書く。
   min_df: 3
@@ -104,7 +104,7 @@ word2vec:
   balance_slices: true
   max_chunks_per_author: 0
   runs: 10                        # 乱数を変えて安定性を確認する（10 試行）
-  seed: 11                        # 単発のときの種
+  seed: 11                        # 単発で実行するときのシード
   # 安定性の検査に使う10個のシード。**報告にはこの並びをそのまま書く。**
   seeds: [11, 22, 33, 44, 55, 66, 77, 88, 99, 111]
 

@@ -5,7 +5,7 @@ check_unidic_dir.py
 ===================
 展開した UniDic のディレクトリが**本当に使えるか**を確かめる。
 
-なぜ要るのか
+なぜ必要か
 ------------
 zip の展開は，途中で失敗しても**それらしいディレクトリを残す**ことがある。
 macOS の「アーカイブユーティリティ」は途中までのファイルを置いて終わるので，
@@ -14,8 +14,8 @@ macOS の「アーカイブユーティリティ」は途中までのファイ�
     RuntimeError: Failed initializing MeCab …
     param.cpp(69) [ifs] no such file or directory: ./dicrc
 
-のように落ちる。しかもこのメッセージからは「展開が不完全だった」とは
-読み取れないので，辞書の指定が間違っていると誤解して時間を溶かす。
+のようなエラーで止まる。しかもこのメッセージからは「展開が不完全だった」とは
+読み取れないので，辞書の指定が間違っていると誤解して時間を無駄にする。
 
 **展開したら，解析を始める前にここで確かめること。**
 
@@ -135,7 +135,7 @@ def check(path: str) -> int:
         print(f'{WARN} 取れない素性: {"，".join(miss)}')
         if 'lemma' in miss or 'orthBase' in miss:
             print('       --lemma-policy の既定（mixed）は lemma と orthBase を'
-                  '使うので，\n       この辞書では表層形に落ちる。'
+                  '使うので，\n       この辞書では表層形に切り替わる。'
                   '--lemma-policy surface を明示して使うか，\n'
                   '       12_dict_compare.py の警告を読んで方針を決めること。')
     return 0

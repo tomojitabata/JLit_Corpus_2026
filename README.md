@@ -23,7 +23,7 @@
 
 ## 診断の要点（v1 コーパス）
 
-テクスト本体と書誌の全数検査で，次が判明した。
+テクスト本体と書誌の全数検査で，次のことが判明した。
 
 ### 致命的な3点
 
@@ -47,7 +47,7 @@
 | 森鴎外『伊沢蘭軒』ほか | "Histrical novel" | Nonfiction / Historical-Biography | 誤綴の訂正と再分類 |
 
 `ndc` 列は NDC 番号ではなくラベル文字列（「小説、物語」）だった。
-`genre` は英語・日本語・別題・誤綴の混在。`brow` は high/low の二値で，
+`genre` は英語・日本語・別題・誤綴が混在していた。`brow` は high/low の二値で，
 児童書とノンフィクションが押し込まれていた。
 全変更は Excel の `changes_from_v1` シートに典拠つきで記録してある。
 
@@ -85,7 +85,7 @@ JLit_Corpus_2026/
 ├── docs/
 │   ├── 00_setup_students.md     受講生の環境構築（macOS 27 / Windows 11）
 │   ├── syllabus_8_lectures.md   講義計画（教員用）
-│   ├── representativeness_report.md   代表性診断レポート
+│   ├── representativeness_report.md   代表性診断リポート
 │   └── encoding_guidelines.md   符号化と正規化の決定事項
 ├── metadata/
 │   ├── corpus_metadata_v2.csv   64作品 × 43列
@@ -157,7 +157,7 @@ source ~/.jlit/env.sh && source ~/Documents/dh_project/.venv/bin/activate
 # Windows（PowerShell。作業フォルダ dh_project で）
 py -3.12 -m venv ..\.venv && ..\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-# 辞書は本番の unidic-novel-v202512 を取る（docs/00_setup_students.md §4.3）。
+# 辞書は本番の unidic-novel-v202512 を取得する（docs/00_setup_students.md §4.3）。
 # pip install unidic で入るのは cwj であって本番の辞書ではない。
 
 python scripts/00_env_check.py          # ALL OK を確認
@@ -240,7 +240,7 @@ python scripts/06_build_datasets.py \
   --meta metadata/corpus_metadata_v2.csv \
   --out data/datasets --chunk 2000 --max-chunks 40
 
-# 再検証：FATAL 0 になるまで進まない
+# 再検証：FATAL が 0 件になるまで次に進まない
 python scripts/99_validate.py --corpus data/plain/full \
   --meta metadata/corpus_metadata_v2.csv \
   --tokenise-report data/tokens/tokenise_report.csv
@@ -281,23 +281,23 @@ python scripts/11_visualise.py --meta metadata/corpus_metadata_v2.csv \
 **05 の解析結果（TSV）から索引を作り，ブラウザで読む。**
 
 ```bash
-# 索引（05 を走らせ直したら作り直す。辞書が変われば切り方が変わる）
+# 索引（05 を実行し直したら作り直す。辞書が変われば切り方が変わる）
 python scripts/15_kwic_index.py \
   --tsv data/tokens/tsv --out data/kwic
 # --meta を省くと metadata/ の自分の版（*_v3_local.csv）> 配布版 v3 > v2 の順に探す
 
-# 画面（127.0.0.1 でだけ待ち受ける。このマシンからだけ見える）
+# 画面（127.0.0.1 でのみ待ち受ける。このマシンからしか見えない）
 python scripts/16_kwic_server.py --open
 
-# 結果をそのまま配れる HTML／CSV に落とす（サーバは要らない）
+# 結果をそのまま配れる HTML／CSV に書き出す（サーバは要らない）
 python scripts/16_kwic_server.py --query 汽車 --stream lemma \
   --export my_work/results/kwic_汽車.html --csv my_work/results/kwic_汽車.csv
 ```
 
 **語彙素と表層形を切り替えて**検索でき（`L:`／`S:` で項ごとに混ぜられる），
 品詞（`/動詞`）・連なり（`汽車 に 乗る`，文境界は越えない）・ワイルドカード・
-正規表現が使える。用例には**時代区分・著者・作品名**が付き，行を押すと
-前後の本文へ広がる。詳細は `docs/glossary.md` の「KWIC コンコーダンサ」。
+正規表現が使える。用例には**時代区分・著者・作品名**が付き，行をクリックすると
+前後の本文が表示される。詳細は `docs/glossary.md` の「KWIC コンコーダンサ」。
 
 ---
 

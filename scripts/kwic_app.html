@@ -6,7 +6,7 @@
 <title>JLit KWIC コンコーダンサ</title>
 <!--
   画面。中身（索引と検索）は scripts/kwic_core.py，サーバは 16_kwic_server.py。
-  ● 外部の資源（CDN・フォント・JS 枠組み）は使わない。塞がれたマシンでも開く。
+  ● 外部の資源（CDN・フォント・JS フレームワーク）は使わない。外部に接続できないマシンでも開ける。
   ● 本文はコーパス由来の任意の文字列なので，**必ず textContent で入れる**。
     文字列連結で HTML に差し込まない。
   ● 由来（辞書・版・索引の作成時刻）を画面の下に常に出す。
@@ -195,7 +195,7 @@ details.help code{background:#f3f2ec;padding:1px 5px;border-radius:4px}
       <table id="typetab"><tbody></tbody></table></div>
     <div class="card"><h2>共起語（LogDice 順）</h2>
       <table id="colltab"><tbody></tbody></table>
-      <p class="sub">LogDice は頻度の偏りに強い。MI は低頻度語を持ち上げるので，
+      <p class="sub">LogDice は頻度の偏りの影響を受けにくい。MI は低頻度語を過大に評価するので，
       固有名詞や誤解析が上位に来やすい。</p></div>
     <div class="card"><h2>作品ごとのヒット</h2>
       <div class="scroll" style="max-height:30vh">
@@ -214,7 +214,7 @@ details.help code{background:#f3f2ec;padding:1px 5px;border-radius:4px}
 <p class="prov" id="prov"></p>
 
 <script>
-// ---- 助手 ---------------------------------------------------------------
+// ---- 補助関数 -------------------------------------------------------------
 // **本文は textContent で入れる。** 連結して innerHTML に渡さない。
 function el(tag, cls, text) {
   const e = document.createElement(tag);
@@ -324,7 +324,7 @@ async function search(offset) {
     LAST = res; OFFSET = res.offset;
     render(res);
   } catch (e) {
-    showErr('サーバに届かない: ' + e);
+    showErr('サーバに接続できない: ' + e);
   } finally {
     $('go').disabled = false;
   }

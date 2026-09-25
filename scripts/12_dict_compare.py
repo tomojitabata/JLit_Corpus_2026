@@ -3,7 +3,7 @@
 """
 12_dict_compare.py
 ==================
-解析辞書を替えて同じテクストを解析し，**内在的な**指標で比べる。
+解析辞書を替えて同じテクストを解析し，**内的評価**（intrinsic evaluation）で比べる。
 
 何を比べるのか
 --------------
@@ -15,9 +15,9 @@
 
 1. **未知語率** — 辞書に無い語の割合。低いほどよい……**とは限らない**
 2. **平均語長・1字語率** — 未知語率とセットで見る。辞書は未知語を避けるために
-   既知の短い単位へ細かく刻むことができる。刻めば未知語率は下がるが，
+   既知の短い単位へ細かく分割することができる。分割すれば未知語率は下がるが，
    「私は」を「私」「は」ではなく「わ」「た」「し」「は」と切っても
-   未知語率は 0 になる。**未知語率だけを見て選ぶと，細かく刻む辞書が勝つ**
+   未知語率は 0 になる。**未知語率だけを見て選ぶと，細かく分割する辞書が勝つ**
 3. **境界一致率** — 2つの辞書が同じ位置で切っているか（Jaccard）。
    正解データが無くても，**どこで判断が分かれたか**は分かる
 4. **品詞構成** — 名詞・動詞・助動詞の比率。文語辞書は助動詞（けり・べし）を
@@ -64,7 +64,7 @@ from collections import Counter
 try:
     import fugashi
 except ImportError:                                            # pragma: no cover
-    sys.exit('fugashi が要る: pip install fugashi')
+    sys.exit('fugashi が必要である: pip install fugashi')
 
 SKIP_POS = {'補助記号', '空白'}
 FEATURE_NAMES = ('pos1', 'pos2', 'pos3', 'pos4', 'cType', 'cForm',
@@ -82,8 +82,8 @@ def probe(tagger, name: str) -> dict:
 
     **古文・近代文語の UniDic は現代語版と素性の数が違う。** 版によって
     17 / 26 / 29 と並びが変わり，``orthBase`` や ``goshu`` が無いことがある。
-    無い素性を当てにしたまま走らせると，``lemma_key`` が黙って表層形に
-    落ち，「語彙素で数えたつもりが表層形だった」という結果になる。
+    無い素性を当てにしたまま実行すると，``lemma_key`` が黙って表層形に
+    切り替わり，「語彙素で数えたつもりが表層形だった」という結果になる。
     先に確かめて記録に残す。
     """
     w = next(iter(tagger('國語の研究をしたり。')))
@@ -190,7 +190,7 @@ def main() -> int:
         args.meta = default_meta()
 
     if not os.path.isdir(args.plain):
-        sys.exit(f'入力が無い: {args.plain}\n  04_normalise.py を先に走らせること。')
+        sys.exit(f'入力が無い: {args.plain}\n  04_normalise.py を先に実行すること。')
     dicts = []
     for spec in args.dict:
         if '=' not in spec:
@@ -222,7 +222,7 @@ def main() -> int:
         if miss:
             print(f'[warn] {r["dict"]}: 素性 {"，".join(miss)} が無い。'
                   '--lemma-policy の既定（mixed）は lemma と orthBase を使うので，'
-                  'この辞書では表層形に落ちる箇所が出る。')
+                  'この辞書では表層形に切り替わる箇所が出る。')
 
     files = sorted(f for f in os.listdir(args.plain) if f.endswith('.txt'))
     if not files:
@@ -284,8 +284,8 @@ def main() -> int:
         """行を CSV にする。**列名は全行のキーの和集合から作る。**
 
         先頭行のキーだけを列名にすると，行によってキーの集合が違うときに
-        ``dict contains fields not in fieldnames`` で落ちる。しかも
-        **落ちるのは書き出しの段になってから**なので，何十分かけた解析を
+        ``dict contains fields not in fieldnames`` で止まる。しかも
+        **止まるのは書き出しの段になってから**なので，何十分かけた解析を
         まるごと捨てることになる。和集合を取れば，形の違う行が混ざっても
         空欄のまま通る。
         """
@@ -337,8 +337,8 @@ def main() -> int:
     write('dict_summary.csv', summary)
 
     # 層の種類が違っても**1つの表に収める**。正書法別と文体別を別の列名で
-    # 並べると，列の集合が違う行が混ざって DictWriter が落ちる。
-    # 「層の種類」「層の値」という2列に畳めば，どんな層別でも同じ形になる。
+    # 並べると，列の集合が違う行が混ざって DictWriter がエラーで止まる。
+    # 「層の種類」「層の値」という2列にまとめれば，どんな層別でも同じ形になる。
     strata = []
     for kind, col in (('正書法', 'orthography'), ('文体', 'style_class'),
                       ('時代', 'period')):
@@ -370,7 +370,7 @@ def main() -> int:
                  if r['dict_a'] == a and r['dict_b'] == b]
             print(f'  {a} ⇄ {b}: {statistics.median(v):.3f}'
                   f'（最小 {min(v):.3f} / 最大 {max(v):.3f}）')
-    print('\n**未知語率だけで決めないこと。** 細かく刻む辞書は未知語率が下がる。')
+    print('\n**未知語率だけで決めないこと。** 細かく分割する辞書は未知語率が下がる。')
     print('  平均語長・1字語率と必ず並べて見て，dict_disagreements.csv の')
     print('  実例を読んでから判断すること。')
     print(f'\n[ok  ] 出力 → {args.out}')

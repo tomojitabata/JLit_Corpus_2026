@@ -9,7 +9,7 @@ copy_notebooks.py
 notebooks/ の配布版を直接実行すると，出力が .ipynb に書き込まれて
 「手元で変更した」扱いになり，次の `git pull` が止まる。my_work/ はコースの
 リポジトリの .gitignore で除外してあるので，いくら実行・書き込みをしても
-pull は止まらない。my_work/ は自分の GitHub にバックアップを取る（setup_my_work.sh）。
+pull は止まらない。my_work/ のバックアップは自分の GitHub に取る（setup_my_work.sh）。
 
     python scripts/copy_notebooks.py            # まだ無いものをコピー
     python scripts/copy_notebooks.py --dry-run  # 何をするかだけ表示

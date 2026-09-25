@@ -66,7 +66,7 @@ import numpy as np
 try:
     from gensim.models import Word2Vec
 except ImportError:                                            # pragma: no cover
-    raise SystemExit('gensim が必要です:  pip install gensim')
+    raise SystemExit('gensim が必要である:  pip install gensim')
 
 
 def load_index(path: str) -> list[dict]:
@@ -162,7 +162,7 @@ def main() -> int:
 
     rng = random.Random(args.seed)
     index = load_index(args.index)
-    # **スライス名が空のチャンクを落とす。** メタデータの突合が外れると
+    # **スライス名が空のチャンクを除く。** メタデータの突合が外れると
     # period も slice4 も空文字になる。素朴に by_slice[''] に貯めると，
     # 名無しのスライスが1つ増えて学習され，しかも --balance を付けると
     # **その件数に全スライスが切り詰められる**。時代が分からないものは
@@ -208,7 +208,7 @@ def main() -> int:
     # ---- 全体モデル（基準語彙と初期値）: **1回だけ** ---------------------
     # 全体モデルは語彙と初期値の基準にしか使わないので，試行ごとに
     # 学習し直さない（いちばん大きいモデルなので時間の大半を占める）。
-    # 乱数を振るのは**スライス別モデル**である。
+    # 乱数を変えるのは**スライス別モデル**である。
     all_sents = gather(args.chunks, index)
     print(f'\n[fit ] 全体モデル: {len(all_sents):,} チャンク（1回だけ）')
     base = Word2Vec(all_sents, vector_size=args.dim, window=args.window,
@@ -347,7 +347,7 @@ def main() -> int:
     for w in common:
         ds = drift_runs[w]
         if len(ds) < nrun:
-            continue                     # 全試行に出なかった語は落とす
+            continue                     # 全試行に出なかった語は除く
         st = np.array(step_runs[w], dtype=float)     # 試行 × 段
         mean_steps = st.mean(axis=0)
         sd_ = float(np.std(ds, ddof=1)) if nrun > 1 else 0.0

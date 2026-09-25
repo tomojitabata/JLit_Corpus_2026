@@ -9,7 +9,7 @@ KWIC コンコーダンサの中身（索引づくりと検索）。**画面も�
   * 画面を出す   … ``scripts/16_kwic_server.py``（同じく）
   * ノートブック … ``from kwic_core import KwicIndex`` で表として使える
 
-なぜ要るのか
+なぜ必要か
 ------------
 数えたあとに**テクストに戻る**ための道具である。word embedding や特徴語で
 「この語が効いている」と分かっても，**その語が本文でどう振る舞っているか**を
@@ -22,12 +22,12 @@ KWIC コンコーダンサの中身（索引づくりと検索）。**画面も�
    ``tokens_lemma`` や ``tokens_surface``（空白区切りの列）からは品詞が
    復元できないので使わない。**同じ解析結果から両方の列を引く**ので，
    語彙素で検索して表層形を表示することもできる。
-2. **辞書名と版を索引に刻む。** どの辞書で切った本文を読んでいるのかが
+2. **辞書名と版を索引に記録する。** どの辞書で切った本文を読んでいるのかが
    分からない用例は，証拠にならない。
-3. **メタデータの突合は0埋めに強いキーで行い，外れた作品は必ず報告する。**
-   0埋めの綴りが揃わないと，作品が例外も出さずに黙って落ちるからである
+3. **メタデータの突合は0埋めの有無に左右されないキーで行い，外れた作品は必ず報告する。**
+   0埋めの綴りが揃わないと，作品が例外も出さずに黙って除外されるからである
    （``stem_keys()`` の項）。突合できない作品は「メタデータ無し」と**表示に出す**。
-4. **句読点も索引に入れる。** 読み返すのに要る（``keep_punct`` は
+4. **句読点も索引に入れる。** 読み返すのに必要である（``keep_punct`` は
    トークン列の設定であって，TSV には最初から入っている）。検索では
    ``--no-punct`` 相当の絞り込みで外せる。
 
@@ -71,7 +71,7 @@ BAND_LABELS = ['〜1899 明治中期', '1900–1911 明治後期', '1912–1925 
 
 
 def year_band(year) -> int:
-    """初出年を5段に畳む。不明は -1。"""
+    """初出年を5区分にまとめる。不明は -1。"""
     try:
         y = int(float(year))
     except (TypeError, ValueError):
@@ -83,7 +83,7 @@ def year_band(year) -> int:
 
 
 # ---------------------------------------------------------------------------
-# メタデータの突合（0埋めに強いキー）
+# メタデータの突合（0埋めの有無に左右されないキー）
 # ---------------------------------------------------------------------------
 def stem_keys(r: dict) -> list[str]:
     """メタデータの1行から，トークンファイルの語幹になりうるキーをすべて作る。
@@ -130,7 +130,7 @@ def build_index(tsv_dir: str | os.PathLike, meta_path: str | os.PathLike,
     if not files:
         raise SystemExit(
             f'TSV が無い: {tsv_dir}\n'
-            '  05_tokenise_unidic.py を先に走らせること'
+            '  05_tokenise_unidic.py を先に実行すること'
             '（--out data/tokens で tsv/ ができる）。')
     meta = load_meta_index(meta_path)
 
@@ -236,7 +236,7 @@ def build_index(tsv_dir: str | os.PathLike, meta_path: str | os.PathLike,
 
     if len(dict_names) > 1:
         say(f'[warn] **辞書が混ざっている**: {dict(dict_names)}'
-            '  05 を辞書ごとに --out を分けて走らせ直すこと。')
+            '  05 を辞書ごとに --out を分けて実行し直すこと。')
 
     out_dir.mkdir(parents=True, exist_ok=True)
     # ---- 配列は**圧縮しない .npy で1本ずつ**書く -------------------------
@@ -332,13 +332,13 @@ class KwicIndex:
         if not jp.exists() or not (arr_dir.is_dir() or npz.exists()):
             raise SystemExit(
                 f'索引が無い: {d}\n'
-                '  python3 scripts/15_kwic_index.py を先に走らせること。')
+                '  python3 scripts/15_kwic_index.py を先に実行すること。')
         with open(jp, encoding='utf-8') as fh:
             meta = json.load(fh)
         keys = ('surf', 'lem', 'pos', 'cfm', 'gos', 'work', 'sent')
         if arr_dir.is_dir():
-            # **mmap で開く。** 読み込みが瞬時に終わり，使った頁だけが
-            # 記憶に載る（1000万形態素でも起動を待たない）。
+            # **mmap で開く。** 読み込みが瞬時に終わり，使ったページだけが
+            # メモリに載る（1000万形態素でも起動を待たない）。
             z = {k: np.load(arr_dir / f'{k}.npy', mmap_mode='r') for k in keys}
         else:
             # 古い索引（圧縮 .npz）。読めるが起動が遅い
@@ -526,7 +526,7 @@ class KwicIndex:
 
         # 集計は**並べ替えと頁より先に**（表示件数に依存させない）。
         # ⚠ ここは numpy で数える。``/助動詞`` のように何十万件も当たる式で
-        # Python の輪を回すと十数秒かかる。
+        # Python のループを回すと十数秒かかる。
         wid = np.asarray(self.a['work'][hits], dtype=np.int64)
         wcnt = np.bincount(wid, minlength=len(self.works))
         by_work = Counter({int(i): int(c) for i, c in enumerate(wcnt) if c})
@@ -568,8 +568,8 @@ class KwicIndex:
                     topn: int = 50, cap: int = 2_000_000):
         """一致した語形を数える。**連なりは全体を1つの語形として数える。**
 
-        何十万件も当たる式のために，Python の輪を回さず番号の組を
-        整数1つに畳んで ``np.unique`` で数える。桁が溢れるほど長い連なり
+        何十万件も当たる式のために，Python のループを回さず番号の組を
+        整数1つにまとめて ``np.unique`` で数える。桁が溢れるほど長い連なり
         （語彙が大きく span が4以上など）のときだけ，先頭 ``cap`` 件で
         打ち切り，**打ち切ったことを返す**（黙って一部だけ数えない）。
         """
@@ -712,7 +712,7 @@ class KwicIndex:
                     window: int, topn: int) -> list[dict]:
         """ウィンドウ内の共起語を LogDice・MI・t で並べる。
 
-        LogDice（Rychlý 2008）を既定にする。**MI は低頻度語を持ち上げる**ので，
+        LogDice（Rychlý 2008）を既定にする。**MI は低頻度語を過大に評価する**ので，
         文学コーパスでは固有名詞や誤解析が上位に来やすい。
         """
         if hits.size == 0:
@@ -723,7 +723,7 @@ class KwicIndex:
         N = float(self.n)
         f_node = float(hits.size)
         V = len(self.v[base])
-        # ⚠ **ウィンドウの中を Python の二重の輪で回さない。** 何十万件も当たる式で
+        # ⚠ **ウィンドウの中を Python の二重ループで回さない。** 何十万件も当たる式で
         # 数秒かかる。ずらし幅ごとに一括で拾って ``bincount`` で数える
         # （結果は同じ）。
         co = np.zeros(V, dtype=np.int64)

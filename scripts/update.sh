@@ -140,8 +140,8 @@ if [ -d my_work/.git ] && git -C my_work remote get-url origin >/dev/null 2>&1; 
     if git -C my_work pull -q --ff-only 2>/dev/null; then
       echo "-- my_work/ を自分の GitHub のバックアップと揃えた"
     else
-      echo "[warn] my_work/ をバックアップと揃えられなかった（ネットワーク・認証，または別のマシンの変更と食い違い）"
-      echo "       cd my_work && git pull で理由を見る"
+      echo "[warn] my_work/ をバックアップと揃えられなかった（ネットワークや認証の問題か，別のマシンでの変更との食い違い）"
+      echo "       cd my_work && git pull を実行して理由を確かめること"
     fi
   else
     echo "[warn] my_work/ にバックアップしていない変更があるので，バックアップからの取り込みは飛ばした"

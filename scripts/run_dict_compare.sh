@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================================
-# run_dict_compare.sh — 辞書比較をまとめて走らせる
+# run_dict_compare.sh — 辞書比較をまとめて実行する
 # ============================================================================
 # なぜスクリプトにしたか
 # ----------------------
@@ -11,15 +11,15 @@
 #     引数として受け取る。**行はそこで終わる**ので，次の行が独立した
 #     コマンドとして実行され  zsh: command not found: --plain  となる
 #   * 行の後ろに # で注釈を書くと，対話的な zsh では注釈にならない
-#     （interactive_comments が既定で切れている）
+#     （interactive_comments が既定で無効になっている）
 #
 # どちらも「コマンドは正しいのに無関係なエラーが出る」種類の事故である。
-# **貼らずに，このスクリプトを走らせること。**
+# **貼らずに，このスクリプトを実行すること。**
 #
 # 使い方
 # ------
-#     bash scripts/run_dict_compare.sh              # 内在指標だけ（速い）
-#     bash scripts/run_dict_compare.sh --full       # 外在指標も（重い）
+#     bash scripts/run_dict_compare.sh              # 内的評価だけ（速い）
+#     bash scripts/run_dict_compare.sh --full       # 外的評価も（重い）
 #     bash scripts/run_dict_compare.sh --check      # 辞書の検査だけ
 #
 # 辞書の場所を変えるときは，下の DICTS を書き換える。
@@ -97,7 +97,7 @@ if [ "$MODE" = "--check" ]; then
 fi
 
 echo
-echo "== 内在指標（12_dict_compare.py）=="
+echo "== 内的評価（12_dict_compare.py）=="
 python3 scripts/12_dict_compare.py \
   --plain "$PLAIN" \
   "${ARGS[@]}" \
@@ -106,7 +106,7 @@ python3 scripts/12_dict_compare.py \
 
 if [ "$MODE" = "--full" ]; then
   echo
-  echo "== 外在指標（13_pipeline_compare.py）=="
+  echo "== 外的評価（13_pipeline_compare.py）=="
   echo "   辞書 1 つあたり 15–40 分かかる。途中で止めても --skip-existing で再開できる。"
   python3 scripts/13_pipeline_compare.py \
     --plain "$PLAIN" \
@@ -118,7 +118,7 @@ if [ "$MODE" = "--full" ]; then
     --skip-existing || exit 1
 else
   echo
-  echo "[info ] 外在指標（Step 4・7・8 を辞書ごとに回す）は --full で実行する:"
+  echo "[info ] 外的評価（Step 4・7・8 を辞書ごとに実行する）は --full で実行する:"
   echo "          bash scripts/run_dict_compare.sh --full"
 fi
 

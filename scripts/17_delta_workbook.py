@@ -5,7 +5,7 @@
 ====================
 **Burrows's Delta を Excel で手計算するためのブック**を作る（Step 4 §2）。
 
-Delta は三つの手順しかない。
+Delta の計算は三つの手順だけからなる。
 
 1. 最頻語 N 語の相対頻度を求める（ここでは 1 万語あたり）
 2. 語ごとに z スコアにする（平均と標準偏差は**既知の作品だけ**から求める）
@@ -136,7 +136,7 @@ def main() -> int:
         from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
         from openpyxl.utils import get_column_letter as L
     except ImportError:
-        sys.exit('openpyxl が要る: uv pip install openpyxl')
+        sys.exit('openpyxl が必要である: uv pip install openpyxl')
 
     meta = args.meta or default_meta()
     rows = list(csv.DictReader(open(meta, encoding='utf-8-sig')))

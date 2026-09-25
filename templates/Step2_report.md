@@ -20,7 +20,7 @@
 
 ## 4.
 
-> `scripts/find_unclosed_quotes.py` を `data/xml` にかけ，残った`unmarked_paragraph` を1つ選んで青空文庫の原文を確認し，底本の組版のどの慣習に由来するかを説明すること。
+> `scripts/find_unclosed_quotes.py` を `data/xml` にかけ，残った `unmarked_paragraph` を1つ選んで青空文庫の原文を確認し，底本の組版のどの慣習に由来するかを説明すること。
 
 （ここに書く）
 

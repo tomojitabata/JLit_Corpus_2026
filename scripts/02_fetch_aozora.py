@@ -111,7 +111,7 @@ def fetch(url: str, timeout: int = 60) -> bytes:
             f'{url}\n  接続できない（{e.reason}）。次を順に確かめること。\n'
             '   1. ネットワークにつながっているか\n'
             '   2. 学内プロキシの設定が要るか（環境変数 HTTPS_PROXY）\n'
-            '   3. 青空文庫のサーバが一時的に落ちていないか\n'
+            '   3. 青空文庫のサーバが一時的に止まっていないか\n'
             '   しばらくして再実行する（取得済みの分は共有キャッシュから読むので速い）。') from e
     except TimeoutError as e:
         raise FetchError(f'{url}\n  時間切れ。回線が遅い場合は時間をおいて再実行する。') from e
@@ -166,13 +166,13 @@ def norm_author(s: str) -> str:
 
     青空文庫の索引は姓と名を別の列に持つため連結して比較するが，
     利用者は「ツルゲーネフ イワン」「ツルゲーネフ・イワン」のように
-    区切りを入れて書きがちである。区切りをすべて落として比較する。
+    区切りを入れて書きがちである。区切りをすべて除いて比較する。
     """
     return re.sub(r'[\s　・･]', '', s)
 
 
 def norm_title(s: str) -> str:
-    """作品名照合用の正規化。副題・巻次・記号を落とす。"""
+    """作品名照合用の正規化。副題・巻次・記号を除く。"""
     s = re.sub(r'[\s　]', '', s)
     s = re.sub(r'[「」『』（）()【】〔〕・,，、。．.]', '', s)
     s = re.sub(r'^\d+', '', s)
@@ -325,7 +325,7 @@ def year_from_shoshutsu(s: str) -> tuple[str, str]:
 
 
 def report_misses(miss: list[dict], idx: list[dict], out_dir: str) -> None:
-    """未解決行を原因つきで表示し，CSV に落とす。"""
+    """未解決行を原因つきで表示し，CSV に書き出す。"""
     if not miss:
         print('[ok  ] 未解決なし')
         return
@@ -444,7 +444,7 @@ def cmd_works(args) -> int:
         if cache:
             try:                      # 次の人のために共有キャッシュにも置く
                 # 仮の名前で書いてから名前を変える。別のユーザーが同時に
-                # 読んでも書きかけのファイルを掴まない。誰でも読めるようにする
+                # 読んでも書きかけのファイルを読み込まない。誰でも読めるようにする
                 final = os.path.join(cache, name)
                 part = f'{final}.part.{os.getpid()}'
                 shutil.copyfile(dest, part)

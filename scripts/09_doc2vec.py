@@ -38,7 +38,7 @@ import numpy as np
 try:
     from gensim.models.doc2vec import Doc2Vec, TaggedDocument
 except ImportError:                                            # pragma: no cover
-    raise SystemExit('gensim が必要です:  pip install gensim')
+    raise SystemExit('gensim が必要である:  pip install gensim')
 
 
 def main() -> int:
@@ -93,9 +93,9 @@ def main() -> int:
     with open(os.path.join(args.out, 'work_vectors.csv'), 'w',
               newline='', encoding='utf-8-sig') as fh:
         w = csv.writer(fh)
-        # 図を描く側が要る列は，ここで全部書いておく。書き落とすと
-        # ノートブックが AttributeError で落ちる。chunks_index.csv に
-        # 載っている属性は迷わず載せる（200次元のベクトルに比べれば無)。
+        # 図を描く側が必要とする列は，ここで全部書いておく。書き落とすと
+        # ノートブックが AttributeError で止まる。chunks_index.csv に
+        # 載っている属性は迷わず載せる（200次元のベクトルに比べれば容量は無視できる）。
         cols = ['work_stem', 'id', 'author_ja', 'author_sex', 'title',
                 'year_first', 'period', 'genre_main', 'genre_sub',
                 'audience', 'narration', 'register_level', 'style_class']
