@@ -90,6 +90,26 @@ details.help code{background:#f3f2ec;padding:1px 5px;border-radius:4px}
 .mono{font-variant-numeric:tabular-nums}
 #bandtab td:first-child{white-space:nowrap;font-size:12px}
 #pane .widen{margin-left:8px}
+button.sm{padding:3px 9px;font-size:12px}
+th.sortable{cursor:pointer}
+th.sortable:hover{color:var(--accent)}
+th.on,td.on{background:var(--keybg);color:var(--key)}
+th.on{font-weight:700}
+.postree{margin:8px 0;columns:2 230px;column-gap:18px;font-size:12.5px}
+.postree .p1{break-inside:avoid;margin-bottom:6px}
+.postree label{display:flex;gap:5px;align-items:center}
+.postree .p2{margin-left:20px}
+.postree .n{margin-left:auto;color:var(--ink3);font-size:11px;
+  font-variant-numeric:tabular-nums}
+details.opt{margin:6px 0 8px}
+details.opt summary{cursor:pointer;font-size:12.5px;color:var(--accent)}
+td.pct{color:var(--ink3);font-size:11px}
+.vm td{white-space:nowrap}
+.vm td.lab{max-width:260px;overflow:hidden;text-overflow:ellipsis}
+#vtab tr.go{cursor:pointer}
+#vtab tr.go:hover{background:#fbfaf6}
+summary.h2{cursor:pointer;font-size:.86rem;color:var(--ink2);font-weight:650}
+.note{margin:4px 0 0}
 </style>
 </head>
 <body>
@@ -185,6 +205,91 @@ details.help code{background:#f3f2ec;padding:1px 5px;border-radius:4px}
         <span class="sub" id="page"></span>
       </div>
     </div>
+
+    <div class="card" id="collcard">
+      <h2 id="coll-h">共起語</h2>
+      <div class="row">
+        <label class="f">並べ替えの指標 <select id="collsort"></select></label>
+        <label class="f">最小共起頻度 <input id="collmin" type="number" min="1"
+          value="2" style="width:64px"></label>
+        <label class="f">件数 <select id="colln"><option>20</option>
+          <option selected>40</option><option>100</option><option>200</option>
+          </select></label>
+      </div>
+      <details class="opt" id="posbox"><summary>共起語の品詞で絞る
+        （<span id="possum">すべて</span>）</summary>
+        <div class="row" style="margin-top:6px">
+          <button class="ghost sm" id="pos-all">すべて</button>
+          <button class="ghost sm" id="pos-content">内容語（自立語）だけ</button>
+          <button class="ghost sm" id="pos-none">すべて外す</button>
+          <span class="sub">選ぶと数え直す。大分類を選ぶと，その下の中分類すべてに当たる。</span>
+        </div>
+        <div class="postree" id="postree"></div>
+      </details>
+      <div class="scroll" style="max-height:52vh">
+        <table id="colltab"><tbody></tbody></table></div>
+      <p class="sub note" id="collnote"></p>
+      <details class="help"><summary>指標の意味（クリックで開く）</summary>
+      <table>
+        <tr><td>LogDice</td><td>14 + log2(2·O11 / (f(検索語) + f(共起語)))。
+          頻度の偏りの影響を受けにくい（Rychlý 2008）。上限は 14</td></tr>
+        <tr><td>MI</td><td>log2(O11 / E11)。<b>低頻度語を過大に評価する</b>ので，
+          固有名詞や誤解析が上位に来やすい</td></tr>
+        <tr><td>MI3</td><td>log2(O11³ / E11)。MI の低頻度語への偏りを共起頻度の3乗で補う</td></tr>
+        <tr><td>t</td><td>(O11 − E11) / √O11。高頻度の語（機能語など）が上に来る</td></tr>
+        <tr><td>G²</td><td>対数尤度比（Step 4 と同じ）。期待より少ない（反発する）語は負にしてある</td></tr>
+        <tr><td>ΔP（検索語→共起語）</td><td>O11/W − O21/(N − W)。
+          検索語の窓の中にいると，その語が現れる確率がどれだけ上がるか（Gries 2013）</td></tr>
+        <tr><td>ΔP（共起語→検索語）</td><td>O11/f(c) − O12/(N − f(c))。
+          その語が現れると，そこが検索語の窓である確率がどれだけ上がるか。
+          <b>向きのある指標</b>で，2つは一致しない</td></tr>
+      </table>
+      <p class="sub">O11＝窓の中での共起頻度，W＝窓に入った形態素の延べ数，
+      f(c)＝共起語の頻度，N＝全形態素数，E11 = W·f(c)/N（期待値）。
+      句読点は数えず，窓は文境界を越えない。品詞で絞ったときは，f(c) も同じ品詞で数える。</p>
+      </details>
+    </div>
+
+    <div class="card" id="varcard">
+      <h2 id="var-h">異綴形（書字形基本形）</h2>
+      <table id="varforms"><tbody></tbody></table>
+      <div class="row" style="margin:10px 0 6px">
+        <span class="sub">内訳</span>
+        <div class="seg" id="var-seg">
+          <button data-v="by_band" class="on">時代区分</button>
+          <button data-v="by_author">作家</button>
+          <button data-v="by_work">作品</button>
+        </div>
+        <div class="seg" id="var-unit">
+          <button data-v="n" class="on">件数</button>
+          <button data-v="p">行ごとの割合</button>
+        </div>
+      </div>
+      <div class="scroll" style="max-height:46vh">
+        <table id="varmat" class="vm"><tbody></tbody></table></div>
+      <p class="sub note" id="varnote"></p>
+    </div>
+
+    <details class="card" id="vlist">
+      <summary class="h2">表記の揺れが大きい語彙素（コーパス全体）</summary>
+      <div class="row" style="margin-top:8px">
+        <label class="f">品詞 <select id="vpos"><option value="">すべて</option></select></label>
+        <label class="f">最小頻度 <input id="vminf" type="number" min="1" value="20"
+          style="width:70px"></label>
+        <label class="f">異綴形と数える最小回数 <input id="vminv" type="number" min="1"
+          value="2" style="width:60px"></label>
+        <label class="f">並べ方 <select id="vsort">
+          <option value="minor">主要形以外の割合（揺れの大きさ）</option>
+          <option value="types">異綴形の数</option>
+          <option value="freq">頻度</option></select></label>
+        <button class="ghost" id="vgo">一覧を出す</button>
+      </div>
+      <p class="sub note" id="vnote">語彙素ごとに書字形基本形を数える。
+        「異綴形と数える最小回数」未満の書字形は，誤解析や一回きりの表記であることが多いので
+        異綴形の数に入れない（頻度には入れる）。行を押すとその語彙素で検索する。</p>
+      <div class="scroll" style="max-height:60vh">
+        <table id="vtab"><tbody></tbody></table></div>
+    </details>
   </div>
 
   <div>
@@ -193,10 +298,6 @@ details.help code{background:#f3f2ec;padding:1px 5px;border-radius:4px}
       <p class="sub" id="bandnote"></p></div>
     <div class="card"><h2>一致した語形</h2>
       <table id="typetab"><tbody></tbody></table></div>
-    <div class="card"><h2>共起語（LogDice 順）</h2>
-      <table id="colltab"><tbody></tbody></table>
-      <p class="sub">LogDice は頻度の偏りの影響を受けにくい。MI は低頻度語を過大に評価するので，
-      固有名詞や誤解析が上位に来やすい。</p></div>
     <div class="card"><h2>作品ごとのヒット</h2>
       <div class="scroll" style="max-height:30vh">
         <table id="worktab"><tbody></tbody></table></div></div>
@@ -269,6 +370,20 @@ async function loadMeta() {
     const o = el('option', null, lab);
     o.value = String(w.work); wk.appendChild(o);
   });
+  const cs = $('collsort');
+  Object.entries(META.coll_measures || {logdice: 'LogDice'}).forEach(([k, lab]) => {
+    const o = el('option', null, lab); o.value = k; cs.appendChild(o);
+  });
+  cs.value = 'logdice';
+  buildPosTree();
+  (META.pos_tree || []).forEach(n => {
+    const o = el('option', null, n.pos); o.value = n.pos; $('vpos').appendChild(o);
+  });
+  if (!META.index_v2) {
+    $('varnote').textContent = '⚠ 異綴形を出すには索引を作り直すこと（この索引は版 1。'
+      + 'python3 scripts/15_kwic_index.py）。';
+    $('vgo').disabled = true;
+  }
   const nometa = (META.works || []).filter(w => !w.meta).length;
   const prov = $('prov');
   clear(prov);
@@ -297,8 +412,12 @@ function req(offset) {
     offset: offset || 0,
     sample: parseInt($('sample').value, 10) || 0,
     exclude_punct: $('nopunct').checked,
-    collocates: $('coll').checked ? 40 : 0,
+    collocates: $('coll').checked ? parseInt($('colln').value, 10) : 0,
     coll_window: parseInt($('collwin').value, 10),
+    coll_sort: $('collsort').value || 'logdice',
+    coll_min: parseInt($('collmin').value, 10) || 2,
+    coll_pos: posSelection(),
+    variants: true,
     bands: selected('bands').map(Number),
     authors: selected('authors'),
     styles: selected('styles'),
@@ -410,26 +529,8 @@ function render(res) {
     td.colSpan = 2; tr.appendChild(td); yt.appendChild(tr);
   }
 
-  // ---- 共起語
-  const ct = $('colltab').tBodies[0];
-  clear(ct);
-  if (res.collocates.length) {
-    const hd = document.createElement('tr');
-    ['語', '共起', '頻度', 'LogDice', 'MI', 't'].forEach((h, i) => {
-      const th = el('th', i ? 'num' : null, h); hd.appendChild(th);
-    });
-    ct.appendChild(hd);
-    res.collocates.forEach(c => {
-      const tr = document.createElement('tr');
-      tr.appendChild(el('td', null, c.form));
-      tr.appendChild(el('td', 'num', num(c.co)));
-      tr.appendChild(el('td', 'num', num(c.freq)));
-      tr.appendChild(el('td', 'num', c.logdice.toFixed(2)));
-      tr.appendChild(el('td', 'num', c.mi.toFixed(2)));
-      tr.appendChild(el('td', 'num', c.t.toFixed(2)));
-      ct.appendChild(tr);
-    });
-  }
+  renderColl(res);
+  renderVariants(res);
 
   // ---- 作品ごと
   const wt = $('worktab').tBodies[0];
@@ -447,6 +548,253 @@ function render(res) {
     tr.appendChild(el('td', 'num', w.per_10k.toFixed(2)));
     wt.appendChild(tr);
   });
+}
+
+// ---- 共起語 -------------------------------------------------------------
+const MEAS_COLS = ['logdice', 'mi', 'mi3', 't', 'g2', 'dp_fwd', 'dp_bwd'];
+const MEAS_SHORT = {logdice: 'LogDice', mi: 'MI', mi3: 'MI3', t: 't', g2: 'G²',
+                    dp_fwd: 'ΔP→', dp_bwd: 'ΔP←', co: '共起'};
+
+function renderColl(res) {
+  const ct = $('colltab').tBodies[0];
+  clear(ct);
+  const info = res.coll_info || {};
+  const cur = info.measure || $('collsort').value;
+  const names = (META && META.coll_measures) || {};
+  $('coll-h').textContent = $('coll').checked
+    ? `共起語（${names[cur] || cur} の順・前後 ${info.window || ''} 語）`
+    : '共起語（上の「共起語も出す」が外れている）';
+  if (!res.collocates.length) {
+    $('collnote').textContent = $('coll').checked
+      ? '条件に合う共起語が無い（最小共起頻度・品詞の絞り込みを見直すこと）。' : '';
+    return;
+  }
+  const hd = document.createElement('tr');
+  const head = [['form', '語'], ['co', '共起'], ['freq', '頻度'], ['exp', '期待値']]
+    .concat(MEAS_COLS.map(m => [m, MEAS_SHORT[m]]));
+  head.forEach(([k, lab], i) => {
+    const th = el('th', i ? 'num' : null, lab);
+    if (k === 'co' || MEAS_COLS.includes(k)) {
+      th.classList.add('sortable');
+      th.title = (names[k] || lab) + ' で上位を選び直す';
+      if (k === cur) th.classList.add('on');
+      th.addEventListener('click', () => { $('collsort').value = k; search(0); });
+    }
+    hd.appendChild(th);
+  });
+  ct.appendChild(hd);
+  res.collocates.forEach(c => {
+    const tr = document.createElement('tr');
+    tr.appendChild(el('td', null, c.form));
+    tr.appendChild(el('td', 'num' + (cur === 'co' ? ' on' : ''), num(c.co)));
+    tr.appendChild(el('td', 'num', num(c.freq)));
+    tr.appendChild(el('td', 'num', c.exp.toFixed(2)));
+    MEAS_COLS.forEach(m => {
+      const v = c[m];
+      const s = m.startsWith('dp') ? v.toFixed(4) : v.toFixed(2);
+      tr.appendChild(el('td', 'num' + (m === cur ? ' on' : ''), s));
+    });
+    ct.appendChild(tr);
+  });
+  const pos = (info.pos || []).length ? `共起語の品詞：${info.pos.join('・')}` : '共起語の品詞：すべて';
+  $('collnote').textContent =
+    `検索語 ${num(info.node)} 件の前後 ${info.window} 語（句読点を除き，文境界を越えない）。`
+    + `窓の延べ W = ${num(info.W)}／N = ${num(info.N)}（句読点を除く形態素数）。${pos}。`
+    + `共起 ${info.min_co} 回以上かつ頻度 3 以上の語から ${num(res.collocates.length)} 語。`
+    + '見出しの指標を押すと，その指標で上位を選び直す（並べ替えではなく選び直し）。';
+}
+
+// 品詞の木
+function buildPosTree() {
+  const box = $('postree');
+  clear(box);
+  const tree = (META && META.pos_tree) || [];
+  const total = tree.reduce((s, x) => s + x.tokens, 0) || 1;
+  tree.forEach(n => {
+    const d = el('div', 'p1');
+    const lab = el('label');
+    const cb = document.createElement('input');
+    cb.type = 'checkbox'; cb.checked = true; cb.dataset.p1 = n.pos;
+    lab.appendChild(cb);
+    lab.appendChild(el('b', null, n.pos));
+    lab.appendChild(el('span', 'n', (100 * n.tokens / total).toFixed(1) + '%'));
+    d.appendChild(lab);
+    const kids = [];
+    n.children.forEach(c => {
+      const l2 = el('label', 'p2');
+      const c2 = document.createElement('input');
+      c2.type = 'checkbox'; c2.checked = true; c2.dataset.p12 = c.pos;
+      l2.appendChild(c2);
+      l2.appendChild(el('span', null, c.label));
+      l2.appendChild(el('span', 'n', (100 * c.tokens / total).toFixed(2) + '%'));
+      d.appendChild(l2);
+      kids.push(c2);
+      c2.addEventListener('change', () => {
+        const on = kids.filter(k => k.checked).length;
+        cb.checked = on === kids.length; cb.indeterminate = on > 0 && on < kids.length;
+        posChanged();
+      });
+    });
+    cb.addEventListener('change', () => {
+      kids.forEach(k => { k.checked = cb.checked; });
+      cb.indeterminate = false;
+      posChanged();
+    });
+    box.appendChild(d);
+  });
+  if (!(META && META.index_v2)) {
+    box.appendChild(el('p', 'sub',
+      '⚠ この索引（版 1）は品詞の大分類しか持っていない。中分類で絞るには '
+      + 'python3 scripts/15_kwic_index.py で索引を作り直すこと。'));
+  }
+}
+// 選択 → 送る値（null は絞り込みなし）
+function posSelection() {
+  const box = $('postree');
+  const p1s = Array.from(box.querySelectorAll('input[data-p1]'));
+  if (!p1s.length) return null;
+  const out = [];
+  let all = true;
+  p1s.forEach(cb => {
+    const kids = Array.from(cb.closest('.p1').querySelectorAll('input[data-p12]'));
+    if (!kids.length) { if (cb.checked) out.push(cb.dataset.p1); else all = false; return; }
+    const on = kids.filter(k => k.checked);
+    if (on.length === kids.length) out.push(cb.dataset.p1);
+    else { all = false; on.forEach(k => out.push(k.dataset.p12)); }
+  });
+  if (all) return null;
+  return out.length ? out : ['（なし）'];
+}
+function posSummary() {
+  const s = posSelection();
+  $('possum').textContent = s === null ? 'すべて' : (s[0] === '（なし）' ? 'なし' : s.join('・'));
+}
+let POS_T = null;
+function posChanged() {
+  posSummary();
+  clearTimeout(POS_T);
+  POS_T = setTimeout(() => { if (LAST) search(0); }, 450);
+}
+function setPos(pred) {
+  $('postree').querySelectorAll('.p1').forEach(d => {
+    const cb = d.querySelector('input[data-p1]');
+    const kids = Array.from(d.querySelectorAll('input[data-p12]'));
+    if (!kids.length) { cb.checked = pred(cb.dataset.p1); cb.indeterminate = false; return; }
+    kids.forEach(k => { k.checked = pred(k.dataset.p12); });
+    const on = kids.filter(k => k.checked).length;
+    cb.checked = on === kids.length; cb.indeterminate = on > 0 && on < kids.length;
+  });
+  posChanged();
+}
+// 内容語（自立語）：普通名詞・固有名詞・自立の動詞・形容詞・形状詞，副詞
+const CONTENT = ['名詞-普通名詞', '名詞-固有名詞', '動詞-一般', '形容詞-一般',
+                 '形状詞-一般', '副詞'];
+
+// ---- 異綴形 ---------------------------------------------------------------
+let VAR_VIEW = 'by_band', VAR_UNIT = 'n';
+function renderVariants(res) {
+  const v = res.variants;
+  const ft = $('varforms').tBodies[0], mt = $('varmat').tBodies[0];
+  clear(ft); clear(mt);
+  if (!v) { $('varnote').textContent = ''; return; }
+  if (!v.available) { $('var-h').textContent = '異綴形（書字形基本形）';
+    $('varnote').textContent = '⚠ ' + v.reason; return; }
+  $('var-h').textContent = `異綴形（書字形基本形）— ${num(v.types)} 種・${num(v.total)} 件`;
+  const hd = document.createElement('tr');
+  ['書字形基本形', '件数', '割合', ''].forEach((h, i) => hd.appendChild(el('th', i ? 'num' : null, h)));
+  ft.appendChild(hd);
+  const mx = Math.max(...v.forms.map(f => f.share), 0.0001);
+  const rows = v.forms.slice();
+  if (v.other) rows.push({form: `（その他 ${v.other.types} 種）`, hits: v.other.hits, share: v.other.share});
+  rows.forEach(f => {
+    const tr = document.createElement('tr');
+    tr.appendChild(el('td', null, f.form));
+    tr.appendChild(el('td', 'num', num(f.hits)));
+    tr.appendChild(el('td', 'num', (100 * f.share).toFixed(1) + '%'));
+    const td = document.createElement('td');
+    const b = el('span', 'bar2'); b.style.width = Math.round(f.share / mx * 110) + 'px';
+    td.appendChild(b); tr.appendChild(td);
+    ft.appendChild(tr);
+  });
+  // 内訳の表
+  const cols = rows.map(f => f.form);
+  const h2 = document.createElement('tr');
+  h2.appendChild(el('th', null, {by_band: '時代区分', by_author: '作家', by_work: '作品'}[VAR_VIEW]));
+  if (VAR_VIEW === 'by_work') h2.appendChild(el('th', 'num', '初出'));
+  h2.appendChild(el('th', 'num', '計'));
+  cols.forEach(c => h2.appendChild(el('th', 'num', c)));
+  mt.appendChild(h2);
+  (v[VAR_VIEW] || []).forEach(r => {
+    const tr = document.createElement('tr');
+    const lab = el('td', 'lab', r.label); lab.title = r.label;
+    tr.appendChild(lab);
+    if (VAR_VIEW === 'by_work') tr.appendChild(el('td', 'num', r.year || ''));
+    tr.appendChild(el('td', 'num', num(r.total)));
+    r.counts.forEach(n => {
+      const s = VAR_UNIT === 'n' ? num(n) : (100 * n / r.total).toFixed(1) + '%';
+      const td = el('td', 'num', n ? s : '·');
+      td.title = `${num(n)} 件（行の ${(100 * n / r.total).toFixed(1)}%）`;
+      tr.appendChild(td);
+    });
+    mt.appendChild(tr);
+  });
+  $('varnote').textContent =
+    '書字形基本形は活用を基本形にまとめ，表記の違い（漢字か仮名か・どの漢字か・仮名遣い）を'
+    + '残す。したがって活用の違いは異綴形に数えない。⚠ UniDic の語彙素は，意味で書き分ける'
+    + '別字（伯父／叔父，指す／刺す）や読みの違う語（縁：えん／ふち）も1つにまとめるので，'
+    + 'ここに並ぶのは綴りの揺れだけではない。表記の違いには作家の選択だけでなく，'
+    + '底本・入力者の方針（新字新仮名への改め）も混ざる。作品ごとの内訳で確かめること。'
+    + (VAR_VIEW === 'by_band' ? '時代区分の比較は「行ごとの割合」で見る（区分ごとに件数が違う）。' : '');
+}
+
+// ---- 表記の揺れが大きい語彙素 --------------------------------------------
+async function loadVariantList() {
+  const qs = new URLSearchParams({
+    min_freq: $('vminf').value || '20', min_var: $('vminv').value || '2',
+    sort: $('vsort').value, pos: $('vpos').value, limit: '500'});
+  $('vgo').disabled = true;
+  try {
+    const r = await fetch('/api/variants?' + qs.toString());
+    const d = await r.json();
+    const tb = $('vtab').tBodies[0];
+    clear(tb);
+    if (d.error) { showErr(d.error); return; }
+    const hd = document.createElement('tr');
+    ['語彙素', '品詞', '頻度', '異綴形の数', '主要形以外', '書字形基本形（件数）']
+      .forEach((h, i) => hd.appendChild(el('th', i >= 2 && i <= 4 ? 'num' : null, h)));
+    tb.appendChild(hd);
+    d.rows.forEach(r => {
+      const tr = el('tr', 'go');
+      tr.appendChild(el('td', null, r.lemma));
+      tr.appendChild(el('td', 'sub', r.pos));
+      tr.appendChild(el('td', 'num', num(r.freq)));
+      tr.appendChild(el('td', 'num', num(r.types)));
+      tr.appendChild(el('td', 'num', (100 * r.minor_share).toFixed(1) + '%'));
+      tr.appendChild(el('td', null, r.forms.map(f => `${f.form} ${num(f.hits)}`).join('／')));
+      tr.title = 'この語彙素で検索する';
+      tr.addEventListener('click', () => {
+        const lem = r.lemma;
+        $('q').value = /[\s*?\[\]|/]/.test(lem) || /^(re:|L:|S:)/i.test(lem)
+          ? 're:^' + lem.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$' : lem;
+        STREAM = 'lemma';
+        Array.from($('stream-seg').children).forEach(x => x.classList.toggle('on', x.dataset.v === 'lemma'));
+        search(0);
+        window.scrollTo({top: 0, behavior: 'smooth'});
+      });
+      tb.appendChild(tr);
+    });
+    $('vnote').textContent =
+      `該当 ${num(d.total)} 語彙素（頻度 ${d.min_freq} 以上・${d.min_var} 回以上の書字形が`
+      + `${d.min_types} 種以上）のうち ${num(d.rows.length)} 件を表示。`
+      + '「主要形以外」＝最も多い書字形以外の割合。行を押すとその語彙素で検索する。'
+      + '⚠ UniDic の語彙素は意味で書き分ける別字（伯父／叔父）や読みの違う語（縁：えん／ふち）も'
+      + 'まとめるので，綴りの揺れだけが並ぶわけではない。書字形の違いには，作家の選択だけでなく'
+      + '底本・入力者の方針も混ざる。';
+  } catch (e) {
+    showErr('一覧を取得できない: ' + e);
+  } finally {
+    $('vgo').disabled = false;
+  }
 }
 
 // ---- テクストに戻る -----------------------------------------------------
@@ -566,6 +914,25 @@ Array.from($('stream-seg').children).forEach(b => {
 });
 ['context', 'sort', 'limit', 'collwin'].forEach(id => {
   $(id).addEventListener('change', () => { if (LAST) search(0); });
+});
+['collsort', 'colln'].forEach(id => {
+  $(id).addEventListener('change', () => { if (LAST) search(0); });
+});
+$('collmin').addEventListener('change', () => { if (LAST) search(0); });
+$('pos-all').addEventListener('click', () => setPos(() => true));
+$('pos-none').addEventListener('click', () => setPos(() => false));
+// 中分類の無い品詞（版 1 の索引・副詞など）は，大分類が内容語に入っていれば選ぶ
+$('pos-content').addEventListener('click', () => setPos(p => CONTENT.includes(p)
+  || (!p.includes('-') && CONTENT.some(c => c.split('-')[0] === p))));
+[['var-seg', v => { VAR_VIEW = v; }], ['var-unit', v => { VAR_UNIT = v; }]].forEach(([id, f]) => {
+  Array.from($(id).children).forEach(b => b.addEventListener('click', () => {
+    Array.from($(id).children).forEach(x => x.classList.remove('on'));
+    b.classList.add('on'); f(b.dataset.v); if (LAST) renderVariants(LAST);
+  }));
+});
+$('vgo').addEventListener('click', loadVariantList);
+$('vlist').addEventListener('toggle', () => {
+  if ($('vlist').open && !$('vtab').tBodies[0].children.length && META && META.index_v2) loadVariantList();
 });
 ['nopunct', 'coll'].forEach(id => {
   $(id).addEventListener('change', () => { if (LAST) search(0); });

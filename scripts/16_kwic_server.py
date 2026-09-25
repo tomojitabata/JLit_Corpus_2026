@@ -108,6 +108,16 @@ class Handler(BaseHTTPRequestHandler):
                     before=min(400, int(q.get('before', ['120'])[0])),
                     after=min(400, int(q.get('after', ['120'])[0])),
                     span=max(1, int(q.get('span', ['1'])[0]))))
+            elif u.path == '/api/variants':
+                # コーパス全体で表記の揺れが大きい語彙素の一覧
+                pos = [p for p in q.get('pos', [''])[0].split(',') if p]
+                self._json(self.kw.variant_table(
+                    min_freq=max(1, int(q.get('min_freq', ['20'])[0])),
+                    min_var=max(1, int(q.get('min_var', ['2'])[0])),
+                    min_types=max(2, int(q.get('min_types', ['2'])[0])),
+                    pos=pos or None,
+                    sort=q.get('sort', ['minor'])[0],
+                    limit=max(1, min(2000, int(q.get('limit', ['300'])[0])))))
             elif u.path == '/api/export.csv':
                 res = self._search_from(json.loads(q.get('q', ['{}'])[0]))
                 import io
@@ -178,7 +188,11 @@ class Handler(BaseHTTPRequestHandler):
             sample=max(0, int(req.get('sample', 0))),
             seed=int(req.get('seed', 20260920)),
             collocates=max(0, min(200, int(req.get('collocates', 0)))),
-            coll_window=max(1, min(20, int(req.get('coll_window', 4)))))
+            coll_window=max(1, min(20, int(req.get('coll_window', 4)))),
+            coll_sort=str(req.get('coll_sort', 'logdice')),
+            coll_pos=[str(x) for x in (req.get('coll_pos') or [])] or None,
+            coll_min=max(1, min(1000, int(req.get('coll_min', 2)))),
+            variants=bool(req.get('variants', True)))
 
 
 # ---------------------------------------------------------------------------
@@ -288,6 +302,9 @@ def main() -> int:
           f'／作成 {p.get("built_at")}')
     print(f'       {p.get("works")} 作品・{p.get("tokens"):,} 形態素・'
           f'表層形 {p.get("types_surface"):,} 種・語彙素 {p.get("types_lemma"):,} 種')
+    if not kw.v2:
+        print('[warn] 索引が古い（版 1）。異綴形と，共起語の品詞の中分類による絞り込みは'
+              '使えない。\n       python3 scripts/15_kwic_index.py で作り直すこと。')
     if p.get('unmatched_meta'):
         print(f'[warn] メタデータに突合できない作品 '
               f'{len(p["unmatched_meta"])} 点（出典が「メタデータ無し」と出る）')

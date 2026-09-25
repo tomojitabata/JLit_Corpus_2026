@@ -60,9 +60,24 @@ from pathlib import Path
 
 import numpy as np
 
-INDEX_VERSION = 1
+INDEX_VERSION = 2
+# 版 2 で加えたもの：書字形基本形（orthBase。異綴形の集計に使う）と
+# 品詞の中分類（pos1-pos2。共起語の品詞による絞り込みに使う）。
+# 版 1 の索引も読めるが，この2つを使う機能は「索引を作り直すこと」と言って止まる。
 EOS = 'EOS'
 PUNCT_POS = {'補助記号', '空白'}
+
+# 共起語の指標（名前 → 画面の表示名）。並べ替えの基準に選べる
+COLL_MEASURES = {
+    'logdice': 'LogDice',          # Rychlý (2008)。14 + log2(2·O11/(f(node)+f(c)))
+    'mi': 'MI',                    # log2(O11/E11)。低頻度語を過大に評価する
+    'mi3': 'MI3',                  # log2(O11³/E11)。MI の低頻度語への偏りを補正
+    't': 't',                      # (O11−E11)/√O11。高頻度の語が上に来る
+    'g2': 'G²',                    # 対数尤度比。反発（O11<E11）は負にする
+    'dp_fwd': 'ΔP（検索語→共起語）',  # Gries (2013)。O11/W − O21/(N−W)
+    'dp_bwd': 'ΔP（共起語→検索語）',  # O11/f(c) − O12/(N−f(c))
+    'co': '共起頻度',
+}
 
 # 時代区分の切れ目（YEAR_EDGES と同じ。図と表で同じ区分を使う）
 YEAR_EDGES = [1900, 1912, 1926, 1945]
@@ -142,6 +157,8 @@ def build_index(tsv_dir: str | os.PathLike, meta_path: str | os.PathLike,
     p_ids: dict[str, int] = {}
     c_ids: dict[str, int] = {}
     g_ids: dict[str, int] = {}
+    o_ids: dict[str, int] = {}
+    q_ids: dict[str, int] = {}
 
     def sid(d: dict, k: str) -> int:
         v = d.get(k)
@@ -156,6 +173,8 @@ def build_index(tsv_dir: str | os.PathLike, meta_path: str | os.PathLike,
     gos: list[int] = []
     wrk: list[int] = []
     snt: list[int] = []
+    orth: list[int] = []
+    p12: list[int] = []
 
     works: list[dict] = []
     dict_names: Counter = Counter()
@@ -191,6 +210,12 @@ def build_index(tsv_dir: str | os.PathLike, meta_path: str | os.PathLike,
                 lem.append(sid(l_ids, c[2] or c[1]))
                 pos.append(sid(p_ids, c[6]))
                 cfm.append(sid(c_ids, c[11]))
+                # 書字形基本形。活用は基本形にまとめ，表記の違いは残す
+                # （言う／云う／いう）。未知語などで空なら表層形を使う
+                orth.append(sid(o_ids, c[4] or c[1]))
+                # 品詞の中分類。UniDic は無い段を '*' や空で埋める
+                p2 = c[7] if c[7] not in ('', '*') else ''
+                p12.append(sid(q_ids, f'{c[6]}-{p2}' if p2 else c[6]))
                 gos.append(sid(g_ids, c[12]))
                 wrk.append(wi)
                 snt.append(sent_no)
@@ -250,7 +275,8 @@ def build_index(tsv_dir: str | os.PathLike, meta_path: str | os.PathLike,
     for name, dtype, seq in (('surf', np.int32, surf), ('lem', np.int32, lem),
                              ('pos', np.int16, pos), ('cfm', np.int16, cfm),
                              ('gos', np.int8, gos), ('work', np.int16, wrk),
-                             ('sent', np.int32, snt)):
+                             ('sent', np.int32, snt), ('orth', np.int32, orth),
+                             ('pos12', np.int16, p12)):
         np.save(arr_dir / f'{name}.npy', np.asarray(seq, dtype=dtype))
 
     def vocab_list(d: dict) -> list[str]:
@@ -269,6 +295,7 @@ def build_index(tsv_dir: str | os.PathLike, meta_path: str | os.PathLike,
         'dictionaries_seen': dict(dict_names),
         'works': len(works), 'tokens': n,
         'types_surface': len(s_ids), 'types_lemma': len(l_ids),
+        'types_orth': len(o_ids),
         'sentences': sent_no,
         'unmatched_meta': unmatched,
     }
@@ -279,6 +306,7 @@ def build_index(tsv_dir: str | os.PathLike, meta_path: str | os.PathLike,
             'surf': vocab_list(s_ids), 'lem': vocab_list(l_ids),
             'pos': vocab_list(p_ids), 'cfm': vocab_list(c_ids),
             'gos': vocab_list(g_ids),
+            'orth': vocab_list(o_ids), 'pos12': vocab_list(q_ids),
         },
         'band_labels': BAND_LABELS,
     }
@@ -336,9 +364,14 @@ class KwicIndex:
         with open(jp, encoding='utf-8') as fh:
             meta = json.load(fh)
         keys = ('surf', 'lem', 'pos', 'cfm', 'gos', 'work', 'sent')
+        # 版 2 で加えた配列。版 1 の索引には無い
+        opt = ('orth', 'pos12')
         if arr_dir.is_dir():
             # **mmap で開く。** 読み込みが瞬時に終わり，使ったページだけが
             # メモリに載る（1000万形態素でも起動を待たない）。
+            keys = keys + tuple(k for k in opt
+                                if (arr_dir / f'{k}.npy').exists()
+                                and k in meta['vocab'])
             z = {k: np.load(arr_dir / f'{k}.npy', mmap_mode='r') for k in keys}
         else:
             # 古い索引（圧縮 .npz）。読めるが起動が遅い
@@ -350,6 +383,11 @@ class KwicIndex:
         self.works = meta['works']
         self.band_labels = meta['band_labels']
         self.v = {k: meta['vocab'][k] for k in ('surf', 'lem', 'pos', 'cfm', 'gos')}
+        for k in opt:
+            if k in keys:
+                self.v[k] = meta['vocab'][k]
+        # 異綴形と品詞の中分類が使えるか（版 2 以降の索引）
+        self.v2 = all(k in keys for k in opt)
         self.a = {k: z[k] for k in keys}
         self.n = len(self.a['surf'])
         # 語彙素・表層形の逆引き（語形 → 番号）
@@ -360,6 +398,8 @@ class KwicIndex:
             [i for p, i in self._pos_of.items() if p in PUNCT_POS], dtype=np.int16)
         self._freq: dict[str, np.ndarray] = {}
         self._rank: dict[str, np.ndarray] = {}
+        self._cfreq: dict[tuple, tuple] = {}
+        self._vtab: dict[tuple, dict] = {}
 
     # -- 補助 --------------------------------------------------------------
     def stream_key(self, stream: str) -> str:
@@ -470,12 +510,20 @@ class KwicIndex:
                genres: list[str] | None = None, exclude_punct: bool = False,
                sort: str = 'position', limit: int = 200, offset: int = 0,
                sample: int = 0, seed: int = 20260920,
-               collocates: int = 0, coll_window: int = 4) -> dict:
+               collocates: int = 0, coll_window: int = 4,
+               coll_sort: str = 'logdice', coll_pos: list[str] | None = None,
+               coll_min: int = 2, variants: bool = True) -> dict:
         """検索して用例と集計を返す。
 
         ``context`` は前後の語数。``sort`` は
         ``position`` / ``left1`` / ``left2`` / ``right1`` / ``right2`` /
         ``year`` / ``author`` / ``title`` / ``random``。
+
+        共起語は ``coll_sort`` の指標で上位 ``collocates`` 語を選ぶ
+        （``COLL_MEASURES`` の名前）。``coll_pos`` は共起語の品詞
+        （``名詞`` のような大分類か ``名詞-普通名詞`` のような中分類の並び）。
+        ``variants`` が真なら，一致した語の**異綴形**（書字形基本形）と
+        その内訳を返す（版 2 の索引が要る）。
         """
         import time
         t0 = time.time()
@@ -534,8 +582,14 @@ class KwicIndex:
         bcnt = np.bincount(bmap[wid] + 1, minlength=len(self.band_labels) + 1)
         by_band = Counter({int(i) - 1: int(c) for i, c in enumerate(bcnt) if c})
         types, types_capped = self._type_tally(hits, span, base)
-        coll = (self._collocates(hits, span, base, coll_window, collocates)
-                if collocates else [])
+        coll_info = {}
+        if collocates:
+            coll, coll_info = self._collocates(
+                hits, span, base, coll_window, collocates,
+                measure=coll_sort, pos_sel=coll_pos, min_co=coll_min)
+        else:
+            coll = []
+        var = self._variants(hits, span) if variants else None
 
         order = self._order(hits, span, base, sort, rng)
         shown = order[offset:offset + limit] if limit else order
@@ -557,7 +611,8 @@ class KwicIndex:
                         for k, v in by_work.most_common()],
             'by_band': self._band_table(by_band),
             'types': types, 'types_capped': types_capped,
-            'collocates': coll,
+            'collocates': coll, 'coll_info': coll_info,
+            'variants': var,
             'per_million': round(total / max(1, self.n) * 1e6, 2),
             'elapsed_ms': int((time.time() - t0) * 1000),
             'provenance': self.prov,
@@ -707,58 +762,343 @@ class KwicIndex:
                         'per_10k': round(h / t * 1e4, 3) if t else 0.0})
         return out
 
+    # -- 品詞の選択 -------------------------------------------------------
+    def pos_lut(self, sel: list[str] | None) -> tuple[str, np.ndarray] | None:
+        """品詞の選択 → (配列の名前, 真偽表)。``None`` は絞り込みなし。
+
+        選択は大分類（``名詞``）と中分類（``名詞-普通名詞``）を混ぜてよい。
+        大分類を選ぶとその下の中分類すべてに当たる。
+        """
+        if not sel:
+            return None
+        sel = [s for s in sel if s]
+        if not sel:
+            return None
+        if self.v2:
+            key, vocab = 'pos12', self.v['pos12']
+        else:
+            if any('-' in s for s in sel):
+                raise QueryError(
+                    '品詞の中分類で絞るには索引を作り直すこと'
+                    '（この索引は版 1。python3 scripts/15_kwic_index.py）。')
+            key, vocab = 'pos', self.v['pos']
+        want = set(sel)
+        lut = np.zeros(len(vocab) + 1, dtype=bool)
+        for i, p in enumerate(vocab):
+            if p in want or p.split('-', 1)[0] in want:
+                lut[i] = True
+        if not lut.any():
+            raise QueryError(f'品詞「{"，".join(sel)}」は索引に無い。')
+        return key, lut
+
+    def _content_mask(self, pos_sel) -> tuple[np.ndarray, str]:
+        """句読点でなく，選んだ品詞に当たる位置の真偽配列（とその鍵）。"""
+        punct = np.zeros(len(self.v['pos']) + 1, dtype=bool)
+        if self._punct.size:
+            punct[np.asarray(self._punct, dtype=np.int64)] = True
+        m = ~punct[np.asarray(self.a['pos'], dtype=np.int64)]
+        pl = self.pos_lut(pos_sel)
+        tag = ''
+        if pl:
+            key, lut = pl
+            m &= lut[np.asarray(self.a[key], dtype=np.int64)]
+            tag = '|'.join(sorted(pos_sel))
+        return m, tag
+
+    def _coll_freq(self, base: str, pos_sel) -> tuple[np.ndarray, float]:
+        """共起語の側の頻度 f(c) と母数 N。**品詞で絞るなら頻度も同じ品詞で数える。**
+
+        名詞だけを共起語に選んだのに，頻度に動詞としての出現まで入れると
+        期待値がずれる（同じ語彙素が複数の品詞をもつことがある）。
+        母数 N は句読点を除いた形態素数（ウィンドウも句読点を数えない）。
+        """
+        ck = (base, '|'.join(sorted(pos_sel or [])))
+        if ck not in self._cfreq:
+            m, _ = self._content_mask(pos_sel)
+            arr = np.asarray(self.a[base], dtype=np.int64)
+            f = np.bincount(arr[m], minlength=len(self.v[base])).astype(np.float64)
+            if pos_sel:
+                allm, _ = self._content_mask(None)
+                n = float(allm.sum())
+            else:
+                n = float(m.sum())
+            self._cfreq[ck] = (f, n)
+        return self._cfreq[ck]
+
     # -- 共起語 -----------------------------------------------------------
     def _collocates(self, hits: np.ndarray, span: int, base: str,
-                    window: int, topn: int) -> list[dict]:
-        """ウィンドウ内の共起語を LogDice・MI・t で並べる。
+                    window: int, topn: int, *, measure: str = 'logdice',
+                    pos_sel: list[str] | None = None,
+                    min_co: int = 2) -> tuple[list[dict], dict]:
+        """ウィンドウ内の共起語を数え，``measure`` の指標で上位を選ぶ。
 
-        LogDice（Rychlý 2008）を既定にする。**MI は低頻度語を過大に評価する**ので，
-        文学コーパスでは固有名詞や誤解析が上位に来やすい。
+        2×2 の分割表で数える（Evert 2008 の数え方）。
+
+        ==========  =================  ======================
+                    共起語 c           c 以外
+        ==========  =================  ======================
+        窓の中      O11                O12 = W − O11
+        窓の外      O21 = f(c) − O11   O22
+        ==========  =================  ======================
+
+        W はウィンドウに入った形態素の延べ数（句読点・文境界の外は数えない），
+        N は句読点を除いた全形態素数，期待値 E11 = W·f(c)/N。
+        指標は ``COLL_MEASURES`` を見ること。
         """
+        if measure not in COLL_MEASURES:
+            raise QueryError(f'共起語の指標の指定が違う: {measure}'
+                             f'（{"，".join(COLL_MEASURES)}）')
+        info = {'measure': measure, 'window': int(window),
+                'pos': list(pos_sel or []), 'min_co': int(min_co)}
         if hits.size == 0:
-            return []
+            return [], info
         arr = self.a[base]
         sent = self.a['sent']
-        f_all = self.freq(base).astype(np.float64)
-        N = float(self.n)
-        f_node = float(hits.size)
+        f_c_all, N = self._coll_freq(base, pos_sel)
         V = len(self.v[base])
+        punct_lut = np.zeros(len(self.v['pos']) + 1, dtype=bool)
+        if self._punct.size:
+            punct_lut[np.asarray(self._punct, dtype=np.int64)] = True
+        pl = self.pos_lut(pos_sel)
         # ⚠ **ウィンドウの中を Python の二重ループで回さない。** 何十万件も当たる式で
         # 数秒かかる。ずらし幅ごとに一括で拾って ``bincount`` で数える
         # （結果は同じ）。
         co = np.zeros(V, dtype=np.int64)
+        W = 0
         s0 = np.asarray(sent[hits])
         offs = ([-k for k in range(1, window + 1)]
                 + [span + k for k in range(window)])
-        punct_lut = np.zeros(len(self.v['pos']) + 1, dtype=bool)
-        if self._punct.size:
-            punct_lut[np.asarray(self._punct, dtype=np.int64)] = True
         for o in offs:
             j = hits + o
             ok = (j >= 0) & (j < self.n)
             jj = np.clip(j, 0, self.n - 1)
             ok &= np.asarray(sent[jj]) == s0          # 文境界を越えない
             ok &= ~punct_lut[np.asarray(self.a['pos'][jj], dtype=np.int64)]
+            W += int(ok.sum())                        # 窓の大きさは品詞で絞る前に数える
+            if pl:
+                key, lut = pl
+                ok &= lut[np.asarray(self.a[key][jj], dtype=np.int64)]
             if ok.any():
                 co += np.bincount(np.asarray(arr[jj[ok]], dtype=np.int64),
                                   minlength=V)
+        f_node = float(hits.size)
+        info.update({'W': W, 'N': int(N), 'node': int(f_node)})
+        idx = np.flatnonzero((co >= max(1, min_co)) & (f_c_all >= 3))
+        if idx.size == 0 or W == 0:
+            return [], info
+        o11 = co[idx].astype(np.float64)
+        fc = f_c_all[idx]
+        Wf = float(W)
+        o12 = Wf - o11
+        o21 = fc - o11
+        o22 = N - Wf - o21
+        e11 = Wf * fc / N
+        e12 = Wf * (N - fc) / N
+        e21 = (N - Wf) * fc / N
+        e22 = (N - Wf) * (N - fc) / N
+
+        def xlx(o, e):
+            with np.errstate(divide='ignore', invalid='ignore'):
+                return np.where(o > 0, o * np.log(o / e), 0.0)
+        g2 = 2 * (xlx(o11, e11) + xlx(o12, e12) + xlx(o21, e21) + xlx(o22, e22))
+        g2 = np.where(o11 < e11, -g2, g2)             # 反発（期待より少ない）は負
+        M = {
+            'co': o11,
+            'logdice': 14 + np.log2(2 * o11 / (f_node + fc)),
+            'mi': np.log2(o11 / e11),
+            'mi3': np.log2(o11 ** 3 / e11),
+            't': (o11 - e11) / np.sqrt(o11),
+            'g2': g2,
+            'dp_fwd': o11 / Wf - o21 / (N - Wf),
+            'dp_bwd': o11 / fc - o12 / (N - fc),
+        }
+        key = M[measure]
+        order = np.lexsort((-o11, -key))[:topn]       # 同点は共起頻度の多い順
         out = []
-        win = 2.0 * window
-        idx = np.flatnonzero(co >= 2)
-        for tid in idx:
-            f_co = float(co[tid])
-            f_c = float(f_all[tid])
-            if f_c < 3:
+        for k in order:
+            tid = int(idx[k])
+            row = {'form': self.v[base][tid], 'co': int(o11[k]),
+                   'freq': int(fc[k]), 'exp': round(float(e11[k]), 3)}
+            for m, v in M.items():
+                if m == 'co':
+                    continue
+                d = 4 if m.startswith('dp') else 2
+                row[m] = round(float(v[k]), d)
+            out.append(row)
+        return out, info
+
+    # -- 異綴形（書字形基本形）---------------------------------------------
+    def _band_of_work(self) -> np.ndarray:
+        """作品番号 → 時代区分の行番号（0..区分数-1，不明は区分数）。"""
+        nb = len(self.band_labels)
+        return np.asarray([w['band'] if 0 <= w['band'] < nb else nb
+                           for w in self.works], dtype=np.int64)
+
+    def _variants(self, hits: np.ndarray, span: int,
+                  top: int = 12) -> dict | None:
+        """一致した語の**異綴形**（書字形基本形）と，時代区分・作家・作品ごとの内訳。
+
+        書字形基本形（orthBase）は活用を基本形にまとめ，表記の違い（漢字か仮名か・
+        どの漢字か・仮名遣い）を残す。どう残るかは辞書による（歴史的仮名遣いの
+        「云つた」を 云ふ とする辞書も 云う とする辞書もある）。したがって活用の
+        違いは異綴形として数えない。連なりのときは各語の書字形基本形を並べて1つとする。
+
+        ⚠ UniDic の語彙素は，意味で書き分ける別字（伯父／叔父，指す／刺す）や
+        読みの違う語（縁：えん／ふち）も1つにまとめる。ここに並ぶのは綴りの
+        揺れだけではない。
+        上位 ``top`` 種より後は「その他」にまとめ，**まとめたことを返す**。
+        """
+        if not self.v2:
+            return {'available': False,
+                    'reason': '異綴形を出すには索引を作り直すこと（この索引は版 1。'
+                              'python3 scripts/15_kwic_index.py）。'}
+        if hits.size == 0:
+            return {'available': True, 'total': 0, 'forms': [], 'other': None,
+                    'by_band': [], 'by_author': [], 'by_work': []}
+        V = len(self.v['orth'])
+        arr = self.a['orth']
+        codes = np.zeros(hits.size, dtype=np.int64)
+        big = V ** span >= (1 << 62)
+        if big:
+            # 長すぎる連なり：文字列で数える（まれなので遅くてよい）
+            strs = [' '.join(self.v['orth'][int(arr[h + k])] for k in range(span))
+                    for h in hits]
+            uniq, inv = np.unique(np.asarray(strs, dtype=object), return_inverse=True)
+            names = [str(u) for u in uniq]
+        else:
+            for k in range(span):
+                codes = codes * V + np.asarray(arr[hits + k], dtype=np.int64)
+            uniq, inv = np.unique(codes, return_inverse=True)
+
+            def name(c):
+                parts = []
+                c = int(c)
+                for _ in range(span):
+                    parts.append(self.v['orth'][c % V])
+                    c //= V
+                return ' '.join(reversed(parts))
+            names = [name(c) for c in uniq]
+        cnt = np.bincount(inv, minlength=len(names))
+        order = np.argsort(-cnt, kind='stable')
+        keep = order[:top]
+        col = np.full(len(names), len(keep), dtype=np.int64)   # その他＝最後の列
+        col[keep] = np.arange(len(keep))
+        c = col[inv]
+        ncol = len(keep) + (1 if len(names) > top else 0)
+        total = int(hits.size)
+        forms = [{'form': names[i], 'hits': int(cnt[i]),
+                  'share': round(int(cnt[i]) / total, 4)} for i in keep]
+        other = None
+        if len(names) > top:
+            oh = int(cnt[order[top:]].sum())
+            other = {'types': int(len(names) - top), 'hits': oh,
+                     'share': round(oh / total, 4)}
+
+        wid = np.asarray(self.a['work'][hits], dtype=np.int64)
+
+        def table(group: np.ndarray, labels: list[str], extra=None) -> list[dict]:
+            G = len(labels)
+            m = np.bincount(group * ncol + c, minlength=G * ncol).reshape(G, ncol)
+            rows = []
+            for g in range(G):
+                tot = int(m[g].sum())
+                if not tot:
+                    continue
+                r = {'label': labels[g], 'total': tot,
+                     'counts': [int(x) for x in m[g]]}
+                if extra:
+                    r.update(extra(g))
+                rows.append(r)
+            return rows
+
+        nb = len(self.band_labels)
+        band_rows = table(self._band_of_work()[wid],
+                          list(self.band_labels) + ['初出年不明'])
+        authors = sorted({w['author'] or '（メタデータ無し）' for w in self.works})
+        aidx = {a: i for i, a in enumerate(authors)}
+        amap = np.asarray([aidx[w['author'] or '（メタデータ無し）']
+                           for w in self.works], dtype=np.int64)
+        au_rows = sorted(table(amap[wid], authors), key=lambda r: -r['total'])
+        wlab = [f"{w['author'] or '（メタデータ無し）'}『{w['title'] or w['stem']}』"
+                for w in self.works]
+        wk_rows = sorted(table(wid, wlab, lambda g: {
+            'year': self.works[g]['year'],
+            'band': self.works[g]['band']}), key=lambda r: -r['total'])
+        return {'available': True, 'total': total, 'forms': forms, 'other': other,
+                'types': int(len(names)),
+                'by_band': band_rows, 'by_author': au_rows, 'by_work': wk_rows,
+                'n_bands': nb}
+
+    def variant_table(self, *, min_freq: int = 20, min_var: int = 2,
+                      min_types: int = 2, pos: list[str] | None = None,
+                      sort: str = 'minor', limit: int = 300) -> dict:
+        """**コーパス全体で表記の揺れが大きい語彙素**の一覧。
+
+        語彙素ごとに書字形基本形を数える。``min_var`` 回未満の書字形は
+        誤解析や一回きりの表記であることが多いので，異綴形として数えない
+        （頻度には含める）。並べ方 ``sort`` は
+
+          ``minor``  主要形以外の割合（揺れの大きさ）の大きい順
+          ``types``  異綴形の数の多い順
+          ``freq``   頻度の高い順
+        """
+        if not self.v2:
+            raise QueryError('異綴形の一覧には索引を作り直すこと（この索引は版 1。'
+                             'python3 scripts/15_kwic_index.py）。')
+        if sort not in ('minor', 'types', 'freq'):
+            raise QueryError(f'並べ方の指定が違う: {sort}（minor・types・freq）')
+        ck = '|'.join(sorted(pos or []))
+        if ck not in self._vtab:
+            m, _ = self._content_mask(pos)
+            lem = np.asarray(self.a['lem'], dtype=np.int64)[m]
+            orth = np.asarray(self.a['orth'], dtype=np.int64)[m]
+            Vo = len(self.v['orth'])
+            u, cnt = np.unique(lem * Vo + orth, return_counts=True)
+            L, O = u // Vo, u % Vo
+            # 語彙素ごとの品詞（最も多いもの）
+            P = len(self.v['pos'])
+            pos_arr = np.asarray(self.a['pos'], dtype=np.int64)[m]
+            up, pc = np.unique(lem * P + pos_arr, return_counts=True)
+            main_pos = {}
+            for code, n_ in zip(up.tolist(), pc.tolist()):
+                li, pi = divmod(code, P)
+                if n_ > main_pos.get(li, (0, 0))[0]:
+                    main_pos[li] = (n_, pi)
+            self._vtab[ck] = {'L': L, 'O': O, 'cnt': cnt, 'main_pos': main_pos}
+        d = self._vtab[ck]
+        L, O, cnt = d['L'], d['O'], d['cnt']
+        # 語彙素ごとの区切り（u は語彙素の順に並んでいる）
+        bounds = np.flatnonzero(np.diff(L)) + 1
+        starts = np.concatenate(([0], bounds))
+        ends = np.concatenate((bounds, [L.size]))
+        tot = np.add.reduceat(cnt, starts)
+        good = tot >= min_freq
+        rows = []
+        for s, e, T in zip(starts[good], ends[good], tot[good]):
+            c = cnt[s:e]
+            valid = c >= min_var
+            if int(valid.sum()) < min_types:
                 continue
-            exp = f_node * f_c * win / N
-            mi = float(np.log2(f_co / exp)) if exp > 0 else 0.0
-            t = (f_co - exp) / np.sqrt(f_co)
-            dice = 14 + float(np.log2(2 * f_co / (f_node + f_c)))
-            out.append({'form': self.v[base][int(tid)], 'co': int(f_co),
-                        'freq': int(f_c), 'logdice': round(dice, 2),
-                        'mi': round(mi, 2), 't': round(float(t), 2)})
-        out.sort(key=lambda r: -r['logdice'])
-        return out[:topn]
+            o = O[s:e]
+            order = np.argsort(-c, kind='stable')
+            main = int(c[order[0]])
+            li = int(L[s])
+            rows.append({
+                'lemma': self.v['lem'][li],
+                'pos': self.v['pos'][d['main_pos'].get(li, (0, 0))[1]],
+                'freq': int(T), 'types': int(valid.sum()),
+                'main': self.v['orth'][int(o[order[0]])],
+                'minor_share': round(1 - main / int(T), 4),
+                'forms': [{'form': self.v['orth'][int(o[i])], 'hits': int(c[i])}
+                          for i in order if c[i] >= min_var][:8],
+            })
+        key = {'minor': lambda r: (-r['minor_share'], -r['freq']),
+               'types': lambda r: (-r['types'], -r['minor_share'], -r['freq']),
+               'freq': lambda r: (-r['freq'], -r['minor_share'])}[sort]
+        rows.sort(key=key)
+        return {'rows': rows[:limit], 'total': len(rows), 'min_freq': min_freq,
+                'min_var': min_var, 'min_types': min_types,
+                'pos': list(pos or []), 'sort': sort}
 
     # -- 広い文脈（テクストに戻る）----------------------------------------
     def passage(self, pos_i: int, *, before: int = 120, after: int = 120,
@@ -797,6 +1137,27 @@ class KwicIndex:
             'in_work': int(i - w['start']), 'work_tokens': w['tokens'],
         }
 
+    # -- 品詞の木（共起語の絞り込みの選択肢）-----------------------------
+    def pos_tree(self) -> list[dict]:
+        """大分類 → 中分類の木と延べ数。句読点は入れない。"""
+        key = 'pos12' if self.v2 else 'pos'
+        cnt = np.bincount(np.asarray(self.a[key], dtype=np.int64),
+                          minlength=len(self.v[key]))
+        tree: dict[str, dict] = {}
+        for i, p in enumerate(self.v[key]):
+            p1, _, p2 = p.partition('-')
+            if not p1 or p1 in PUNCT_POS or not cnt[i]:
+                continue
+            node = tree.setdefault(p1, {'pos': p1, 'tokens': 0, 'children': []})
+            node['tokens'] += int(cnt[i])
+            if p2:
+                node['children'].append({'pos': p, 'label': p2,
+                                         'tokens': int(cnt[i])})
+        out = sorted(tree.values(), key=lambda x: -x['tokens'])
+        for x in out:
+            x['children'].sort(key=lambda c: -c['tokens'])
+        return out
+
     # -- 絞り込みの選択肢 --------------------------------------------------
     def facets(self) -> dict:
         authors = Counter(w['author'] or '（メタデータ無し）' for w in self.works)
@@ -819,6 +1180,9 @@ class KwicIndex:
                        'band': w['band'], 'tokens': w['tokens'],
                        'meta': w['meta']} for w in self.works],
             'pos': sorted(p for p in self.v['pos'] if p),
+            'pos_tree': self.pos_tree(),
+            'coll_measures': COLL_MEASURES,
+            'index_v2': self.v2,
             'band_labels': self.band_labels,
             'provenance': self.prov,
         }

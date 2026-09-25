@@ -425,6 +425,8 @@ Antoniak & Mimno (2018) の議論を必ず扱う。
 - Craig, H. & Kinney, A. F., eds. (2009) *Shakespeare, Computers, and the Mystery of Authorship*. Cambridge University Press.
 - Dubossarsky, H. et al. (2017) Outta control: laws of semantic change and inherent biases in word representation models. *EMNLP*.
 - Eder, M., Rybicki, J. & Kestemont, M. (2016) Stylometry with R: a package for computational text analysis. *The R Journal* 8(1): 107–121.
+- Evert, S. (2008) Corpora and collocations. In A. Lüdeling & M. Kytö (eds), *Corpus Linguistics: An International Handbook*, Vol. 2, 1212–1248. Mouton de Gruyter.
+- Gries, S. Th. (2013) 50-something years of work on collocations: what is or should be next …. *International Journal of Corpus Linguistics* 18(1): 137–165.
 - Hamilton, W., Leskovec, J. & Jurafsky, D. (2016) Diachronic word embeddings reveal statistical laws of semantic change. *ACL*.
 - Hoover, D. L. (2004a) Testing Burrows's Delta. *Literary and Linguistic Computing* 19(4): 453–475.
 - Hoover, D. L. (2004b) Delta prime? *Literary and Linguistic Computing* 19(4): 477–495.
@@ -435,6 +437,7 @@ Antoniak & Mimno (2018) の議論を必ず扱う。
 - Lin, J. (1991) Divergence measures based on the Shannon entropy. *IEEE Transactions on Information Theory* 37(1): 145–151.
 - 前川喜久雄 編 (2013)『コーパス入門』（講座日本語コーパス1）朝倉書店
 - Prokić, J., Çöltekin, Ç. & Nerbonne, J. (2012) Detecting shibboleths. *Proceedings of the EACL 2012 Joint Workshop of LINGVIS & UNCLH*.
+- Rychlý, P. (2008) A lexicographer-friendly association score. *Proceedings of Recent Advances in Slavonic Natural Language Processing (RASLAN 2008)*: 6–9.
 - Schöch, C., Schlör, D., Zehe, A., Gebhard, H., Becker, M. & Hotho, A. (2018) Burrows' Zeta: exploring and evaluating variants and parameters. *DH2018 Book of Abstracts*.
 - Sievert, C. & Shirley, K. (2014) LDAvis: a method for visualizing and interpreting topics. *Proceedings of the Workshop on Interactive Language Learning, Visualization, and Interfaces*: 63–70.
 - Smith, P. W. H. & Aldridge, W. (2011) Improving authorship attribution: optimizing Burrows' Delta method. *Journal of Quantitative Linguistics* 18(1): 63–88.

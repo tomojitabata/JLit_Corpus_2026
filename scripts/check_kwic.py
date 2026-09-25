@@ -35,6 +35,7 @@ import tempfile
 from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import numpy as np                                      # noqa: E402
 import kwic_core as K                                   # noqa: E402
 
 OK, NG = '[ok  ]', '[NG  ]'
@@ -59,6 +60,22 @@ W2 = [  # 000035_001567（増補分。メタデータ側も 0 埋め）
     [('汽車', '汽車', '名詞'), ('に', 'に', '助詞'), ('乗る', '乗る', '動詞'),
      ('。', '。', '補助記号')],
 ]
+# 異綴形と品詞の中分類の検査用。(表層形, 語彙素, 品詞, 書字形基本形, 中分類)。
+# 「言う」の書字形基本形は 云う×2・言う×1・いう×1（活用の違いは数えない）。
+# 合成データなので，書字形基本形は実際の辞書の出力とは限らない
+W4 = [  # 000081_000456（メタデータあり。作家は森鷗外）
+    [('云つ', '言う', '動詞', '云う', '一般'), ('た', 'た', '助動詞'),
+     ('。', '。', '補助記号')],
+    [('云ふ', '言う', '動詞', '云う', '一般'), ('。', '。', '補助記号')],
+    [('言つ', '言う', '動詞', '言う', '一般'), ('た', 'た', '助動詞'),
+     ('。', '。', '補助記号')],
+    [('いふ', '言う', '動詞', 'いう', '一般'), ('汽車', '汽車', '名詞'),
+     ('が', 'が', '助詞'), ('来', '来る', '動詞'), ('て', 'て', '助詞'),
+     ('いる', 'いる', '動詞', 'いる', '非自立可能'), ('。', '。', '補助記号')],
+] + [  # 共起語は頻度 3 以上だけを出すので，いる・が・来る を 3 回以上にする
+    [('汽車', '汽車', '名詞'), ('が', 'が', '助詞'), ('来', '来る', '動詞'),
+     ('て', 'て', '助詞'), ('いる', 'いる', '動詞', 'いる', '非自立可能'),
+     ('。', '。', '補助記号')]] * 2
 W3 = [  # メタデータに無い作品（出典が出ないことの検査）
     [('汽車', '汽車', '名詞'), ('が', 'が', '助詞'), ('来', '来る', '動詞'),
      ('た', 'た', '助動詞'), ('。', '。', '補助記号')],
@@ -73,20 +90,28 @@ def write_tsv(path: Path, sents: list[list[tuple]]) -> None:
         w.writerow(COLUMNS)
         i = 0
         for s in sents:
-            for sur, lem, pos in s:
+            for tok in s:
+                sur, lem, pos = tok[:3]
+                # 書字形基本形の既定は語彙素（＝揺れなし），中分類の既定は品詞ごとに
+                orth = tok[3] if len(tok) > 3 else lem
+                pos2 = tok[4] if len(tok) > 4 else {
+                    '名詞': '普通名詞', '動詞': '一般', '形容詞': '一般',
+                    '補助記号': '句点'}.get(pos, '*')
                 i += 1
-                w.writerow([i, sur, lem, lem, sur, sur, pos,
-                            '', '', '', '', '連用形' if pos == '動詞' else '',
+                w.writerow([i, sur, lem, lem, orth, sur, pos,
+                            pos2, '', '', '', '連用形' if pos == '動詞' else '',
                             '和'])
             w.writerow(['', '', '', '', '', '', 'EOS', '', '', '', '', '', ''])
 
 
-def build(tmp: Path) -> K.KwicIndex:
+def build(tmp: Path, with_w4: bool = False) -> K.KwicIndex:
     tsv = tmp / 'tsv'
     tsv.mkdir(parents=True, exist_ok=True)
     write_tsv(tsv / '000119_001743.tsv', W1)
     write_tsv(tsv / '000035_001567.tsv', W2)
     write_tsv(tsv / '000999_009999.tsv', W3)
+    if with_w4:
+        write_tsv(tsv / '000081_000456.tsv', W4)
     meta = tmp / 'meta.csv'
     with open(meta, 'w', newline='', encoding='utf-8-sig') as fh:
         w = csv.DictWriter(fh, fieldnames=[
@@ -105,6 +130,11 @@ def build(tmp: Path) -> K.KwicIndex:
                     'file_v1': '', 'author_ja': '太宰治',
                     'title_ja': '走れメロス', 'year_first': '1940',
                     'period': '4_昭和戦前', 'genre_main': 'Fiction',
+                    'style_class': 'C_口語体', 'completeness': 'ok'})
+        w.writerow({'aozora_person_id': '000081', 'aozora_work_id': '000456',
+                    'file_v1': '', 'author_ja': '森鷗外',
+                    'title_ja': '雁', 'year_first': '1911',
+                    'period': '2_明治後期', 'genre_main': 'Fiction',
                     'style_class': 'C_口語体', 'completeness': 'ok'})
     K.build_index(tsv, meta, tmp / 'kwic', quiet=True)
     return K.KwicIndex(tmp / 'kwic')
@@ -260,6 +290,146 @@ def main() -> int:
     csvp = K.to_csv(kw, r, tmp / 'out.csv')
     head = open(csvp, encoding='utf-8-sig').readline()
     chk(head.startswith('# query'), '11b) CSV の1行目に検索式と由来を書く')
+
+    # ---- 12. 異綴形（書字形基本形）---------------------------------------
+    kv = build(tmp / 'v2', with_w4=True)
+    chk(kv.v2, '12a) 版 2 の索引は書字形基本形と品詞の中分類を持つ')
+    v = kv.search('言う', stream='lemma', limit=10)['variants']
+    got = {f['form']: f['hits'] for f in v['forms']}
+    chk(got == {'云う': 2, '言う': 1, 'いう': 1},
+        '12b) 「言う」の異綴形は 云う2・言う1・いう1（云つ・云ふ は同じ書字形基本形）', got)
+    chk(v['forms'][0]['form'] == '云う', '12c) 多い順に並ぶ')
+    vj = kv.search('乗る', stream='lemma', limit=10)['variants']
+    chk([f['form'] for f in vj['forms']] == ['乗る'],
+        '12d) **活用の違いは異綴形に数えない**（乗つ・乗り・乗る → 乗る）',
+        vj['forms'])
+    for key in ('by_band', 'by_author', 'by_work'):
+        chk(sum(r['total'] for r in v[key]) == v['total']
+            and all(sum(r['counts']) == r['total'] for r in v[key]),
+            f'12e) 内訳（{key}）の合計が総数と一致する')
+    au = {r['label']: r['counts'] for r in v['by_author']}
+    chk(au.get('森鷗外') == [2, 1, 1], '12f) 作家ごとの内訳', au)
+    pos_iu = np.flatnonzero(np.asarray(kv.a['lem']) == kv._rev['lem']['言う'])
+    few = kv._variants(pos_iu, 1, top=1)
+    chk(few['other'] == {'types': 2, 'hits': 2, 'share': 0.5}
+        and all(len(r['counts']) == 2 for r in few['by_author']),
+        '12g) 上位より後は「その他」にまとめ，まとめたことを返す', few['other'])
+
+    tab = kv.variant_table(min_freq=1, min_var=1)
+    row = {r['lemma']: r for r in tab['rows']}.get('言う')
+    chk(row is not None and row['types'] == 3 and row['main'] == '云う'
+        and abs(row['minor_share'] - 0.5) < 1e-9,
+        '12h) コーパス全体の一覧に「言う」（3種・主要形 云う・主要形以外 50%）', row)
+    chk([r['lemma'] for r in tab['rows']] == ['言う'],
+        '12i) 揺れの無い語彙素は一覧に出ない', [r['lemma'] for r in tab['rows']])
+    tab2 = kv.variant_table(min_freq=1, min_var=2)
+    chk(not tab2['rows'],
+        '12j) 最小回数 2 なら 言う・いう は異綴形に数えず，一覧から外れる')
+    chk(not kv.variant_table(min_freq=1, min_var=1, pos=['名詞'])['rows'],
+        '12k) 品詞で絞れる（名詞には揺れが無い）')
+
+    # ---- 13. 共起語の品詞による絞り込み ---------------------------------
+    def cforms(**k):
+        return [x['form'] for x in kv.search('汽車', stream='lemma', collocates=50,
+                                             coll_window=4, coll_min=1,
+                                             **k)['collocates']]
+    allf = cforms()
+    chk('いる' in allf and 'が' in allf, '13a) 絞らなければ助詞も非自立の動詞も出る', allf)
+    vf = cforms(coll_pos=['動詞'])
+    chk(set(vf) <= {'乗る', '来る', '吐く', 'いる', '言う'} and 'いる' in vf,
+        '13b) 大分類「動詞」は非自立の動詞も含む', vf)
+    vg = cforms(coll_pos=['動詞-一般'])
+    chk('いる' not in vg and '来る' in vg,
+        '13c) 中分類「動詞-一般」で非自立（いる）を外せる', vg)
+    chk(not set(cforms(coll_pos=['名詞'])) & {'が', 'に', 'は', '乗る', 'いる'},
+        '13d) 名詞だけにすると助詞・動詞が出ない')
+    try:
+        kv.search('汽車', collocates=5, coll_pos=['名詞-存在しない'])
+        chk(False, '13e) 索引に無い品詞は理由つきの例外になる')
+    except K.QueryError as e:
+        chk('品詞' in str(e), '13e) 索引に無い品詞は理由つきの例外になる', e)
+
+    # ---- 14. 指標は**素朴な数え方と一致する** ----------------------------
+    import math
+    res = kv.search('汽車', stream='lemma', collocates=100, coll_window=3,
+                    coll_min=1, coll_sort='co')
+    info = res['coll_info']
+    lem = [kv.v['lem'][int(x)] for x in kv.a['lem']]
+    posl = [kv.v['pos'][int(x)] for x in kv.a['pos']]
+    sent = [int(x) for x in kv.a['sent']]
+    content = [p not in K.PUNCT_POS for p in posl]
+    N = sum(content)
+    node = [i for i, w in enumerate(lem) if w == '汽車']
+    from collections import Counter as _C
+    co, W = _C(), 0
+    for i in node:
+        for o in (-3, -2, -1, 1, 2, 3):
+            j = i + o
+            if 0 <= j < len(lem) and sent[j] == sent[i] and content[j]:
+                W += 1
+                co[lem[j]] += 1
+    fc = _C(w for w, c in zip(lem, content) if c)
+    chk(info['W'] == W and info['N'] == N and info['node'] == len(node),
+        '14a) 窓の延べ W・母数 N・検索語の件数が素朴な数え方と一致',
+        (info['W'], W, info['N'], N))
+    bad = []
+    for r in res['collocates']:
+        o11, f = co[r['form']], fc[r['form']]
+        e11 = W * f / N
+        o12, o21 = W - o11, f - o11
+        o22 = N - W - o21
+        cells = [(o11, e11), (o12, W * (N - f) / N), (o21, (N - W) * f / N),
+                 (o22, (N - W) * (N - f) / N)]
+        g2 = 2 * sum(o * math.log(o / e) for o, e in cells if o > 0)
+        g2 = -g2 if o11 < e11 else g2
+        want = {'co': o11, 'freq': f,
+                'logdice': 14 + math.log2(2 * o11 / (len(node) + f)),
+                'mi': math.log2(o11 / e11), 'mi3': math.log2(o11 ** 3 / e11),
+                't': (o11 - e11) / math.sqrt(o11), 'g2': g2,
+                'dp_fwd': o11 / W - o21 / (N - W),
+                'dp_bwd': o11 / f - o12 / (N - f)}
+        for k, x in want.items():
+            tol = 1e-4 if k.startswith('dp') else 0.01
+            if abs(r[k] - x) > tol:
+                bad.append((r['form'], k, r[k], round(x, 4)))
+    chk(not bad and res['collocates'],
+        '14b) LogDice・MI・MI3・t・G²・ΔP（両向き）が定義どおり', bad[:5])
+    # 品詞で絞ると f(c) も同じ品詞で数える（N は変えない）
+    rn = kv.search('汽車', stream='lemma', collocates=100, coll_window=3,
+                   coll_min=1, coll_pos=['名詞'])
+    chk(rn['coll_info']['N'] == N and rn['coll_info']['W'] == W,
+        '14c) 品詞で絞っても W と N は変わらない（窓の大きさは同じ）')
+
+    # ---- 15. 指標を替えると**選び直す** --------------------------------
+    for m in K.COLL_MEASURES:
+        rr = kv.search('汽車', stream='lemma', collocates=3, coll_window=3,
+                       coll_min=1, coll_sort=m)['collocates']
+        full = kv.search('汽車', stream='lemma', collocates=100, coll_window=3,
+                         coll_min=1, coll_sort=m)['collocates']
+        vals = [x[m] for x in full]
+        chk(vals == sorted(vals, reverse=True)
+            and [x['form'] for x in rr] == [x['form'] for x in full[:3]],
+            f'15) {m} の順に上位を選ぶ（上位3語は全体の上位3語と同じ）')
+    try:
+        kv.search('汽車', collocates=5, coll_sort='xx')
+        chk(False, '15z) 知らない指標は例外')
+    except K.QueryError:
+        chk(True, '15z) 知らない指標は例外')
+
+    # ---- 16. 版 1 の索引も読める（新しい機能は理由を言って止まる）---------
+    old = tmp / 'v2' / 'kwic' / 'arrays'
+    for n_ in ('orth.npy', 'pos12.npy'):
+        (old / n_).rename(old / (n_ + '.bak'))
+    k1 = K.KwicIndex(tmp / 'v2' / 'kwic')
+    r1 = k1.search('言う', stream='lemma', collocates=5, coll_pos=['動詞'])
+    chk(not k1.v2 and r1['variants']['available'] is False
+        and '作り直す' in r1['variants']['reason'],
+        '16a) 版 1 の索引では異綴形は「作り直すこと」と返す')
+    try:
+        k1.search('汽車', collocates=5, coll_pos=['動詞-一般'])
+        chk(False, '16b) 版 1 の索引で中分類を指定すると理由つきの例外')
+    except K.QueryError as e:
+        chk('作り直す' in str(e), '16b) 版 1 の索引で中分類を指定すると理由つきの例外', e)
 
     print()
     if ng:
