@@ -251,7 +251,7 @@ def work_rows(meta_df=None):
     **1件も一致しない**。辞書は空振りしても例外を出さないので，
     誰の何だか分からないまま最後まで通ってしまう。両方の綴りを登録する。
 
-    ``file_v1`` は増補 45 点では空である。``os.path.splitext(nan)`` は
+    ``file_v1`` は増補した作品では空である。``os.path.splitext(nan)`` は
     例外になるので，文字列であることを確かめてから使う。
     """
     if meta_df is None:
@@ -1403,7 +1403,7 @@ def run_script(script, *args, tail=4000):
     return r
 
 
-# 使うメタデータ。増補分（45点）を含む v3 があればそちらを優先する。
+# 使うメタデータ。増補分を含む v3 があればそちらを優先する。
 # v2 は v1 の 64 点しか無いので，増補後のコーパスで v2 を使うと
 # 突合が外れて period も genre も空になる（Step 3 で v3 を作る）。
 # Step 3 で自分が作った v3 は *_local.csv に書かれる（配布版は上書きしない。
@@ -1514,7 +1514,7 @@ DH Lab の iMac は XCreds 認証で，**ホームはマシンごとに別々**�
 青空文庫の図書カードに突き合わせて作り直したものである。
 
 **Step 1 は v1（64点）の診断なので，増補前の v2 を読む。** 増補後の
-`corpus_metadata_v3.csv`（109行）は Step 3 で作り，Step 4 以降で使う
+`corpus_metadata_v3.csv`（増補後の全作品）は Step 3 で作り，Step 4 以降で使う
 （共通の準備のセルの `META` は v3 を指しているので，ここでは明示的に v2 を渡す）。
 
 **v1 の何が問題だったか**（`changes_from_v1` シートに全件）:
@@ -2682,6 +2682,139 @@ run_script('00_extend_metadata.py',
            '--out', ROOT/'metadata'/'corpus_metadata_v3_local.csv')
 # 自分の v3。配布版 corpus_metadata_v3.csv は書き換えない（git pull で衝突しない）
 META = ROOT/'metadata'/'corpus_metadata_v3_local.csv'   # 以後はこちらを使う'''),
+ ('md', r"""### 増補で代表性はどれだけ改善したか — Step 1 の図を作り直す
+
+Step 1 では，v1（64点）の偏りを表と2枚の図（時代の構成・文語 ⇄ 口語の散布図）で
+確かめた。増補した v3 で同じ図を作り直し，**v1 と並べて**どこが埋まり，どこが
+まだ埋まっていないかを目で確かめる。
+
+比べたいのは**コーパスの構成**の違いだけなので，**両方とも v3 の実測値**を使う。
+v1 側は v3 のうち v1 から引き継いだ64点（`file_v1` がある行），v3 側は分析に使う全行である。
+Step 1 の図（v2 の値）と数値が少し違うのは，本番の辞書（unidic-novel）で
+測り直したためで，物差しをそろえてから比べるためにそうしている。
+
+読むときの問い：
+
+1. どの時代・文体の**空白が埋まった**か。作品数と語数の両方で見る
+2. **まだ偏っている**項目はどれか（下の表の「最大の割合」が 0.5 を超えるもの）
+3. 文語 ⇄ 口語の図で，増補した作品（黒い縁取り）はどの時代のどのあたりに入ったか。
+   各段の中央値の軌跡は変わったか
+
+まだ偏っている項目は，Step 4 以降の分析で**言えることの限界**になる。
+最終リポートの「データ」の節で触れること。"""),
+ ('code', r"""# ---- v1 と v3 を同じ物差しで並べる ---------------------------------------
+# 両方とも v3 の実測値を使う（構成の違いだけを見るため）。
+#   v1 側 = v3 のうち v1 から引き継いだ64点（file_v1 がある行）
+#   v3 側 = 分析に使う全行（load_meta が superseded・merged・too_short を落とす）
+if need(META, 'すぐ上の 00_extend_metadata.py のセルを先に実行すること'):
+    m3_all = load_meta(META, analysis_only=False)
+    has_v1 = m3_all['file_v1'].fillna('').astype(str).str.strip() != ''
+    m1 = m3_all[has_v1].reset_index(drop=True)
+    m3 = load_meta(META)
+    m3['added'] = m3['file_v1'].fillna('').astype(str).str.strip() == ''
+    SIDES = [('v1（増補前）', m1), ('v3（増補後）', m3)]
+    print(f'v1 側 {len(m1)} 点 ／ v3 側 {len(m3)} 点（うち増補 {int(m3.added.sum())} 点）')
+
+    # 1) Step 1 と同じ「偏りの一覧」を並べる。TBD（未記入）は区分に数えない
+    COLS = ['period','style_class','kana_orthography','ndc',
+            'genre_main','audience','register_level','narration','author_sex']
+    rows = []
+    for col in COLS:
+        r = {'項目': col}
+        for name, d in SIDES:
+            v = d[col].astype(str).replace({'nan': 'TBD'})
+            vc = v[v != 'TBD'].value_counts()
+            r[f'{name} 最大の区分'] = str(vc.index[0]) if len(vc) else ''
+            r[f'{name} 最大の割合'] = float(vc.iloc[0] / vc.sum()) if len(vc) else np.nan
+            r[f'{name} 未記入'] = int((v == 'TBD').sum())
+        rows.append(r)
+    t = pd.DataFrame(rows)
+    t['変化'] = t['v3（増補後） 最大の割合'] - t['v1（増補前） 最大の割合']
+    show(t.sort_values('v3（増補後） 最大の割合', ascending=False),
+         caption='偏りの一覧 — v1 と v3（最大の区分の割合が下がれば偏りが和らいだ）',
+         fmt={'v1（増補前） 最大の割合': '{:.1%}', 'v3（増補後） 最大の割合': '{:.1%}',
+              '変化': '{:+.1%}'})
+
+    # 2) 時代の構成を作品数と語数の両方で
+    per = []
+    for name, d in SIDES:
+        g = d.groupby('period').agg(作品数=('id', 'count'), 語数=('tokens', 'sum'))
+        g['作品数の割合'] = g['作品数'] / g['作品数'].sum()
+        g['語数の割合'] = g['語数'] / g['語数'].sum()
+        g['版'] = name
+        per.append(g.reset_index())
+    per = pd.concat(per, ignore_index=True)
+    show(per.rename(columns={'period': '時代'})[['時代', '版', '作品数', '作品数の割合', '語数', '語数の割合']]
+            .sort_values(['時代', '版']),
+         caption='時代の構成 — v1 と v3',
+         fmt={'作品数の割合': '{:.1%}', '語数': '{:,.0f}', '語数の割合': '{:.1%}'})"""),
+ ('code', r"""# ---- 図1：時代の構成（Step 1 の Step1_period_balance を v1・v3 で並べる）----
+if 'per' in globals():
+    periods = sorted(per['period'].unique())
+    x = np.arange(len(periods))
+    fig, axes = plt.subplots(1, 2, figsize=(11.5, 4.2), sharey=True)
+    for ax, col, ttl in [(axes[0], '作品数の割合', '作品数の比率'),
+                         (axes[1], '語数の割合', '語数の比率')]:
+        for k, (name, _) in enumerate(SIDES):
+            s = per[per['版'] == name].set_index('period')[col].reindex(periods).fillna(0)
+            ax.bar(x + (k - 0.5) * 0.4, s.values, 0.38, label=name,
+                   color=['#c3c2b7', PALETTE[0]][k])
+        ax.set_xticks(x)
+        ax.set_xticklabels([p.split('_', 1)[1] for p in periods], rotation=25, ha='right')
+        ax.set_title(ttl)
+        ax.spines[['top', 'right']].set_visible(False); ax.grid(axis='y', alpha=.25)
+    axes[0].set_ylabel('比率'); axes[1].legend(frameon=False)
+    fig.suptitle('時代区分の構成：v1（増補前）と v3（増補後）', y=1.02)
+    fig.tight_layout(); save_fig(fig, 'Step3_period_balance_v1_v3'); plt.show()"""),
+ ('code', r"""# ---- 図2：文語 ⇄ 口語（Step 1 の Step1_bungo_kogo を v1・v3 で並べる）-----
+# 色・軸・中央値の軌跡は Step 1 と同じ作り方。両面で軸の範囲をそろえる。
+# v3 の面では，増補した作品を黒い縁取りで示す。
+if 'SIDES' in globals():
+    fig, axes = plt.subplots(1, 2, figsize=(13, 5.6), sharex=True, sharey=True)
+    band_n = {}                       # 段ごとの点数（凡例ではなく表で示す）
+    for ax, (name, d) in zip(axes, SIDES):
+        last = ax is axes[-1]         # 凡例は右の面にだけ置く（色の意味は両面共通）
+        code, blabels, bcols = year_bands(d.year_first)
+        added = d['added'].values if 'added' in d else np.zeros(len(d), dtype=bool)
+        for i, lab in enumerate(blabels):
+            m = (code == i)
+            if not m.any():
+                continue
+            edge = np.where(added[m], '#1f1f1f', 'white')
+            ax.scatter(d.bungo_per10k[m], d.kogo_per10k[m], s=48, alpha=.9,
+                       color=bcols[i], edgecolor=edge, linewidth=.9,
+                       label=lab if last else None, zorder=3)
+        band_n[name] = {lab: int((code == i).sum()) for i, lab in enumerate(blabels)}
+        if (code < 0).any():
+            m = (code < 0)
+            band_n[name]['初出年不明'] = int(m.sum())
+            ax.scatter(d.bungo_per10k[m], d.kogo_per10k[m], s=42, color='#c3c2b7',
+                       edgecolor='white', linewidth=.8,
+                       label='初出年不明' if last else None, zorder=3)
+        mx = [d.bungo_per10k[code == i].median() for i in range(len(blabels))]
+        my = [d.kogo_per10k[code == i].median() for i in range(len(blabels))]
+        ax.plot(mx, my, color='#55554f', linewidth=1.4, alpha=.85, zorder=4,
+                label='各段の中央値（古→新）' if last else None)
+        ax.scatter(mx, my, s=120, marker='D', c=bcols, edgecolor='#55554f',
+                   linewidth=1.2, zorder=5)
+        ax.set_xscale('symlog', linthresh=10)
+        ax.set_title(f'{name}：{len(d)} 点')
+        ax.set_xlabel('文語助動詞標識（/万語・対数目盛）')
+        ax.grid(alpha=.25, linewidth=.6, zorder=0)
+        ax.spines[['top', 'right']].set_visible(False)
+    axes[0].set_ylabel('口語助動詞標識（/万語）')
+    axes[1].scatter([], [], s=48, color='white', edgecolor='#1f1f1f', linewidth=.9,
+                    label='増補した作品（黒い縁取り）')
+    axes[1].legend(frameon=False, fontsize=8.5, loc='upper left',
+                   bbox_to_anchor=(1.01, 1.0), borderaxespad=0)
+    fig.suptitle('文語 ⇄ 口語：v1（増補前）と v3（増補後）'
+                 '（1点＝1作品／色＝初出年・濃いほど新しい）', y=1.01)
+    fig.tight_layout(); reserve_right(fig, 0.84)
+    save_fig(fig, 'Step3_bungo_kogo_v1_v3'); plt.show()
+    bn = pd.DataFrame(band_n).fillna(0).astype(int)
+    bn['増えた点数'] = bn.iloc[:, 1] - bn.iloc[:, 0]
+    show(bn.reset_index().rename(columns={'index': '初出年の段'}),
+         caption='初出年の段ごとの作品数 — v1 と v3')"""),
  ('code', r'''DS = ROOT/'data'/'datasets'
 if need(TOK/'tokens_content', 'このステップの 05_tokenise_unidic.py のセルを先に実行すること'):
     # --max-chunks は長篇の支配を防ぐための上限。結合後の『夜明け前』は
@@ -3243,7 +3376,7 @@ if need(p, 'この分析のスクリプトを走らせるセルを先に実行�
 どちらが大きいか。それは何を意味するか。'''),
  ('code', r'''if need(p, 'この分析のスクリプトを走らせるセルを先に実行すること'):
     # キーの 0 埋めと file_v1 の欠損は work_rows() が面倒を見る。
-    # ここで自前に辞書を作ると，増補45点の file_v1 が空なので落ちるか，
+    # ここで自前に辞書を作ると，増補した作品の file_v1 が空なので落ちるか，
     # 0 埋めの違いで**1件も一致しないまま割合だけ出る**。
     labs = work_rows(meta)
     have = [f for f in D.index if f in labs]

@@ -8,7 +8,7 @@
 なぜ要るのか
 ------------
 ``00_build_metadata_v2.py`` が作る表は **v1 の 64 点**を対象にしている。
-増補後のコーパスは 108 点あるので，差分の 45 点にはメタデータの行がない。
+増補した作品（v1 に無いもの）にはメタデータの行がない。
 行が無いと ``06_build_datasets.py`` の突合が外れ，チャンク索引の
 ``period`` も ``genre`` も空になる。その状態で先へ進むと，
 時代別 keyness も doc2vec のカテゴリ効果もトピックの通時変化も，
@@ -87,6 +87,15 @@ except Exception as e:                                          # noqa: BLE001
 
 TBD = 'TBD'
 
+#: 分析に使わない行の completeness。ノートブックの load_meta() が落とすものと
+#: 同じにしておく。これらの行は書誌として残すだけで本文を持たない（または
+#: 1チャンクに満たない）ので，TBD が残っていても分析には入らない。
+NOT_ANALYSED = ('superseded', 'merged', 'too_short')
+
+
+def not_analysed(row: dict) -> bool:
+    return str(row.get('completeness') or '').strip() in NOT_ANALYSED
+
 
 def is_tbd(v) -> bool:
     """セルが TBD か。**値が文字列とは限らない**ので str() を通す。
@@ -147,7 +156,7 @@ def load_persons(path: str) -> dict:
 
     典拠は ``02_fetch_aozora.py`` が展開する
     ``data/aozora/list_person_all_extended_utf8.csv``。
-    増補 45 点は作品側の索引だけで組み立てているので，このまま放っておくと
+    増補した作品は作品側の索引だけで組み立てているので，このまま放っておくと
     ``author_birth`` ``author_death`` が空のままになる。**作家の世代で
     層別した分析がそこだけ黙って落ちる**ので，同じ索引から埋めておく。
 
@@ -642,7 +651,8 @@ def main() -> int:
             need.append('実測列（--tokens を付けて測り直すこと）')
         row['needs_review'] = ' '.join(need)
         added.append(row)
-        if need:
+        # 分析に使わない行（分冊など）は人の点検に回さない
+        if need and not not_analysed(row):
             review.append((row['id'], row['author_ja'], row['title_aozora'], need))
 
     remeasured = 0
@@ -792,11 +802,28 @@ def main() -> int:
     # int / float をそのまま入れるので，``(v or '').strip()`` は
     # AttributeError で落ちる（--tokens を付けたときだけ落ちるので，
     # 付けずに試していると気づかない）。str() を通してから比べる。
-    left = sum(1 for r in out_rows
+    # 分析に使わない行（merged・superseded・too_short）の TBD は数えない。
+    # 分冊の行は本文が統合先に移っていて測りようがないので，style_class などが
+    # TBD のまま残るのは正常である。ここで [FATAL] を出すと受講生が止まってしまう。
+    idle = [r for r in out_rows
+            if not_analysed(r) and any(is_tbd(v) for v in r.values())]
+    if idle:
+        print(f'[note] 分析に使わない行 {len(idle)} 件に TBD が残っている'
+              '（分析に使わない行なので TBD のままでよい）:')
+        for r in idle[:6]:
+            cols_tbd = [k for k, v in r.items() if is_tbd(v)]
+            print(f'         {r.get("id", "?")} {r.get("author_ja", "")}'
+                  f'『{r.get("title_aozora", "")}』'
+                  f'（completeness={r.get("completeness")}，'
+                  f'TBD: {" ".join(cols_tbd)}）')
+        if len(idle) > 6:
+            print(f'         …ほか {len(idle) - 6} 件')
+    used = [r for r in out_rows if not not_analysed(r)]
+    left = sum(1 for r in used
                for v in r.values() if is_tbd(v))
     if left:
         from collections import Counter as _C
-        where = _C(k for r in out_rows for k, v in r.items() if is_tbd(v))
+        where = _C(k for r in used for k, v in r.items() if is_tbd(v))
         judged = sum(c for k, c in where.items()
                      if k in EDITORIAL_COLS or k in JUDGEMENT_COLS)
         measured = left - judged
@@ -815,7 +842,7 @@ def main() -> int:
         print('        TBD のまま keyness や doc2vec に進むと，'
               'そのカテゴリの比較が無意味になる。')
     else:
-        print('[ok  ] TBD は残っていない')
+        print('[ok  ] 分析に使う行に TBD は残っていない')
     print(f'[ok  ] → {args.out}')
 
     if review:
