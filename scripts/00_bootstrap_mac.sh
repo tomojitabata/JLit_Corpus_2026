@@ -324,7 +324,7 @@ if [ "$HW_ARCH" = x86_64 ]; then
   CONSTRAINTS="$(mktemp)"
   printf '%s\n' "${INTEL_PINS[@]}" > "$CONSTRAINTS"
   uv pip install --python "$PY" --only-binary :all: "${INTEL_PINS[@]}" \
-    || die "Intel 用の numba・llvmlite を入れられない（wheel が無い）。出力をそのまま担当者に見せること"
+    || die "Intel 用の numba・llvmlite を入れられない（wheel が無い）。出力をそのまま教員に見せること"
   uv pip install --python "$PY" -c "$CONSTRAINTS" -r requirements.txt \
     || die "パッケージの導入に失敗。requirements.txt を確認すること"
   rm -f "$CONSTRAINTS"

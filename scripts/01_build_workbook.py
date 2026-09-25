@@ -207,7 +207,7 @@ def main():
         ("", False),
         ("■ シートの読み方", True),
         ("metadata_v2          : 1作品1行。year_source 列が editor の19行は，青空文庫カードに初出欄がなく", False),
-        ("                       編者が補った値であり，先生のご確認をお願いしたい。", False),
+        ("                       編者が補った値であり，確認を要する。", False),
         ("changes_from_v1      : v1 のどの値をなぜ変えたか。典拠列に青空文庫の図書カード番号を記す。", False),
         ("diagnostics          : テクスト実測値。gaiji_lost > 0 の行は再構築が必要。", False),
         ("representativeness   : 代表性の集計。COUNTIFS で metadata_v2 を参照するため，metadata_v2 を", False),
