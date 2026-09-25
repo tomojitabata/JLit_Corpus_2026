@@ -415,6 +415,7 @@ Antoniak & Mimno (2018) の議論を必ず扱う。
 
 ## 参考文献（授業全体）
 
+- Aitchison, J. (1986) *The Statistical Analysis of Compositional Data*. Chapman & Hall.
 - Antoniak, M. & Mimno, D. (2018) Evaluating the stability of embedding-based word similarities. *TACL* 6.
 - Biber, D. (1993) Representativeness in corpus design. *Literary and Linguistic Computing* 8(4).
 - Blei, D., Ng, A. & Jordan, M. (2003) Latent Dirichlet Allocation. *JMLR* 3.
@@ -431,9 +432,12 @@ Antoniak & Mimno (2018) の議論を必ず扱う。
 - Klaussner, C., Nerbonne, J. & Çöltekin, Ç. (2015) Finding characteristic features in stylometric analysis. *Digital Scholarship in the Humanities* 30(Supplement 1): 114–129.
 - Le, Q. & Mikolov, T. (2014) Distributed representations of sentences and documents. *ICML*.
 - Levy, O. & Goldberg, Y. (2014) Neural word embedding as implicit matrix factorization. *NIPS*.
+- Lin, J. (1991) Divergence measures based on the Shannon entropy. *IEEE Transactions on Information Theory* 37(1): 145–151.
 - 前川喜久雄 編 (2013)『コーパス入門』（講座日本語コーパス1）朝倉書店
 - Prokić, J., Çöltekin, Ç. & Nerbonne, J. (2012) Detecting shibboleths. *Proceedings of the EACL 2012 Joint Workshop of LINGVIS & UNCLH*.
 - Schöch, C., Schlör, D., Zehe, A., Gebhard, H., Becker, M. & Hotho, A. (2018) Burrows' Zeta: exploring and evaluating variants and parameters. *DH2018 Book of Abstracts*.
+- Sievert, C. & Shirley, K. (2014) LDAvis: a method for visualizing and interpreting topics. *Proceedings of the Workshop on Interactive Language Learning, Visualization, and Interfaces*: 63–70.
+- Smith, P. W. H. & Aldridge, W. (2011) Improving authorship attribution: optimizing Burrows' Delta method. *Journal of Quantitative Linguistics* 18(1): 63–88.
 - Tabata, T. (2012) Approaching Dickens' style through Random Forests. *Digital Humanities 2012: Conference Abstracts*, University of Hamburg.
 - Tabata, T. (2015) Stylometry of Dickens's language: an experiment with random forests. In P. L. Arthur & K. Bode (eds), *Advancing Digital Humanities: Research, Methods, Theories*. Palgrave Macmillan.
 - Tabata, T. (2026) Using word embeddings as a semantic approach to key word analysis. *PALA 2026: The Philosophy of Stylistics*, Uppsala, 19–22 August 2026. 資料: <https://tinyurl.com/tabata-pala2026>
