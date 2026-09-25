@@ -166,7 +166,7 @@ Zulip のトピック「Step N」に貼って図（SVG）・表を同じメッ�
 
 ---
 
-## Step 2 再構築(1) — 書誌の典拠と XML マークアップ
+## Step 2 コーパスの再構築 — 書誌の典拠と XML マークアップ
 
 `notebooks/02_rebuild_xml.ipynb`
 
