@@ -269,6 +269,21 @@ def apply_editorial(row: dict, table: dict) -> bool:
     return True
 
 
+def fix_period(row: dict, table: dict) -> None:
+    """判断表が初出年を直したら，時代区分もそれに合わせて付け直す。
+
+    時代区分は判断表を当てる**前**に（候補表などの年から）付けてある。
+    『四十余日』は候補表の 1913 で大正に入り，判断表が 1910 に直しても
+    区分だけ大正のまま残った。初出年を直したなら区分も必ず直す。
+    """
+    key = (row.get('aozora_person_id', '').strip().zfill(6),
+           row.get('aozora_work_id', '').strip().zfill(6))
+    y = str(row.get('year_first') or '')[:4]
+    if y.isdigit() and ('year_first' in table.get(key, {})
+                        or row.get('period') in ('', TBD)):
+        row['period'] = period_of(int(y))
+
+
 def stem_of(person_id: str, work_id: str) -> str:
     return f'{person_id.strip().zfill(6)}_{work_id.strip().zfill(6)}'
 
@@ -523,6 +538,10 @@ def main() -> int:
     log = read_csv(args.fetch_log)
     if not log:
         sys.exit(f'fetch_log が読めない: {args.fetch_log}')
+    # 既存行（v2）には初出の**文字列**が無い。索引から引けるので埋めておく
+    # （下の既存行のループで使う）。
+    log_by_stem = {stem_of(r.get('person_id', ''), r.get('work_id', '')): r
+                   for r in log if r.get('person_id') and r.get('work_id')}
 
     added, review, no_year = [], [], []
     next_id = max((int(r['id'][4:]) for r in base
@@ -588,6 +607,13 @@ def main() -> int:
             'aozora_work_id': wid.zfill(6),
             'aozora_card_url': r.get('card_url', ''),
             'year_first': str(year) if year else '',
+            # 連載の終了年。別冊があれば空けておき，下で作品全体の値を
+            # 引き継ぐ（分冊の索引は**その巻**の年しか持たない）。索引の
+            # 「初出」欄から取れたときは索引の値，それ以外は開始年と同じにする。
+            'year_first_end': ('' if sib else
+                               (r.get('year_first_end') or str(year))
+                               if ysrc == 'aozora_index' and year
+                               else (str(year) if year else '')),
             'year_source': ysrc or TBD,
             'period': period_of(year) if year else TBD,
             'ndc': ndc,
@@ -637,8 +663,7 @@ def main() -> int:
         if editorial and apply_editorial(row, editorial):
             ed_used.add((row.get('aozora_person_id', '').zfill(6),
                          row.get('aozora_work_id', '').zfill(6)))
-            if row.get('year_first') and row.get('period') in ('', TBD):
-                row['period'] = period_of(row['year_first'])
+            fix_period(row, editorial)
 
         if args.tokens:
             if remeasure(row, stem, args.tokens):
@@ -664,9 +689,20 @@ def main() -> int:
             r['measure_source'] = 'v1_wakachi'
         # 既存 64 点にも判断表を当てられるようにしておく。completeness の
         # DUPLICATE / PARTIAL のように，増補で事情が変わった行を直すため。
+        # 初出の文字列・索引の NDC を索引から埋める（既に値があれば触らない）
+        lg = log_by_stem.get(stem_of(r.get('aozora_person_id', ''),
+                                     r.get('aozora_work_id', '')))
+        if lg:
+            if not r.get('shoshutsu') and lg.get('shoshutsu'):
+                r['shoshutsu'] = lg['shoshutsu'].replace('<br>', ' ')
+            if not r.get('ndc_all'):
+                _, nall = clean_ndc(lg.get('ndc'))
+                if ' ' in nall:
+                    r['ndc_all'] = nall
         if editorial and apply_editorial(r, editorial):
             ed_used.add((r.get('aozora_person_id', '').zfill(6),
                          r.get('aozora_work_id', '').zfill(6)))
+            fix_period(r, editorial)
         if args.remeasure_all and args.tokens:
             pid, wid = r.get('aozora_person_id', ''), r.get('aozora_work_id', '')
             if pid and wid and remeasure(r, stem_of(pid, wid), args.tokens):
