@@ -78,7 +78,7 @@ def extract(elem: ET.Element, mode: str, keep_ruby_base: bool = True,
     def rec(e: ET.Element, in_said: bool, in_emb: bool) -> None:
         tag = e.tag
         if tag == 'note':
-            # 注記の中身は常に除外するが，直後のテキスト（tail）は本文なので拾う
+            # 注記の中身は常に除外するが，直後のテクスト（tail）は本文なので拾う
             if e.tail:
                 emit(e.tail, in_said, in_emb)
             return

@@ -171,6 +171,6 @@ if [ -d my_work/.git ]; then
     echo "         cd my_work && git add -A && git commit -m \"Step N の作業\" && git push"
   fi
 else
-  echo "[NOTE] my_work/ のバックアップがまだ無い → bash scripts/setup_my_work.sh <GitHubのユーザ名>（手順書 §5）"
+  echo "[NOTE] my_work/ のバックアップがまだ無い → bash scripts/setup_my_work.sh <GitHubのユーザー名>（手順書 §5）"
 fi
 echo "[ OK ] 完了。Jupyter では my_work/notebooks/ のノートブックを開くこと"

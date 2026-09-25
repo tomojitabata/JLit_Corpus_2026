@@ -4,7 +4,7 @@
 #                            自分の GitHub（private リポジトリ）にバックアップを取る
 #
 #     cd ~/Documents/dh_project/JLit_Corpus_2026
-#     bash scripts/setup_my_work.sh <GitHubのユーザ名> [リポジトリ名]
+#     bash scripts/setup_my_work.sh <GitHubのユーザー名> [リポジトリ名]
 #
 # リポジトリ名を省くと jlit-work。**先に GitHub の画面で，同じ名前の空の
 # private リポジトリを作っておくこと**（README などは付けない。手順書 §5.2）。
@@ -12,7 +12,7 @@
 # このスクリプトがすること
 #   1. コースのリポジトリへの push を無効にする（教材には一切書き込まない）
 #   2. my_work/ を独立した git リポジトリにする。push 先は
-#      https://github.com/<ユーザ名>/<リポジトリ名>.git。そこに別のマシンで作った
+#      https://github.com/<ユーザー名>/<リポジトリ名>.git。そこに別のマシンで作った
 #      バックアップがあれば，それを取ってくる（2台目以降のマシンでも同じ1行でよい）
 #   3. my_work/notebooks/ にノートブックを揃える
 #   4. .gitignore と，50 MB を超えるファイルを止めるチェックを置く
@@ -29,7 +29,7 @@ if [ -z "${GHUSER}" ] || [ "${GHUSER}" = "-h" ] || [ "${GHUSER}" = "--help" ]; t
   sed -n '2,20p' "$0"; exit 2
 fi
 case "${GHUSER}" in
-  *[!A-Za-z0-9-]*) echo "[ERR ] GitHub のユーザ名に使えない文字がある: ${GHUSER}"; exit 2 ;;
+  *[!A-Za-z0-9-]*) echo "[ERR ] GitHub のユーザー名に使えない文字がある: ${GHUSER}"; exit 2 ;;
 esac
 
 cd "$(dirname "$0")/.." || exit 1
@@ -63,7 +63,7 @@ if [ ! -d .git ]; then
   git init -q
   git symbolic-ref HEAD refs/heads/main
   git remote add origin "${URL}"
-  echo "-- my_work/ を git リポジトリにした。GitHub のバックアップを確かめる（ユーザ名とトークンを聞かれることがある）"
+  echo "-- my_work/ を git リポジトリにした。GitHub のバックアップを確かめる（ユーザー名とトークンを聞かれることがある）"
   if git fetch -q origin 2>/dev/null && git rev-parse -q --verify origin/main >/dev/null; then
     # 別のマシンで作ったバックアップがある → それを取ってくる（こちらの同名ファイルはバックアップの版になる）
     git checkout -q -f -B main origin/main
@@ -157,7 +157,7 @@ if ! git diff --cached --quiet; then
 fi
 
 # ---- 5. 自分の GitHub へ push する -------------------------------------------
-echo "-- ${URL} へ push する（初回はユーザ名とトークンを聞かれる。§5.2）"
+echo "-- ${URL} へ push する（初回はユーザー名とトークンを聞かれる。§5.2）"
 if git push -u origin main; then
   echo "[ OK ] バックアップができた: ${URL}"
   echo "       作業の終わりに：cd my_work && git add -A && git commit -m \"Step N の作業\" && git push"
@@ -166,7 +166,7 @@ else
   echo "[ERR ] push できなかった。よくある原因："
   echo "       1) GitHub に ${REPO} という空の private リポジトリを作っていない"
   echo "       2) パスワードの欄に GitHub のパスワードを入れた（トークンを入れる。§5.2）"
-  echo "       3) ユーザ名の綴りが違う（${GHUSER}）"
+  echo "       3) ユーザー名の綴りが違う（${GHUSER}）"
   echo "       直したら，もう一度 bash scripts/setup_my_work.sh ${GHUSER} ${REPO}"
   exit 1
 fi

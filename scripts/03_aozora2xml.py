@@ -180,7 +180,7 @@ GAIJI_MARKER = '※'
 
 
 def find_last_marker(out: list, lookback: int = 6) -> tuple[int, int] | None:
-    """直前の外字マーカ ``※`` の位置（出力断片の番号, 文字位置）を返す。
+    """直前の外字マーカー ``※`` の位置（出力断片の番号, 文字位置）を返す。
 
     ``※`` は直前の文字断片の末尾にあるのが普通だが，**ルビの基底文字の中**に
     現れることもある::
@@ -278,7 +278,7 @@ def walk(el, st: Stats, out: list) -> None:
             out.append(escape(el.tail))
         return
 
-    # 既定：テキストと子要素をそのまま流す
+    # 既定：テクストと子要素をそのまま流す
     if el.text:
         out.append(escape(el.text))
     for ch in el:

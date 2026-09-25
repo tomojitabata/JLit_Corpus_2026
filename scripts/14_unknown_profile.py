@@ -78,20 +78,20 @@ BUNGO_HINT = re.compile(
     r'つれ|ぬれ|しか|しき|かる|げれ)$')
 
 CATEGORIES = ('カタカナ外来語', '固有名詞らしい漢字列', '踊り字の残り',
-              '外字マーカの残り', '文語の活用形らしい', 'ラテン文字・数字',
+              '外字マーカーの残り', '文語の活用形らしい', 'ラテン文字・数字',
               '平仮名列', 'その他')
 
 
 def classify(s: str) -> str:
     """未知語1件を分類する。**判定の順序が意味を持つ。**
 
-    踊り字と外字マーカを先に見る。これらは「前処理の失敗」であり，
+    踊り字と外字マーカーを先に見る。これらは「前処理の失敗」であり，
     見落としてはいけないものなので，他の条件より優先して拾う。
     """
     if any(c in s for c in ODORIJI):
         return '踊り字の残り'
     if any(c in s for c in GAIJI_MARK):
-        return '外字マーカの残り'
+        return '外字マーカーの残り'
     if RE_KATA.match(s):
         return 'カタカナ外来語'
     if RE_LATIN.match(s) or RE_DIGIT.match(s):
@@ -326,13 +326,13 @@ def main() -> int:
             print(f'  {c}: {" ".join(examples[c])}')
 
     # ---- 前処理の失敗が残っていないか -------------------------------------
-    bad = by_cat_types['踊り字の残り'] + by_cat_types['外字マーカの残り']
+    bad = by_cat_types['踊り字の残り'] + by_cat_types['外字マーカーの残り']
     print()
     if bad:
         print(f'[FATAL] 前処理の失敗が {bad} 種残っている。'
-              '踊り字は 04，外字マーカは 03 を見直すこと。')
+              '踊り字は 04，外字マーカーは 03 を見直すこと。')
     else:
-        print('[ok  ] 踊り字・外字マーカの残りは **0 種**。'
+        print('[ok  ] 踊り字・外字マーカーの残りは **0 種**。'
               '正規化と外字復元は効いている。')
     kata = 100 * by_cat_types['カタカナ外来語'] / max(1, tt)
     if kata >= 50:

@@ -131,7 +131,7 @@ def main() -> int:
     if tpls:
         print(f'       課題は {TPL_DST.relative_to(ROOT)}/StepN_report.md（テンプレート）に書く（手順書 §5.3）')
     if not a.dry_run and not (ROOT / 'my_work' / '.git').exists():
-        print('[NOTE] my_work/ のバックアップがまだ無い。bash scripts/setup_my_work.sh <GitHubのユーザ名> で'
+        print('[NOTE] my_work/ のバックアップがまだ無い。bash scripts/setup_my_work.sh <GitHubのユーザー名> で'
               '自分の GitHub にバックアップを作ること（手順書 §5）')
     return 0
 

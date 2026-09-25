@@ -396,7 +396,7 @@ def main() -> int:
 
     # --- メタデータとの突合を検査する ------------------------------------
     # 一致しないまま進むと period も genre も空のチャンク索引ができ，
-    # 以降の分析（時代別 keyness・doc2vec のカテゴリ効果・トピックの通時変化）
+    # 以降の分析（時代別 keyness・doc2vec のカテゴリー効果・トピックの通時変化）
     # がすべて意味をなさなくなる。**黙って通してはいけない工程である。**
     if unmatched:
         dest = os.path.join(args.out, 'meta_unmatched.csv')

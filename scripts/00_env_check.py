@@ -56,12 +56,12 @@ def check_git_roles(here: str) -> None:
     mw = os.path.join(here, 'my_work')
     if not os.path.isdir(os.path.join(mw, '.git')):
         add(WARN, '作業のバックアップ（my_work/）', 'まだ git になっていない',
-            'bash scripts/setup_my_work.sh <GitHubのユーザ名>（手順書 §5.2）')
+            'bash scripts/setup_my_work.sh <GitHubのユーザー名>（手順書 §5.2）')
         return
     url = _git(['remote', 'get-url', 'origin'], mw)
     if not url:
         add(WARN, '作業のバックアップ（my_work/）', 'push 先が無い',
-            'bash scripts/setup_my_work.sh <GitHubのユーザ名>')
+            'bash scripts/setup_my_work.sh <GitHubのユーザー名>')
     elif 'tomojitabata/JLit_Corpus_2026' in url:
         add(NG, '作業のバックアップ（my_work/）', f'push 先がコースのリポジトリになっている（{url}）',
             'cd my_work && git remote set-url origin https://github.com/<自分>/jlit-work.git')

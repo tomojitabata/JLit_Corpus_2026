@@ -80,7 +80,7 @@ DH Lab の iMac は **XCreds** で認証する。どのマシンにもログイ�
 - 初めてのマシンに移ったら §2 のスクリプトをもう一度実行する（そのマシンで誰かが
   既に済ませていれば，辞書などは共有されているので 5 分ほどで済む）
 - **作業の終わりは必ずログアウトする**（アップルメニュー → ログアウト）。
-  ログイン画面に切り替えるだけ（ファストユーザスイッチ）では，自分の Jupyter・
+  ログイン画面に切り替えるだけ（ファストユーザースイッチ）では，自分の Jupyter・
   KWIC の画面・計算中の処理（word2vec や MALLET）が裏で動き続け，次にそのマシンを
   使う人の処理が遅くなる
 
@@ -90,7 +90,7 @@ DH Lab の iMac は **XCreds** で認証する。どのマシンにもログイ�
 とどめる**方針である。本手順は `sudo` を一度も使わない。Homebrew も使わない
 （Homebrew の導入自体に admin が要るため）。
 
-- Python は **uv** がユーザ領域に入れる
+- Python は **uv** がユーザー領域に入れる
 - Java は Temurin の tar.gz を展開するだけ（インストーラを実行しない）
 - MALLET も tar.gz を展開するだけ
 
@@ -128,7 +128,7 @@ DH Lab の iMac は **XCreds** で認証する。どのマシンにもログイ�
 `.venv` と `pyproject.toml` は `00_bootstrap_mac.sh` が作る。
 **`dh_project` の外に clone するとスクリプトは止まる**（置き直す手順を表示する）。
 
-macOS の `/Users/Shared` は **admin 権限なしに全ユーザが読み書きできる**。
+macOS の `/Users/Shared` は **admin 権限なしに全ユーザーが読み書きできる**。
 ここに置いておけば，同じマシンなら次の人が約 1.7 GB の辞書を取り直さずに済む。
 青空文庫のサーバにも余計な負荷をかけない。
 
@@ -285,7 +285,7 @@ bash scripts/00_bootstrap_mac.sh
 exec zsh
 # 自分のバックアップ（my_work/）を GitHub から取ってくる（§5.2）
 cd ~/Documents/dh_project/JLit_Corpus_2026
-bash scripts/setup_my_work.sh <GitHubのユーザ名>
+bash scripts/setup_my_work.sh <GitHubのユーザー名>
 ```
 
 そのマシンで誰かが既にセットアップしていれば，JDK・MALLET・UniDic は
@@ -485,10 +485,10 @@ GitHub は git の操作でパスワードを受け付けない。**パスワー
 git config --global user.name  "<氏名またはローマ字>"
 git config --global user.email "<GitHub に登録したメールアドレス>"
 cd ~/Documents/dh_project/JLit_Corpus_2026
-bash scripts/setup_my_work.sh <GitHubのユーザ名>
+bash scripts/setup_my_work.sh <GitHubのユーザー名>
 ```
 
-`Username` には GitHub のユーザ名，`Password` には**トークン**を入れる。
+`Username` には GitHub のユーザー名，`Password` には**トークン**を入れる。
 macOS のキーチェーンに保存されるので，同じマシンでは2回目から聞かれない
 （共用 iMac はホームがマシンごとなので，初めてのマシンではもう一度入れる）。
 
@@ -557,7 +557,7 @@ push が済んだら，共用 iMac では**ログアウト**する（§1.1。ロ
 
 ### 5.5 図は SVG で
 
-`save_fig()` が既定で SVG を `my_work/results/` に書き出す。SVG はテキストなので
+`save_fig()` が既定で SVG を `my_work/results/` に書き出す。SVG はテクストなので
 Git の差分が取れ，拡大しても劣化しない。PNG を手で保存しないこと。
 
 ---
@@ -573,7 +573,7 @@ cd ~/Documents/dh_project/JLit_Corpus_2026
 # ALL OK を確認
 python scripts/00_env_check.py
 # 自分の作業フォルダ my_work/ とバックアップを用意する（初回のみ。§5.2）
-bash scripts/setup_my_work.sh <GitHubのユーザ名>
+bash scripts/setup_my_work.sh <GitHubのユーザー名>
 jupyter lab
 ```
 
@@ -639,7 +639,7 @@ bash scripts/update.sh
 
 | 症状 | 原因 | 対処 |
 |---|---|---|
-| 前回の作業が見当たらない（共用 iMac） | 前回とは別のマシンにログインした（作業は前回のマシンのホームに残っている） | §1.1。控えたマシン名を確かめ，前回のマシンに移るか，`my_work/` を push してあれば `bash scripts/setup_my_work.sh <ユーザ名>` で取り出す |
+| 前回の作業が見当たらない（共用 iMac） | 前回とは別のマシンにログインした（作業は前回のマシンのホームに残っている） | §1.1。控えたマシン名を確かめ，前回のマシンに移るか，`my_work/` を push してあれば `bash scripts/setup_my_work.sh <ユーザー名>` で取り出す |
 | `uv: command not found` | PATH に `~/.local/bin` が無い | 端末を開き直す。または `export PATH="$HOME/.local/bin:$PATH"` |
 | `ModuleNotFoundError: fugashi` | 仮想環境が有効でない | `source ~/Documents/dh_project/.venv/bin/activate` |
 | `[ERR ] リポジトリが作業フォルダ dh_project の中にない` | `~/Documents` などに直接 clone した | 表示される手順で `~/Documents/dh_project` の中に clone し直す |
@@ -668,8 +668,8 @@ bash scripts/update.sh
 | KWIC のセルが「ポート番号 8765 は別のもの（前の人のサーバなど）が使っているので，ポート番号 8766 を使う」と出す | 前の人の KWIC のサーバが残っている | 正常。自分の索引のサーバを別のポートで起動している。表示されたリンクを使う |
 | `00_bootstrap_mac.sh` が「… が /Users/Shared/jlit に無く，そこに書く権限も無い」で止まる | そのマシンの `/Users/Shared/jlit` が旧い版のスクリプトで作られ，他の人が書けない権限になっている | 作った人（または TA）がそのマシンで `00_bootstrap_mac.sh` を再実行すると権限が直る。急ぐときは `--personal` を付けて実行する |
 | `00_bootstrap_mac.sh` が「別のユーザーが取得中である」で止まる | 前の人のセットアップが裏で動いている（ログアウトせずに離れた） | 数分待って再実行する。2時間以上前のロックは自動で無視される |
-| 途中から `my_work` の push・pull が `Authentication failed` になった | トークンの有効期限が切れた（§5.1） | GitHub で同じ設定のトークンを作り直し，保存済みの古いトークンを消す：`printf "protocol=https\nhost=github.com\n\n" \| git credential reject`。次の push でユーザ名と新しいトークンを入れる |
-| `my_work` の push で `Repository not found` | GitHub に `jlit-work` を作っていない／ユーザ名の綴り違い | §5.1 の 2。`cd my_work && git remote -v` で push 先を確かめる |
+| 途中から `my_work` の push・pull が `Authentication failed` になった | トークンの有効期限が切れた（§5.1） | GitHub で同じ設定のトークンを作り直し，保存済みの古いトークンを消す：`printf "protocol=https\nhost=github.com\n\n" \| git credential reject`。次の push でユーザー名と新しいトークンを入れる |
+| `my_work` の push で `Repository not found` | GitHub に `jlit-work` を作っていない／ユーザー名の綴り違い | §5.1 の 2。`cd my_work && git remote -v` で push 先を確かめる |
 | `[ERR ] 50 MB を超えるファイルはバックアップに入れない` | モデルなど大きい生成物をコミットしようとした | 表示のとおり `git restore --staged` で外す。作り直せるものはバックアップに入れない |
 | `git pull` で `corpus_metadata_v3.csv` が衝突する | 旧い版のスクリプトで配布版を上書きした | `bash scripts/update.sh`（上書きされた版は退避される）。いまの版は `_local.csv` に書く |
 | KWIC の画面が「サーバに接続できません」（セルは `[ok  ] 起動した` と出た） | 続けて「止める」のセルまで実行した，またはカーネルを止めた | 「画面を起動する」のセルをもう一度実行する。いまの版では「止める」は `STOP_KWIC = True` にしたときだけ止める |

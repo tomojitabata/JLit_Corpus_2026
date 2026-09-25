@@ -85,7 +85,7 @@ gensim>=4.3
 umap-learn>=0.5
 numba>=0.60          # umap-learn が使う JIT。numpy 2.x では 0.60 以上が要る
 # MALLET は Java 製の外部ツール。pip では入らない。docs/00_setup_students.md 参照
-# Java がどうしても入らない環境では tomotopy で代替できる（レポートに明記すること）
+# Java がどうしても入らない環境では tomotopy で代替できる（リポートに明記すること）
 #   pip install tomotopy
 
 # --- 文書処理 ---------------------------------------------------------------

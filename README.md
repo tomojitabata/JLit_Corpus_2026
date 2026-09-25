@@ -166,7 +166,7 @@ python scripts/00_env_check.py          # ALL OK を確認
 `00_bootstrap_mac.sh` は **sudo を一度も使わない**（uv・Temurin の tar.gz・
 MALLET の tar.gz を展開するだけ）。共用 iMac ではホームがマシンごとに別々（共有されない）ため，
 JDK・MALLET・UniDic・取得済みテクストを `/Users/Shared/jlit` に置き，
-同じマシンなら次回も別のユーザでも使い回せるようにしている。
+同じマシンなら次回も別のユーザーでも使い回せるようにしている。
 
 **解析辞書は `unidic-novel`（近現代口語小説UniDic v202512）に決めてある**
 （2026-09-22。4 辞書を 111 点で比較。未知語率 0.17%＝cwj の 3.9 分の 1）。

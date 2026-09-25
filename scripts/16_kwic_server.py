@@ -98,7 +98,7 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(self.kw.facets())
             elif u.path == '/api/whoami':
                 # 誰の，どの索引のサーバか。127.0.0.1 はマシンの中の全ユーザーに
-                # 共通なので，前の人がログアウトせずに離れる（ファストユーザ
+                # 共通なので，前の人がログアウトせずに離れる（ファストユーザー
                 # スイッチ）と，その人のサーバが同じポートに残っている。ノートブックは
                 # これを見て，自分のサーバでなければ別のポートを使う。
                 self._json({'user': self.owner, 'index': self.index_path})

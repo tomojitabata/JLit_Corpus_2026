@@ -125,7 +125,7 @@ def main() -> int:
             return None
         return float(np.mean(win)), float(np.mean(bet)), len(win)
 
-    print('\n同一カテゴリ内の平均類似度 vs 異カテゴリ間:')
+    print('\n同一カテゴリー内の平均類似度 vs 異カテゴリー間:')
     eff = []
     for field in ('author_ja', 'period', 'genre_sub', 'narration',
                   'register_level', 'author_sex'):
@@ -143,8 +143,8 @@ def main() -> int:
             w.writeheader()
             w.writerows(sorted(eff, key=lambda r: -r['gap']))
     else:
-        print('  [warn] 同一カテゴリのペアが作れない（作品数が少なすぎる）。'
-              'カテゴリ効果の比較は省略する。')
+        print('  [warn] 同一カテゴリーのペアが作れない（作品数が少なすぎる）。'
+              'カテゴリー効果の比較は省略する。')
 
     top = sorted(eff, key=lambda r: -r['gap'])
     if top and top[0]['field'] == 'author_ja':
@@ -153,7 +153,7 @@ def main() -> int:
         print('         → 作家をランダム効果に入れる／作家あたり作品数を揃える')
 
     # ---- 最近傍一致率 -----------------------------------------------------
-    print('\n最近傍がカテゴリを共有する割合:')
+    print('\n最近傍がカテゴリーを共有する割合:')
     rows = []
     if len(works) >= 2:
         for field in ('author_ja', 'period', 'genre_sub', 'narration'):

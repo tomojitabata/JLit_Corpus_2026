@@ -36,10 +36,10 @@
 # 二つのモードの違いは**重い共有物をどこに置くか**だけである。
 #
 #   共用 iMac (--なし)      /Users/Shared/jlit
-#       macOS の /Users/Shared は admin 権限なしに全ユーザが読み書きできる。
+#       macOS の /Users/Shared は admin 権限なしに全ユーザーが読み書きできる。
 #       DH Lab の iMac は XCreds 認証でホームがマシンごとに別々なので，
 #       JDK・MALLET・UniDic・取得済みテクストをここに置いておくと，
-#       **同じマシンなら次回も，別のユーザでも**使い回せる。
+#       **同じマシンなら次回も，別のユーザーでも**使い回せる。
 #
 #   自分の Mac (--personal)  ~/.jlit
 #       共有する相手がいないので自分のホームに置く。マシンが1台なので，
@@ -162,7 +162,7 @@ share_dir() {   # $1: ディレクトリ。無ければ作り，自分の持ち�
   if [ "$KIND" = lab ] && [ -O "$1" ]; then chmod 1777 "$1" 2>/dev/null; fi
   return 0
 }
-# 取得中はロックを掛ける。前の人がファストユーザスイッチで離れ，その人の
+# 取得中はロックを掛ける。前の人がファストユーザースイッチで離れ，その人の
 # セットアップが裏で動き続けていると，同じ辞書を2人が同時に展開してしまう。
 LOCKS=""
 release_locks() { local d; for d in $LOCKS; do rmdir "$d" 2>/dev/null; done; }
@@ -196,7 +196,7 @@ printf '  マシン名        %s\n' "$(scutil --get ComputerName 2>/dev/null || 
 printf '  ホスト名        %s\n' "$(hostname -s)"
 # set -u で実行しているので，USER が無い環境（cron・一部の CI）で
 # ここが未定義変数エラーになる。その場合は id から取得する。
-printf '  ユーザ          %s\n' "${USER:-$(id -un)}"
+printf '  ユーザー        %s\n' "${USER:-$(id -un)}"
 printf '  ホーム          %s\n' "$HOME"
 printf '  macOS           %s\n' "$(sw_vers -productVersion)"
 printf '  CPU             %s\n' "$ARCH_LABEL"

@@ -11,7 +11,7 @@
 増補した作品（v1 に無いもの）にはメタデータの行がない。
 行が無いと ``06_build_datasets.py`` の突合が外れ，チャンク索引の
 ``period`` も ``genre`` も空になる。その状態で先へ進むと，
-時代別 keyness も doc2vec のカテゴリ効果もトピックの通時変化も，
+時代別 keyness も doc2vec のカテゴリー効果もトピックの通時変化も，
 **いずれも空のまま，エラーも出ずに最後まで進んでしまう。**
 
 何を典拠にするか
@@ -876,7 +876,7 @@ def main() -> int:
             print('        --tokens data/tokens/tokens_surface を付けて'
                   '測り直せば埋まる。')
         print('        TBD のまま keyness や doc2vec に進むと，'
-              'そのカテゴリの比較が無意味になる。')
+              'そのカテゴリーの比較が無意味になる。')
     else:
         print('[ok  ] 分析に使う行に TBD は残っていない')
     print(f'[ok  ] → {args.out}')
@@ -897,7 +897,7 @@ def main() -> int:
         print('\n       narration（語りの視点）は本文を読まないと決まらない。')
         print('       register_level（正典/中間/大衆/記録）も同様である。')
         print('       TBD のまま doc2vec や keyness に進むと，'
-              'そのカテゴリの比較が無意味になる。')
+              'そのカテゴリーの比較が無意味になる。')
 
     if no_year:
         dest = os.path.splitext(args.out)[0] + '_no_year.csv'

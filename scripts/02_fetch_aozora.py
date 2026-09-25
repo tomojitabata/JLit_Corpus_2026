@@ -16,7 +16,7 @@ XHTML 版は ``<ruby>`` 要素と ``<span class="notes">`` で構造化されて
 ---------------
 ``list_person_all_extended_utf8.zip`` には公開中の全作品について
 作品ID・作品名・**初出**・**分類番号(NDC)**・文字遣い種別・底本・
-テキスト/XHTML ファイル URL が入っている。図書カードを1件ずつ読む必要がなく，
+テクスト/XHTML ファイル URL が入っている。図書カードを1件ずつ読む必要がなく，
 かつ書誌の典拠が一元化される。v1 の ``year`` 列の誤りはすべて，この索引を
 使っていれば起きなかった種類の誤りである。
 
@@ -78,7 +78,7 @@ def shared_cache(args) -> str:
     別のマシンに移るたびに 100 件超を取り直すことになる。青空文庫の
     サーバにも負荷をかけるので，**マシン内で共有できる場所**に
     キャッシュを置く。macOS の ``/Users/Shared`` は admin 権限なしに
-    全ユーザが読み書きできるので，そこを既定にしている。
+    全ユーザーが読み書きできるので，そこを既定にしている。
 
     優先順位: ``--cache`` > 環境変数 ``JLIT_AOZORA_CACHE`` > 既定の共有場所
     """
@@ -422,7 +422,7 @@ def cmd_works(args) -> int:
             log.append((name, h, 'cached'))
             continue
         # 共有キャッシュにあれば青空文庫には取りに行かない。
-        # DH Lab の iMac はホームがマシンごとに別々（共有されない）ので，別のユーザや
+        # DH Lab の iMac はホームがマシンごとに別々（共有されない）ので，別のユーザーや
         # 前の授業回で取得済みのものを使い回せると待ち時間が大きく減る。
         cached = os.path.join(cache, name) if cache else ''
         if cached and os.path.exists(cached) and not args.force:
