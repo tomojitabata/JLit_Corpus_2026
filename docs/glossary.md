@@ -2683,6 +2683,7 @@ drift が大きい語は KWIC で用例を読む。トピックは，そのト�
 | 6 | Hamilton, Leskovec & Jurafsky (2016) Diachronic word embeddings reveal statistical laws of semantic change. *ACL*. |
 | 6 | Kim et al. (2014) Temporal analysis of language through neural language models. *ACL Workshop*. |
 | 6 | Dubossarsky et al. (2017) Outta control: laws of semantic change and inherent biases. *EMNLP*. |
+| 6 | Tabata, T. (2026) Using word embeddings as a semantic approach to key word analysis. *PALA 2026: The Philosophy of Stylistics*, Uppsala, 19–22 August 2026. 資料: <https://tinyurl.com/tabata-pala2026> |
 | 7 | Le & Mikolov (2014) Distributed representations of sentences and documents. *ICML*. |
 | 7 | Lau & Baldwin (2016) An empirical evaluation of doc2vec. *Rep4NLP*. |
 | 8 | Blei, Ng & Jordan (2003) Latent Dirichlet Allocation. *JMLR* 3. |

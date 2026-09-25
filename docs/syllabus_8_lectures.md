@@ -435,5 +435,6 @@ Antoniak & Mimno (2018) の議論を必ず扱う。
 - Antoniak, M. & Mimno, D. (2018) Evaluating the stability of embedding-based word similarities. *TACL* 6.
 - Schöch, C., Schlör, D., Zehe, A., Gebhard, H., Becker, M. & Hotho, A. (2018) Burrows' Zeta: exploring and evaluating variants and parameters. *DH2018 Book of Abstracts*.
 - Underwood, T. (2019) *Distant Horizons: Digital Evidence and Literary Change*. University of Chicago Press.
+- Tabata, T. (2026) Using word embeddings as a semantic approach to key word analysis. *PALA 2026: The Philosophy of Stylistics*, Uppsala, 19–22 August 2026. 資料: <https://tinyurl.com/tabata-pala2026>
 - 前川喜久雄 編 (2013)『コーパス入門』（講座日本語コーパス1）朝倉書店
 - 金明哲 (2021)『テキストアナリティクス』共立出版

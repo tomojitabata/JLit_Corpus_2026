@@ -5085,6 +5085,7 @@ word2vec の目的関数は**回転に対して不変**である。
 - Hamilton, Leskovec & Jurafsky (2016) Diachronic word embeddings reveal statistical laws of semantic change. *ACL*.
 - Kim et al. (2014) Temporal analysis of language through neural language models. *ACL Workshop*.
 - Dubossarsky et al. (2017) Outta control: laws of semantic change and inherent biases. *EMNLP*.
+- Tabata, T. (2026) Using word embeddings as a semantic approach to key word analysis. *PALA 2026: The Philosophy of Stylistics*, Uppsala, 19–22 August 2026. 資料: <https://tinyurl.com/tabata-pala2026>
 '''),
  ('code', PREAMBLE),
  ('md', r'''## 1. Procrustes アラインメントを手で実装する
