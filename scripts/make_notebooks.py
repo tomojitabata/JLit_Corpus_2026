@@ -5803,8 +5803,12 @@ Step 3 でチャンク分割したことがここで生きる。作品を1文書
 50万語の『夜明け前』が複数トピックを占有する。**2,000語チャンクで揃える。**
 
 ## 参考
+- Aitchison, J. (1986) *The Statistical Analysis of Compositional Data*. Chapman & Hall.
 - Blei, Ng & Jordan (2003) Latent Dirichlet Allocation. *JMLR* 3.
+- Lin, J. (1991) Divergence measures based on the Shannon entropy. *IEEE Transactions on Information Theory* 37(1): 145–151.
 - Mimno et al. (2011) Optimizing semantic coherence in topic models. *EMNLP*.
+- Sievert, C. & Shirley, K. (2014) LDAvis: a method for visualizing and interpreting topics. *Proceedings of the Workshop on Interactive Language Learning, Visualization, and Interfaces*: 63–70.
+- Smith, P. W. H. & Aldridge, W. (2011) Improving authorship attribution: optimizing Burrows' Delta method. *Journal of Quantitative Linguistics* 18(1): 63–88.
 - Underwood, T. (2019) *Distant Horizons*. Chicago UP.
 '''),
  ('code', PREAMBLE),
@@ -5991,6 +5995,10 @@ if need(TOK_SEL, '上のセルを先に実行すること'):
 - **relevance λ** を下げると，そのトピックに特有の語が上に来る（0.6 前後が目安）
 - トピックを押すと，**時代別の割合・割合の大きい作品と作家**が出る
 - 語で探すと，その語を上位に持つトピックだけが濃く残る
+- トピックの詳細の下に，**関連の強いトピック**が並ぶ。指標は5つから選ぶ。
+  Jensen–Shannon divergence・語分布のコサイン類似度・Burrows's Delta・Cosine Delta は
+  **語分布の近さ**（同じ語でできているか），チャンク上の相関（CLR 変換後）は
+  **文書の中での共起**（同じチャンクに一緒に現れるか）を測る。行を押すとそのトピックに移る
 
 ⚠ **ビューアで語を隠すことと，その語を除いて学習し直すことは違う。**
 隠した語もトピックの形成には効いている。本番モデルで固有名詞を隠しても，

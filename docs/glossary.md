@@ -2077,6 +2077,27 @@ P(作品｜トピック)（このトピックの重みのうちその作品か�
 **relevance**（Sievert & Shirley 2014）＝ λ log p(w|t) ＋ (1−λ) log(p(w|t)/p(w))。
 λ=1 はトピック内の確率順，λ を下げるほど**そのトピックに特有の語**が上に来る。
 
+**関連の強いトピック。** トピックを押すと，そのトピックに近いトピックが並ぶ。
+指標は2系統ある。
+
+| 指標 | 何を測るか | 近いのは |
+|---|---|---|
+| Jensen–Shannon divergence（Lin 1991） | 2つの語分布 p(w\|t) の隔たり（底 2，0〜1）。LDAvis のトピック間距離と同じ考え方（Sievert & Shirley 2014） | 小さいほど |
+| 語分布のコサイン類似度 | p(w\|t) を並べたベクトルの向き。度数の大きい語に引きずられやすい | 大きいほど |
+| Burrows's Delta | 度数上位の語（既定 500 語）の p(w\|t) をトピックをまたいで z 得点にし，差の絶対値を平均する。高頻度語の支配を抑える | 小さいほど |
+| Cosine Delta（Smith & Aldridge 2011） | 同じ z 得点のベクトルの 1 − コサイン類似度 | 小さいほど |
+| チャンク上の相関 | チャンクごとのトピックの割合を CLR（centred log-ratio; Aitchison 1986）で変換し，チャンクをまたいで取った Pearson の相関係数 | 大きいほど |
+
+上の4つは**語分布の近さ**（同じ語でできているか），相関は**文書の中での共起**
+（同じチャンクに一緒に現れるか）であり，別のものを測っている。語がほとんど重ならなくても，
+同じ場面に続けて現れる2つのトピックは相関が高くなる。
+
+⚠ トピックの割合は和が 1 の比率データである。そのまま相関を取ると，1つのトピックが
+大きい割合を占めたときに他がそろって小さくなり，見かけの相関が生じる。対数比に
+してから取るのはこのためである。ただし和の制約は変換しても残る（CLR では和が 0）ので，
+**相関の平均は −1/(K−1) になる**（K＝50 なら −0.02）。この値を基準に読む。
+同じ作品のチャンクが多いので，相関は作品・作家の偏りも拾う。
+
 **外来語の表示。** UniDic は外来語の語彙素に原綴を付ける（`テーブル-table`，
 `パン-pao`，`ガラス-glas`）。原語が違えば別の語彙素になる（`ロケット-rocket` と
 `ロケット-locket`）。ビューアと Step 4 の Excel は片仮名だけを表示し，原綴は
@@ -2659,8 +2680,12 @@ drift が大きい語は KWIC で用例を読む。トピックは，そのト�
 | 6 | Tabata, T. (2026) Using word embeddings as a semantic approach to key word analysis. *PALA 2026: The Philosophy of Stylistics*, Uppsala, 19–22 August 2026. 資料: <https://tinyurl.com/tabata-pala2026> |
 | 7 | Lau & Baldwin (2016) An empirical evaluation of doc2vec. *Rep4NLP*. |
 | 7 | Le & Mikolov (2014) Distributed representations of sentences and documents. *ICML*. |
+| 8 | Aitchison, J. (1986) *The Statistical Analysis of Compositional Data*. Chapman & Hall. |
 | 8 | Blei, Ng & Jordan (2003) Latent Dirichlet Allocation. *JMLR* 3. |
+| 8 | Lin, J. (1991) Divergence measures based on the Shannon entropy. *IEEE Transactions on Information Theory* 37(1): 145–151. |
 | 8 | Mimno et al. (2011) Optimizing semantic coherence in topic models. *EMNLP*. |
+| 8 | Sievert, C. & Shirley, K. (2014) LDAvis: a method for visualizing and interpreting topics. *Proceedings of the Workshop on Interactive Language Learning, Visualization, and Interfaces*: 63–70. |
+| 8 | Smith, P. W. H. & Aldridge, W. (2011) Improving authorship attribution: optimizing Burrows' Delta method. *Journal of Quantitative Linguistics* 18(1): 63–88. |
 | 8 | Underwood, T. (2019) *Distant Horizons*. Chicago UP. |
 ---
 
@@ -2682,6 +2707,7 @@ drift が大きい語は KWIC で用例を読む。トピックは，そのト�
 | 仮想環境 | 0 |
 | カテゴリー効果 | 7 |
 | 偏り | 1 |
+| 関連の強いトピック（トピックビューア） | 8 |
 | 共起行列 → PPMI → SVD | 5 |
 | 共通語彙 | 6 |
 | 近傍語 | 5 |
@@ -2767,9 +2793,11 @@ drift が大きい語は KWIC で用例を読む。トピックは，そのト�
 | `--runs` / `--seeds` | 6 |
 | Burrows's Delta | 4 |
 | CBOW / skip-gram | 5 |
+| CLR（centred log-ratio）→ 関連の強いトピック | 8 |
 | coherence → トピック数 K を選ぶ | 8 |
 | `completeness` の値 | 2 |
 | `corpus_metadata_v3.csv` と `TBD` | 3 |
+| Cosine Delta → 関連の強いトピック | 8 |
 | drift | 6 |
 | `euc_jis_2004` → 面区点 | 2 |
 | exclusivity → トピック数 K を選ぶ | 8 |
@@ -2778,6 +2806,7 @@ drift が大きい語は KWIC で用例を読む。トピックは，そのト�
 | GroupKFold | 7 |
 | Guiraud's R → 長さに頑健な語彙指標 | 4 |
 | Jaccard 係数 | 5 |
+| Jensen–Shannon divergence → 関連の強いトピック | 8 |
 | KWIC | 6 |
 | `label_points()` | 共 |
 | LDA | 8 |

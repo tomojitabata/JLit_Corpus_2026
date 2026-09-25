@@ -16,6 +16,9 @@
   λ を下げるほど**そのトピックに特有の語**が上に来る
 * トピックごとに **時代別の割合**・**多い作品と作家**を見る
 * 語で検索して，その語を上位に持つトピックを探す
+* 選んだトピックと**関連の強いトピック**を一覧する。指標は 5 つから選ぶ：
+  語分布のコサイン類似度，Jensen–Shannon divergence，Burrows's Delta，
+  Cosine Delta（以上は語分布の近さ），チャンク上の相関（CLR 変換後。共起）
 * 複数のモデル（例：内容語すべて／名詞・動詞・形容詞）を切り替えて比べる
 
 ⚠ **ビューアで語を隠すことと，その語を除いて学習し直すことは違う。**
@@ -151,7 +154,76 @@ def read_selection(mdir: str) -> str:
     return ''
 
 
-def build_model(label: str, mdir: str, meta: dict, lex: dict, top: int, min_count: int) -> dict:
+def relatedness(k: int, wt: dict[str, Counter], rows: list[list[float]],
+                mfw: int, min_count: int) -> dict:
+    """トピック間の関連（K×K）を 5 つの指標で計算する。
+
+    語分布の近さ（そのトピックがどの語でできているか）
+      cos     p(w|t) のベクトルのコサイン類似度。大きいほど近い
+      jsd     Jensen–Shannon divergence（底 2，0〜1）。小さいほど近い
+      delta   度数上位 mfw 語の p(w|t) をトピック間で z 得点にし，
+              差の絶対値を平均したもの（Burrows's Delta の考え方）。小さいほど近い
+      cdelta  同じ z 得点ベクトルの 1 − コサイン類似度（Cosine Delta）。小さいほど近い
+    文書の中での共起
+      corr    チャンクごとのトピックの割合を CLR（centred log-ratio）で変換し，
+              チャンクをまたいで取った Pearson の相関係数。大きいほど一緒に現れる
+              和が 1 という制約は変換後も残るので，相関の平均は −1/(K−1) になる
+    """
+    import numpy as np
+    words = [w for w, c in wt.items() if sum(c.values()) >= min_count]
+    C = np.zeros((len(words), k))
+    for i, w in enumerate(words):
+        for t, n in wt[w].items():
+            C[i, t] = n
+    tot = C.sum(axis=0)
+    tot[tot == 0] = 1
+    P = C / tot                                   # p(w|t)，列ごとに和が 1
+
+    nrm = np.linalg.norm(P, axis=0)
+    nrm[nrm == 0] = 1
+    Pn = P / nrm
+    cos = Pn.T @ Pn
+
+    # JSD(p, q) = H(m) − (H(p) + H(q)) / 2，m = (p + q) / 2（底 2）
+    def ent(x):
+        with np.errstate(divide='ignore', invalid='ignore'):
+            return -np.nansum(np.where(x > 0, x * np.log2(x), 0.0), axis=0)
+    H = ent(P)
+    jsd = np.zeros((k, k))
+    for a in range(k):
+        m = (P[:, a:a + 1] + P[:, a:]) / 2
+        v = ent(m) - (H[a] + H[a:]) / 2
+        jsd[a, a:] = v
+        jsd[a:, a] = v
+    jsd = np.clip(jsd, 0, 1)
+
+    # Delta 系：度数上位 mfw 語。z 得点はトピック（K 個）をまたいで取る
+    order = np.argsort(-C.sum(axis=1))[:mfw]
+    X = P[order]
+    sd = X.std(axis=1, ddof=1, keepdims=True)
+    sd[sd == 0] = 1
+    Z = ((X - X.mean(axis=1, keepdims=True)) / sd).T   # K × mfw
+    delta = np.array([np.abs(Z - Z[a]).mean(axis=1) for a in range(k)])
+    zn = np.linalg.norm(Z, axis=1, keepdims=True)
+    zn[zn == 0] = 1
+    cdelta = 1 - (Z / zn) @ (Z / zn).T
+
+    # 共起：θ は和が 1 の比率データ。1 つのトピックが大きいと他がそろって小さくなり，
+    # 見かけの相関が生じるので，CLR（各チャンクで log θ からその平均を引く）にしてから
+    # 相関を取る。ただし CLR の和は 0 なので，相関の平均は −1/(K−1) のまま残る
+    T = np.maximum(np.array([r + [0.0] * (k - len(r)) for r in rows]), 1e-12)
+    L = np.log(T)
+    L = L - L.mean(axis=1, keepdims=True)
+    with np.errstate(divide='ignore', invalid='ignore'):
+        corr = np.nan_to_num(np.corrcoef(L.T))
+
+    r4 = lambda M: [[round(float(x), 4) for x in row] for row in M]
+    return {'cos': r4(cos), 'jsd': r4(jsd), 'delta': r4(delta),
+            'cdelta': r4(cdelta), 'corr': r4(corr), 'mfw': int(len(order))}
+
+
+def build_model(label: str, mdir: str, meta: dict, lex: dict, top: int, min_count: int,
+                rel_mfw: int = 500) -> dict:
     k, wt = read_word_topic(mdir)
     ids, rows = read_doc_topics(os.path.join(mdir, 'doc-topics.txt'))
     k = max(k, max(len(r) for r in rows))
@@ -231,7 +303,8 @@ def build_model(label: str, mdir: str, meta: dict, lex: dict, top: int, min_coun
             'topicTotals': tot_t, 'vocab': vocab, 'tw': tw, 'prev': prev,
             'works': winfo, 'workTopic': wmean, 'periods': periods,
             'periodN': [pn[p] for p in periods], 'periodTopic': pmean,
-            'keys': [keys.get(t, '') for t in range(k)]}
+            'keys': [keys.get(t, '') for t in range(k)],
+            'rel': relatedness(k, wt, rows, rel_mfw, min_count)}
 
 
 HTML = r"""<!DOCTYPE html>
@@ -288,6 +361,12 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
 svg text{fill:var(--fg);font-size:11px}
 svg .mut{fill:var(--mut)}
 .warn{color:var(--c1);font-size:12px}
+#rel{margin-top:14px}
+#rel .head{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+#rel h3{font-size:13px;margin:0}
+#rel tr.go{cursor:pointer}
+#rel tr.go:hover td{background:var(--hi)}
+#rel td.w{font-size:12.5px}
 </style>
 </head>
 <body>
@@ -361,7 +440,20 @@ const POSGROUPS = [
 const COLORS = ['var(--c0)','var(--c5)','var(--c1)','var(--c1)','var(--c2)','var(--c2)','var(--c3)','var(--c4)','var(--c5)','var(--c5)','var(--c5)'];
 const posGroup = l => POSGROUPS.findIndex(g => g[1](l));
 let M = null, sel = null, gOf = [];
-const st = {pos: new Set(POSGROUPS.map((_, i) => i)), minc: 1, maxdr: 1, maxws: 1, maxdp: 1, maxas: 1, lam: 1, nw: 12, q: '', sort: 'id'};
+const st = {pos: new Set(POSGROUPS.map((_, i) => i)), minc: 1, maxdr: 1, maxws: 1, maxdp: 1, maxas: 1, lam: 1, nw: 12, q: '', sort: 'id', rel: 'jsd', nrel: 10};
+// トピック間の関連。dir=+1 は大きいほど近い，−1 は小さいほど近い
+const RELS = [
+  ['jsd', 'Jensen–Shannon divergence', -1,
+   '2つのトピックの語分布 p(w|t) の Jensen–Shannon divergence（底 2，0〜1）。0 に近いほど同じ語でできている。LDAvis のトピック間距離と同じ考え方（Sievert & Shirley 2014）。'],
+  ['cos', '語分布のコサイン類似度', +1,
+   'p(w|t) を並べたベクトルのコサイン類似度。1 に近いほど同じ語でできている。度数の大きい語に引きずられやすい。'],
+  ['delta', "Burrows's Delta（z 得点）", -1,
+   'モデル内の度数上位 __MFW__ 語について，p(w|t) をトピックをまたいで z 得点にし，差の絶対値を平均したもの（Burrows 2002 の考え方をトピックに当てはめたもの）。高頻度語の支配を抑える。小さいほど近い。'],
+  ['cdelta', 'Cosine Delta', -1,
+   '同じ z 得点のベクトルの 1 − コサイン類似度（Smith & Aldridge 2011）。0 に近いほど近い。'],
+  ['corr', 'チャンク上の相関（CLR 変換後）', +1,
+   'チャンクごとのトピックの割合を CLR（centred log-ratio; Aitchison 1986）で変換し，チャンクをまたいで取った Pearson の相関係数。同じチャンクに<b>一緒に現れやすい</b>トピックが高い。割合をそのまま使うと，1 つのトピックが大きい割合を占めたときに他がそろって小さくなり，見かけの相関が生じるので，対数比にしてから取る。ただし和が 1（CLR では和が 0）という制約は変換しても残るため，相関の平均は −1/(K−1)＝__BASE__ になる。<b>この値を基準に</b>読むこと。同じ作品のチャンクが多いので，作品・作家の偏りも拾う。'],
+];
 
 // UniDic は外来語の語彙素に原綴を付ける（テーブル-table）。表示は片仮名だけにし，
 // 原綴はマウスを載せたときに出す（ロケット-locket のような解析の誤りを確かめるため）
@@ -503,7 +595,32 @@ function detail(t){
       <p class="hint">外来語は片仮名だけを表示している。語にマウスを載せると UniDic の語彙素（原綴つき）と品詞が出る。</p></div>
     <div><h3 style="font-size:13px">時代別の割合（チャンク平均）</h3>${per}
       <h3 style="font-size:13px">このトピックが多い作品（作品内の割合の順）</h3>${wtab}
-      <h3 style="font-size:13px">このトピックを担う作家（トピックに占める割合の順）</h3>${atab}${note}</div></div>`;
+      <h3 style="font-size:13px">このトピックを担う作家（トピックに占める割合の順）</h3>${atab}${note}</div></div>
+    <div id="rel"></div>`;
+  relTable(t);
+}
+
+function relTable(t){
+  const [key, name, dir, hint] = RELS.find(r => r[0] === st.rel);
+  const row = M.rel[key][t];
+  const fmt = v => v.toFixed(3);
+  const others = row.map((v, u) => ({u, v})).filter(x => x.u !== t)
+    .sort((a, b) => dir * (b.v - a.v)).slice(0, st.nrel);
+  const words = u => ranked(u).list.slice(0, 8).map(x => `<b style="color:${COLORS[gOf[x.j]]}" title="${esc(M.vocab[x.j][0])}">${esc(disp(M.vocab[x.j][0]))}</b>`).join(' ');
+  $('rel').innerHTML = `<div class="head"><h3>関連の強いトピック</h3>
+      <select id="relm">${RELS.map(r => `<option value="${r[0]}"${r[0]===key?' selected':''}>${esc(r[1])}</option>`).join('')}</select>
+      <label>件数 <input type="number" id="nrel" min="3" max="${Math.max(3, M.K-1)}" value="${st.nrel}" style="width:56px"></label></div>
+    <p class="hint">${hint.replace('__MFW__', M.rel.mfw).replace('__BASE__', (-1/(M.K-1)).toFixed(3))}</p>
+    <table><tr><th>順位</th><th>トピック</th><th class="num">${dir > 0 ? '値（大きいほど近い）' : '値（小さいほど近い）'}</th>
+      <th class="num" title="全体に占める割合">割合</th><th>上位語（いまの絞り込みと λ で）</th></tr>` +
+    others.map((x, i) => `<tr class="go" data-t="${x.u}"><td class="num">${i+1}</td><td>T${String(x.u).padStart(2,'0')}</td>
+      <td class="num">${fmt(x.v)}</td><td class="num">${(100*M.prev[x.u]).toFixed(1)}%</td><td class="w">${words(x.u) || '—'}</td></tr>`).join('') +
+    `</table><p class="hint">上の 4 つは<b>語分布の近さ</b>（同じ語でできているか），相関は<b>文書の中での共起</b>（同じチャンクに一緒に現れるか）で，別のものを測っている。
+     行を押すとそのトピックに移る。</p>`;
+  $('relm').onchange = e => { st.rel = e.target.value; relTable(t); };
+  $('nrel').onchange = e => { st.nrel = Math.max(3, Math.min(M.K - 1, +e.target.value || 10)); relTable(t); };
+  $('rel').querySelectorAll('tr.go').forEach(el => el.onclick = () => {
+    sel = +el.dataset.t; render(); $('detail').scrollIntoView({behavior:'smooth'}); });
 }
 
 $('model').innerHTML = D.models.map((m, i) => `<option value="${i}">${esc(m.label)}</option>`).join('');
@@ -537,6 +654,8 @@ def main() -> int:
                     help='各トピックについて保持する語の数（多いほど λ を下げたときに正確）')
     ap.add_argument('--min-count', type=int, default=3,
                     help='モデル内の度数がこれ未満の語はビューアに入れない')
+    ap.add_argument('--rel-mfw', type=int, default=500,
+                    help='トピック間の Delta・Cosine Delta に使う語の数（モデル内の度数の上位）')
     ap.add_argument('--out', default=os.path.join(ROOT, 'my_work', 'results', 'topic_viewer.html'))
     args = ap.parse_args()
 
@@ -552,7 +671,7 @@ def main() -> int:
             label, d = os.path.basename(os.path.normpath(spec)), spec
         if not os.path.isdir(d):
             sys.exit(f'MALLET の出力が無い: {d}')
-        models.append(build_model(label, d, meta, lex, args.top, args.min_count))
+        models.append(build_model(label, d, meta, lex, args.top, args.min_count, args.rel_mfw))
     unknown = sum(1 for m in models for v in m['vocab'] if v[1] == '不明')
     if lex and unknown:
         print(f'[warn] 品詞表に無い語が {unknown:,} ある（別の辞書や別の 05 の出力で学習した可能性がある）')
