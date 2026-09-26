@@ -642,9 +642,6 @@ def main() -> int:
         if args.tokens:
             if remeasure(row, stem, args.tokens):
                 pass
-        if not row.get('style_class'):
-            row['style_class'] = c.get('style_expect', '') or TBD
-
         # **本文を持たない行は，人が埋めようのない列を要確認にしない。**
         # 分冊（merged）・v1 の合本（superseded）・短すぎる行（too_short）は
         # 集計から外れる書誌だけの行で，トークン列が無いのだから
@@ -653,6 +650,15 @@ def main() -> int:
         # 警告は「直せるもの」だけに絞る。
         # （2026-09-26：『夜明け前』の分冊3行がこれに当たっていた。）
         textless = row.get('completeness') in ('merged', 'superseded', 'too_short')
+        # **本文を持たない行には TBD を書かない。**
+        # TBD は「人が確かめて埋めよ」の印だが，分冊・合本・短すぎる行には
+        # トークン列が無く，誰にも確かめようがない。印を立てれば
+        # 99_validate.py が「TBD のセルがある」で FATAL を返し続け，
+        # 本当に直すべき行が埋もれる。**消すのではなく，立てない。**
+        # （2026-09-26：『夜明け前』の分冊3行がこれに当たっていた。）
+        if not row.get('style_class'):
+            row['style_class'] = c.get('style_expect', '') or ('' if textless else TBD)
+
         if textless:
             need = [k for k in JUDGEMENT_COLS if row.get(k) == TBD]
         else:
