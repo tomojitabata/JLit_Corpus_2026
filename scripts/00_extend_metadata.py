@@ -823,11 +823,28 @@ def main() -> int:
     # int / float をそのまま入れるので，``(v or '').strip()`` は
     # AttributeError で落ちる（--tokens を付けたときだけ落ちるので，
     # 付けずに試していると気づかない）。str() を通してから比べる。
+    #
+    # **本文を持たない行は数えない。** merged（分冊）・superseded（v1 の合本）・
+    # too_short は集計から外れる書誌だけの行で，トークン列が無い以上
+    # style_class も語数も埋めようがない。数えると消せない [FATAL] になり，
+    # 本当に直すべき行が埋もれる。編者の判断の列だけは，本文が無くても
+    # 書誌から決まるので数える。
+    def _countable(r: dict, k: str) -> bool:
+        if r.get('completeness') in ('merged', 'superseded', 'too_short'):
+            return k in EDITORIAL_COLS or k in JUDGEMENT_COLS
+        return True
+
     left = sum(1 for r in out_rows
-               for v in r.values() if is_tbd(v))
+               for k, v in r.items() if is_tbd(v) and _countable(r, k))
+    skipped = sum(1 for r in out_rows
+                  for k, v in r.items() if is_tbd(v) and not _countable(r, k))
+    if skipped:
+        print(f'[note] 本文を持たない行（分冊・合本・短すぎる行）の TBD '
+              f'{skipped} セルは数えない。集計から外れる行なので埋めようがない。')
     if left:
         from collections import Counter as _C
-        where = _C(k for r in out_rows for k, v in r.items() if is_tbd(v))
+        where = _C(k for r in out_rows for k, v in r.items()
+                   if is_tbd(v) and _countable(r, k))
         judged = sum(c for k, c in where.items()
                      if k in EDITORIAL_COLS or k in JUDGEMENT_COLS)
         measured = left - judged
