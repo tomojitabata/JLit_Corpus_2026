@@ -1837,6 +1837,7 @@ function latinMarkup(str, esc2, jpFF){
   return latinRuns(str).map(([t, l]) => l && /[0-9A-Za-z]/.test(t)
     ? `<tspan font-family="${LATIN_FF}, ${jpFF}">${esc2(t)}</tspan>` : esc2(t)).join('');
 }
+const LEG_MIN = 6, LEG_MAX = 10;   // 書き出す図の凡例の字の大きさの下限と上限（pt）
 function exportSvgText(){
   const src = $('netsvg'), vp = document.getElementById('netvp');
   if (!vp || !NET.nodes.length) return null;
@@ -1883,9 +1884,11 @@ function exportSvgText(){
   const x0 = bb.x - pad, y0 = bb.y - pad, w = bb.width + 2 * pad;
   // 凡例
   const items = [...$('nleg').querySelectorAll('span')].map(sp => ({col: sp.querySelector('i') ? getComputedStyle(sp.querySelector('i')).backgroundColor : '#999', txt: sp.textContent.trim()}));
-  const lfs = 11, lh = 18, charW = t => [...t].reduce((s, ch) => s + (ch.charCodeAt(0) > 0x2e7f ? lfs : lfs * 0.6), 0);
+  // 凡例はマーカーも文字も，ネットワークのラベルと同じ大きさ（ただし 6〜10 に収める）。
+  // SVG の寸法を pt で書くので，原寸ではこの数字がそのまま pt になる
+  const lfs = Math.max(LEG_MIN, Math.min(LEG_MAX, nst.fs)), lh = Math.round(lfs * 1.6), charW = t => [...t].reduce((s, ch) => s + (ch.charCodeAt(0) > 0x2e7f ? lfs : lfs * 0.6), 0);
   let lx = 0, ly = 0; const pos = [];
-  items.forEach(it => { const iw = 14 + charW(it.txt) + 14; if (lx > 0 && lx + iw > w - 2 * pad) { lx = 0; ly += lh; } pos.push([lx, ly]); lx += iw; });
+  items.forEach(it => { const iw = lfs * 1.4 + charW(it.txt) + lfs * 1.5; if (lx > 0 && lx + iw > w - 2 * pad) { lx = 0; ly += lh; } pos.push([lx, ly]); lx += iw; });
   const legH = items.length ? ly + lh + 8 : 0;
   // 条件の注記（小さな字。幅に合わせて折り返す）
   const nfs = 8, nlh = 11, nW = w - 2 * pad, cw = ch => ch.charCodeAt(0) > 0x2e7f ? nfs : nfs * 0.56;
@@ -1902,11 +1905,11 @@ function exportSvgText(){
   let leg = '';
   items.forEach((it, k) => {
     const [px, py] = pos[k], gx = x0 + pad + px, gy = y0 + bb.height + 2 * pad + py;
-    leg += `<rect x="${gx.toFixed(1)}" y="${(gy + 3).toFixed(1)}" width="10" height="10" rx="2" fill="${it.col}"/>`
-      + `<text x="${(gx + 14).toFixed(1)}" y="${(gy + 12).toFixed(1)}" font-size="${lfs}" fill="#444" font-family="${ff}">${latinMarkup(it.txt, esc2, ff)}</text>`;
+    leg += `<rect x="${gx.toFixed(1)}" y="${(gy + lfs * 0.25).toFixed(1)}" width="${lfs}" height="${lfs}" rx="${(lfs * 0.18).toFixed(1)}" fill="${it.col}"/>`
+      + `<text x="${(gx + lfs * 1.4).toFixed(1)}" y="${(gy + lfs * 1.1).toFixed(1)}" font-size="${lfs}" fill="#444" font-family="${ff}">${latinMarkup(it.txt, esc2, ff)}</text>`;
   });
   const s = `<?xml version="1.0" encoding="UTF-8"?>\n`
-    + `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${x0.toFixed(1)} ${y0.toFixed(1)} ${w.toFixed(1)} ${h.toFixed(1)}" width="${w.toFixed(0)}" height="${h.toFixed(0)}" font-family="${ff}">\n`
+    + `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${x0.toFixed(1)} ${y0.toFixed(1)} ${w.toFixed(1)} ${h.toFixed(1)}" width="${w.toFixed(0)}pt" height="${h.toFixed(0)}pt" font-family="${ff}">\n`
     + `<rect x="${x0.toFixed(1)}" y="${y0.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" fill="#ffffff"/>\n`
     + new XMLSerializer().serializeToString(clone).replace(/ xmlns="http:\/\/www\.w3\.org\/2000\/svg"/g, '') + '\n'
     + (leg ? `<g>${leg}</g>\n` : '')
@@ -1931,7 +1934,9 @@ function exportSVG(){
 // 線と文字は画像にならず，拡大しても粗くならない
 function exportPDF(){
   const s = exportSvgText(); if (!s) return;
-  const svg = s.replace(/^<\?xml[^>]*>\s*/, '').replace(/ width="[\d.]+" height="[\d.]+"/, ' width="100%" height="100%" preserveAspectRatio="xMidYMid meet"');
+  // 原寸（pt）が A4 横に収まればそのままの大きさで（凡例と注記の 8 pt が保たれる），収まらなければ縮めて収める
+  const svg = s.replace(/^<\?xml[^>]*>\s*/, '').replace(/ width="([\d.]+)pt" height="([\d.]+)pt"/,
+    ' width="$1pt" height="$2pt" style="max-width:100%;max-height:100%" preserveAspectRatio="xMidYMid meet"');
   const old = document.getElementById('nprint'); if (old) old.remove();
   const fr = document.createElement('iframe');
   fr.id = 'nprint'; fr.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
