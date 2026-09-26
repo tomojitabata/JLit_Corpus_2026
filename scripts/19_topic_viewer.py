@@ -320,6 +320,28 @@ def load_d2v(d2v_dir: str, meta: dict) -> dict | None:
             'sim': [[round(float(x), 4) for x in row] for row in S]}
 
 
+def read_diag(mdir: str) -> dict:
+    """MALLET の diagnostics.xml からトピックごとの coherence と exclusivity を読む（無ければ空）。"""
+    p = os.path.join(mdir, 'diagnostics.xml')
+    if not os.path.exists(p):
+        return {}
+    import xml.etree.ElementTree as ET
+    coh, exc = {}, {}
+    try:
+        for t in ET.parse(p).getroot():
+            if t.get('id') is None:
+                continue
+            i = int(t.get('id'))
+            for d, k in ((coh, 'coherence'), (exc, 'exclusivity')):
+                try:
+                    d[i] = round(float(t.get(k)), 4)
+                except (TypeError, ValueError):
+                    pass
+    except (OSError, ET.ParseError):
+        return {}
+    return {'coherence': coh, 'exclusivity': exc}
+
+
 def train_info(mdir: str, keys_alpha: list[float]) -> dict:
     """学習の条件（図の書き出しに添える）。
 
@@ -351,6 +373,7 @@ def train_info(mdir: str, keys_alpha: list[float]) -> dict:
     if not alpha and keys_alpha:
         alpha = keys_alpha
     if alpha:
+        info['alpha'] = [round(a, 5) for a in alpha]
         info['alpha_sum'] = round(sum(alpha), 4)
         info['alpha_min'] = round(min(alpha), 4)
         info['alpha_max'] = round(max(alpha), 4)
@@ -441,6 +464,7 @@ def build_model(label: str, mdir: str, meta: dict, lex: dict, top: int, min_coun
 
     print(f'[mdl ] {label}: {k} トピック・{len(ids):,} チャンク・{len(works)} 作品・'
           f'語 {len(tot_w):,}（うち表示用 {len(vocab):,}）')
+    dg = read_diag(mdir)
     return {'label': label, 'dir': os.path.abspath(mdir), 'K': k, 'N': N,
             'topicTotals': tot_t, 'vocab': vocab, 'tw': tw, 'prev': prev,
             'works': winfo, 'workTopic': wmean, 'periods': periods,
@@ -449,6 +473,7 @@ def build_model(label: str, mdir: str, meta: dict, lex: dict, top: int, min_coun
             'fp': model_fingerprint(mdir),
             'nChunks': len(ids), 'nVocab': len(tot_w),
             'train': train_info(mdir, [kalpha[t] for t in sorted(kalpha)]),
+            'diag': {key: [dg[key].get(t) for t in range(k)] for key in dg},
             'rel': relatedness(k, wt, rows, rel_mfw, min_count),
             'workJsd': work_jsd(wmean)}
 
@@ -508,7 +533,7 @@ svg text{fill:var(--fg);font-size:11px}
 svg .mut{fill:var(--mut)}
 .warn{color:var(--c1);font-size:12px}
 .copy{color:var(--mut);font-size:11px;margin:24px 0 8px}
-#labelview textarea{width:100%;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace;border:1px solid var(--line);border-radius:6px;padding:8px;background:var(--card);color:var(--fg);box-sizing:border-box}
+#tableview textarea,#labelview textarea{width:100%;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace;border:1px solid var(--line);border-radius:6px;padding:8px;background:var(--card);color:var(--fg);box-sizing:border-box}
 #labelview .lh{font-size:13px;margin:14px 0 6px}
 .ltwrap{overflow:auto;max-height:60vh;border:1px solid var(--line);border-radius:6px}
 #ltab input.lin{width:100%;min-width:140px;font:inherit;border:1px solid var(--line);border-radius:4px;padding:2px 5px;background:var(--card);color:var(--fg)}
@@ -609,7 +634,7 @@ a.help-q:hover{border-color:var(--acc);color:var(--acc)}
   <p class="hint" id="modelinfo"></p>
 </aside>
 <main>
-  <div class="tabs" id="tabs"><button data-v="list" class="on">トピック一覧</button><button data-v="topicnet">トピックのネットワーク</button><button data-v="worknet">作品のネットワーク</button><button data-v="bipnet">作品とトピックのネットワーク</button><button data-v="label">ラベルづけ</button><a class="help-q" href="topic_viewer_manual.html#network" target="jlit-topic-manual" title="この欄の使い方（マニュアルを別のウィンドウで開く）">？</a></div>
+  <div class="tabs" id="tabs"><button data-v="list" class="on">トピック一覧</button><button data-v="topicnet">トピックのネットワーク</button><button data-v="worknet">作品のネットワーク</button><button data-v="bipnet">作品とトピックのネットワーク</button><button data-v="label">ラベルづけ</button><button data-v="table">トピック表</button><a class="help-q" href="topic_viewer_manual.html#network" target="jlit-topic-manual" title="この欄の使い方（マニュアルを別のウィンドウで開く）">？</a></div>
   <section id="netview" hidden>
     <div class="netbar">
       <label id="nmeasw">指標 <select id="nmeas"></select></label>
@@ -696,6 +721,38 @@ a.help-q:hover{border-color:var(--acc);color:var(--acc)}
     <p class="hint">書き出したファイルをビューアと同じフォルダ（my_work/results/）に置けば，ビューアを作り直しても自動で読み込まれる。
     ラベルはモデルの指紋に結び付くので，学習し直したモデルには付かない。</p>
     <div class="ltwrap"><table id="ltab"></table></div>
+  </section>
+  <section id="tableview" hidden>
+    <p class="hint" style="margin-top:0">トピックとキーワード（主表）と，トピック診断表を書き出す。キャプションにはコーパス・モデル・学習条件・キーワードの選び方が入るので，
+    論文にそのまま載せられる。LaTeX は booktabs と xltabular を使い，ページをまたぐ長い表にも対応する。<a class="help-q" href="topic_viewer_manual.html#table" target="jlit-topic-manual" title="この欄の使い方（マニュアルを別のウィンドウで開く）">？</a></p>
+    <div class="netbar">
+      <label>表 <select id="ttype"><option value="main" selected>トピックとキーワード（主表）</option><option value="diag">トピック診断表</option></select></label>
+      <label>見出しとキャプション <select id="tlang"><option value="ja" selected>日本語</option><option value="en">English</option></select></label>
+      <label>コーパス名 <input type="text" id="tcorp" value="JLit Corpus 2026" style="width:150px"></label>
+      <label>並べ方 <select id="tsort"><option value="id" selected>トピック番号</option><option value="prev">平均割合の大きい順</option></select></label>
+    </div>
+    <div class="netbar" id="tmainopts">
+      <label>キーワード <input type="number" id="tn" min="1" max="50" value="20" style="width:56px"> 語</label>
+      <label>選び方 <select id="trank"><option value="raw" selected>絞り込みなし（p(w|t) の順）</option><option value="view">いまの表示設定に従う（λ・品詞・頻度帯）</option></select></label>
+      <label>語の後の値 <select id="twv"><option value="p" selected>p(w|t)</option><option value="n">度数</option></select></label>
+      <label>小数の桁 <input type="number" id="tdig" min="1" max="6" value="3" style="width:46px"></label>
+      <span class="ntools">列：<label><input type="checkbox" id="tcmean" checked> 平均割合</label>
+        <label id="tcalphaw"><input type="checkbox" id="tcalpha" checked> α</label>
+        <label><input type="checkbox" id="tclab" checked> ラベル</label></span>
+    </div>
+    <div class="netbar">
+      <span class="ntools">書き出し：
+        <button type="button" data-fmt="tex">LaTeX</button><button type="button" data-fmt="md">Markdown</button>
+        <button type="button" data-fmt="csv">CSV</button><button type="button" data-fmt="json">JSON</button>
+        <button type="button" data-fmt="html" title="HTML の表。Word や Pages で開くと，罫線つきの表になる">HTML（Word 用）</button></span>
+      <label title="プリアンブルと \begin{document} を付け，このファイルだけで LuaLaTeX で組めるようにする"><input type="checkbox" id="tstand"> LaTeX を単独で組める文書にする</label>
+    </div>
+    <div class="netbar">
+      <label>下の表示 <select id="tprev"><option value="tex" selected>LaTeX</option><option value="md">Markdown</option><option value="csv">CSV</option><option value="json">JSON</option><option value="html">HTML（コピーすると表として貼れる）</option></select></label>
+      <button id="tcopy" type="button">コピー</button><span id="tmsg" class="hint"></span>
+    </div>
+    <p class="hint" id="tinfo"></p>
+    <textarea id="tout" readonly rows="20" spellcheck="false"></textarea>
   </section>
   <div id="listview">
   <div class="bar"><span id="summary"></span><a class="help-q" href="topic_viewer_manual.html#cards" target="jlit-topic-manual" title="この欄の使い方（マニュアルを別のウィンドウで開く）">？</a></div>
@@ -830,6 +887,7 @@ function render(){
     (q ? `・「${esc(q)}」を上位 ${st.nw} 語に持つトピック ${hits}` : '') +
     `・「残存」＝そのトピックの上位語の確率のうち，絞り込み後に残った割合（低いトピックは隠した語でできている）`;
   if (sel !== null) detail(sel);
+  if (M && document.getElementById('tableview') && !$('tableview').hidden) tblView();
 }
 
 function barsSVG(items, w, labelW, fmt){
@@ -871,8 +929,8 @@ function detail(t){
   const [topA, topAm] = Object.entries(byAuthor).map(([a, o]) => [a, o.m]).sort((a, b) => b[1] - a[1])[0] || ['', 0];
   const topW = Math.max(...mass) / totalMass, topWi = mass.indexOf(Math.max(...mass));
   let warn = '';
-  if (topW > 0.5) warn = `<p class="warn">⚠ このトピックの重みの ${(100*topW).toFixed(0)}% が1作品（${esc(M.works[topWi][2])}）から来ている（トピックに占める割合）。主題ではなく作品の目印である可能性が高い。</p>`;
-  else if (topAm / totalMass > 0.5) warn = `<p class="warn">⚠ このトピックの重みの ${(100*topAm/totalMass).toFixed(0)}% が1作家（${esc(topA)}）の作品から来ている（トピックに占める割合）。主題ではなく作家の目印である可能性がある。</p>`;
+  if (topW > 0.5) warn = `<p class="warn">⚠ このトピックの重みの ${(100*topW).toFixed(0)}% が1作品（${esc(M.works[topWi][2])}）から来ている（トピックに占める割合）。主題ではなく作品指標である可能性が高い。</p>`;
+  else if (topAm / totalMass > 0.5) warn = `<p class="warn">⚠ このトピックの重みの ${(100*topAm/totalMass).toFixed(0)}% が1作家（${esc(topA)}）の作品から来ている（トピックに占める割合）。主題ではなく作家指標である可能性がある。</p>`;
   const note = `<p class="hint">「作品内の割合」＝その作品の中でこのトピックが占める割合（P(トピック｜作品)）。
     「トピックに占める割合」＝このトピックの重みのうちその作品から来る割合（P(作品｜トピック)）。
     向きが逆なので値は一致しない。どちらも語の絞り込みでは変わらない。</p>`;
@@ -953,9 +1011,11 @@ function setView(v){
   $('listview').hidden = v !== 'list';
   $('netview').hidden = !net;
   $('labelview').hidden = v !== 'label';
+  $('tableview').hidden = v !== 'table';
   if (net) { NET.kind = {topicnet: 'topic', worknet: 'work', bipnet: 'bip'}[v]; netControls(); buildNet(); }
   else cancelAnimationFrame(NET.raf);
   if (v === 'label') labelView();
+  if (v === 'table') tblView();
 }
 
 function goTopic(t){
@@ -2118,11 +2178,274 @@ function netInit(){
 }
 
 // ======================================================================
+// トピック表の書き出し。トピックとキーワード（主表）と，トピック診断表を
+// CSV・LaTeX・Markdown・JSON・HTML（Word などに貼る）で書き出す。
+// キャプションにはコーパス・モデル・学習条件・キーワードの選び方を入れる（再現のため）
+// ======================================================================
+const TW = {ja: {topic: 'トピック', mean: '平均割合', alpha: 'α', label: 'ラベル', kwP: 'キーワード（p(w|t)）', kwN: 'キーワード（度数）',
+                 tokens: 'トークン数', coh: 'coherence', exc: 'exclusivity', peak: '最も濃い時代', ltype: 'ラベルの種類', conf: '確信度',
+                 prov: '仮ラベル', word: '語', val: '値', cont: '（続き）', sep: '，'},
+            en: {topic: 'Topic', mean: 'Mean θ', alpha: 'α', label: 'Label', kwP: 'Keywords (p(w|t))', kwN: 'Keywords (count)',
+                 tokens: 'Tokens', coh: 'Coherence', exc: 'Exclusivity', peak: 'Peak period', ltype: 'Label type', conf: 'Confidence',
+                 prov: 'Provisional', word: 'Word', val: 'Value', cont: '(continued)', sep: ', '}};
+const LTYPE_EN = {'主題': 'Theme', '作品指標': 'Work indicator', '作家指標': 'Author indicator', '文体・機能語': 'Style/function words', '混成': 'Mixed'};
+const LCONF_EN = {'高': 'high', '中': 'medium', '低': 'low'};
+const tst = {type: 'main', lang: 'ja', corp: 'JLit Corpus 2026', sort: 'id', n: 20, rank: 'raw', wv: 'p', dig: 3,
+             cmean: true, calpha: true, clab: true, stand: false, prev: 'tex'};
+
+function tblRows(){
+  const K = M.K, pad = Math.max(2, String(K - 1).length), T = M.train || {}, A = T.alpha || null, DG = M.diag || {};
+  const ids = [...Array(K).keys()];
+  if (tst.sort === 'prev') ids.sort((a, b) => M.prev[b] - M.prev[a] || a - b);
+  return ids.map(t => {
+    const lb = labelOf(t);
+    let words;
+    if (tst.rank === 'view') words = ranked(t).list.slice(0, tst.n).map(x => ({w: disp(M.vocab[x.j][0]), p: x.pwt, n: x.n}));
+    else words = M.tw[t].slice().sort((a, b) => b[1] - a[1]).slice(0, tst.n)
+      .map(([j, c]) => ({w: disp(M.vocab[j][0]), p: c / M.topicTotals[t], n: c}));
+    const pk = topicProfile(t).peak;
+    return {t, id: String(t).padStart(pad, '0'), mean: M.prev[t], alpha: A ? A[t] : null,
+            label: lb ? lb.label : autoLabel(t), prov: !lb, type: lb ? lb.type : '', conf: lb ? lb.confidence : '',
+            words, tokens: M.topicTotals[t], coh: DG.coherence ? DG.coherence[t] : null, exc: DG.exclusivity ? DG.exclusivity[t] : null,
+            peak: pk ? pk.p : ''};
+  });
+}
+const fnum = (v, d) => v == null || !isFinite(v) ? '' : Number(v).toFixed(d);
+const fint = v => Number(v).toLocaleString('en-GB');
+function tblWeight(x){ return tst.wv === 'n' ? String(x.n) : fnum(x.p, tst.dig); }
+
+// 絞り込みの条件（「いまの表示設定に従う」のとき）
+function filterDesc(lang){
+  const parts = [];
+  if (st.pos.size < POSGROUPS.length) parts.push((lang === 'en' ? 'parts of speech: ' : '品詞：') + POSGROUPS.filter((_, i) => st.pos.has(i)).map(g => g[0]).join('・'));
+  const J = lang === 'en';
+  if (st.minc > 1) parts.push((J ? 'corpus frequency ≥ ' : '全体の度数 ≥ ') + st.minc);
+  if (st.maxdr < 1) parts.push((J ? 'share of works containing the word ≤ ' : '出現作品の割合 ≤ ') + st.maxdr);
+  if (st.maxws < 1) parts.push((J ? 'concentration in one work ≤ ' : '1作品への集中度 ≤ ') + st.maxws);
+  if (st.maxas < 1) parts.push((J ? 'concentration in one author ≤ ' : '1作家への集中度 ≤ ') + st.maxas);
+  if (st.maxdp < 1) parts.push('dp_in ≤ ' + st.maxdp);
+  return parts;
+}
+function tblCaption(rows){
+  const L = tst.lang, T = M.train || {}, P = T.params || {}, K = M.K;
+  const nC = fint(M.nChunks || 0), nW = M.works.length, nT = fint(M.N), nV = fint(M.nVocab || 0);
+  const corp = tst.corp.trim();
+  const anyProv = tst.type === 'main' ? tst.clab && rows.some(r => r.prov) : rows.some(r => r.prov);
+  let s;
+  if (L === 'en') {
+    s = (tst.type === 'main' ? `Topics of the LDA model “${M.label}”` : `Diagnostics of the topics of the LDA model “${M.label}”`)
+      + (corp ? ` trained on ${corp}` : '') + ` (${nC} text chunks from ${nW} works; ${nT} tokens; vocabulary ${nV}). MALLET; K = ${K}`;
+    if (T.alpha_sum != null) s += `; α: sum ${T.alpha_sum}` + (T.alpha_min === T.alpha_max ? '' : ` (per topic ${T.alpha_min}–${T.alpha_max})`);
+    if (T.beta != null) s += `; β = ${T.beta}`;
+    if (P.num_iterations != null) s += `; ${fint(P.num_iterations)} iterations; optimize-interval ${P.optimize_interval} (burn-in ${P.optimize_burn_in}); random seed ${P.random_seed}`;
+    else s += '; training parameters not recorded';
+    s += '.';
+    if (tst.type === 'main') {
+      const f = filterDesc('en');
+      s += tst.rank === 'view'
+        ? ` Keywords: the top ${tst.n} words by relevance (λ = ${st.lam}; Sievert & Shirley 2014)` + (f.length ? ` after filtering (${f.join('; ')})` : '')
+        : ` Keywords: the top ${tst.n} words by p(w|t)`;
+      s += `, each followed by its ${tst.wv === 'n' ? 'count' : 'p(w|t)'}.`;
+      if (tst.cmean) s += ' Mean θ: mean topic proportion over text chunks.';
+    } else {
+      s += ' Mean θ: mean topic proportion over text chunks; Tokens: tokens assigned to the topic';
+      if (M.diag && M.diag.coherence) s += '; Coherence and Exclusivity: MALLET diagnostics (Mimno et al. 2011)';
+      s += '; Peak period: the period with the highest mean θ.';
+    }
+    if (tst.sort === 'prev') s += ' Topics are ordered by mean θ.';
+    if (anyProv) s += ' Labels marked * are provisional (assigned automatically).';
+  } else {
+    s = (corp ? `${corp}（` : '（') + `テクストチャンク ${nC}・作品 ${nW}・トークン ${nT}・語彙 ${nV}）で学習した LDA モデル「${M.label}」の`
+      + (tst.type === 'main' ? 'トピック' : 'トピック診断') + `。MALLET，K = ${K}`;
+    if (T.alpha_sum != null) s += `，α 合計 ${T.alpha_sum}` + (T.alpha_min === T.alpha_max ? '' : `（トピックごとに ${T.alpha_min}〜${T.alpha_max}）`);
+    if (T.beta != null) s += `，β = ${T.beta}`;
+    if (P.num_iterations != null) s += `，反復 ${fint(P.num_iterations)}，optimize-interval ${P.optimize_interval}（burn-in ${P.optimize_burn_in}），random-seed ${P.random_seed}`;
+    else s += '（学習条件の記録なし）';
+    s += '。';
+    if (tst.type === 'main') {
+      const f = filterDesc('ja');
+      s += tst.rank === 'view'
+        ? `キーワードは relevance（λ = ${st.lam}; Sievert & Shirley 2014）の上位 ${tst.n} 語` + (f.length ? `（絞り込み：${f.join('，')}）` : '')
+        : `キーワードは p(w|t) の上位 ${tst.n} 語`;
+      s += `で，各語の後に${tst.wv === 'n' ? '度数' : ' p(w|t) '}を示す。`;
+      if (tst.cmean) s += '平均割合はテクストチャンクにおけるトピックの割合（θ）の平均。';
+    } else {
+      s += '平均割合はテクストチャンクにおける θ の平均，トークン数はトピックに割り当てられたトークンの数';
+      if (M.diag && M.diag.coherence) s += '，coherence と exclusivity は MALLET の診断値（Mimno et al. 2011）';
+      s += '，最も濃い時代は平均割合が最も高い時代区分。';
+    }
+    if (tst.sort === 'prev') s += 'トピックは平均割合の大きい順に並べた。';
+    if (anyProv) s += '＊は仮ラベル（機械的に付けたもの）。';
+  }
+  return s.replace(/\s+/g, ' ');
+}
+function tblShort(){ return tst.lang === 'en' ? (tst.type === 'main' ? `Topics of the LDA model “${M.label}”` : `Topic diagnostics (“${M.label}”)`)
+                                           : (tst.type === 'main' ? `LDA モデル「${M.label}」のトピック` : `LDA モデル「${M.label}」のトピック診断`); }
+// 列の定義：[見出し, 値を返す関数, 揃え（r/l/X）]
+function tblCols(){
+  const W = TW[tst.lang], en = tst.lang === 'en';
+  const lab = r => r.label + (r.prov ? '*' : '');
+  if (tst.type === 'main') {
+    const c = [[W.topic, r => r.id, 'r']];
+    if (tst.cmean) c.push([W.mean, r => fnum(r.mean, 4), 'r']);
+    if (tst.calpha && (M.train || {}).alpha) c.push([W.alpha, r => fnum(r.alpha, 4), 'r']);
+    if (tst.clab) c.push([W.label, lab, 'L']);
+    c.push([tst.wv === 'n' ? W.kwN : W.kwP, null, 'X']);
+    return c;
+  }
+  const c = [[W.topic, r => r.id, 'r'], [W.label, lab, 'X']];
+  if ((M.train || {}).alpha) c.push([W.alpha, r => fnum(r.alpha, 4), 'r']);
+  c.push([W.mean, r => fnum(r.mean, 4), 'r'], [W.tokens, r => fint(r.tokens), 'r']);
+  if (M.diag && M.diag.coherence) c.push([W.coh, r => fnum(r.coh, 2), 'r'], [W.exc, r => fnum(r.exc, 3), 'r']);
+  c.push([W.peak, r => r.peak, 'l'],
+         [W.ltype, r => r.prov ? (en ? 'provisional' : '仮ラベル') : (en ? (LTYPE_EN[r.type] || r.type) : r.type), 'l'],
+         [W.conf, r => r.prov ? '' : (en ? (LCONF_EN[r.conf] || r.conf) : r.conf), 'l']);
+  return c;
+}
+function provenance(){
+  return `JLit トピックビューア © Tomoji Tabata (DH UOsaka)｜モデル「${M.label}」指紋 ${M.fp}｜書き出し ${new Date().toLocaleString('sv-SE').slice(0, 16)}`;
+}
+
+// ---- 形式ごとの書き出し ------------------------------------------------------
+function toCSV(rows){
+  const W = TW[tst.lang], q = v => { v = String(v == null ? '' : v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+  const cols = tblCols().filter(c => c[1]);
+  const head = cols.map(c => c[0]);
+  if (tst.type === 'main') {
+    if (tst.clab) head.push(W.prov);
+    for (let i = 1; i <= tst.n; i++) head.push(`${W.word} ${i}`, `${tst.wv === 'n' ? (tst.lang === 'en' ? 'Count' : '度数') : 'p(w|t)'} ${i}`); }
+  const lines = ['# ' + tblCaption(rows) + ' ｜ ' + provenance(), head.map(q).join(',')];
+  rows.forEach(r => {
+    const v = cols.map(c => c[0] === W.label ? r.label : c[1](r));
+    if (tst.type === 'main') { if (tst.clab) v.push(r.prov ? 1 : 0); r.words.forEach(x => v.push(x.w, tblWeight(x))); }
+    lines.push(v.map(q).join(','));
+  });
+  return '\ufeff' + lines.join('\r\n') + '\r\n';
+}
+function mdEsc(s){ return String(s).replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/\*/g, '\\*').replace(/_/g, '\\_'); }
+function kwText(r, esc, fmtW){
+  const W = TW[tst.lang];
+  return r.words.map(x => esc(x.w) + fmtW(tblWeight(x))).join(W.sep);
+}
+function toMD(rows){
+  const cols = tblCols();
+  const al = c => c[2] === 'r' ? '---:' : '---';
+  const out = [`<!-- ${provenance()} -->`, '', '| ' + cols.map(c => mdEsc(c[0])).join(' | ') + ' |', '|' + cols.map(al).join('|') + '|'];
+  rows.forEach(r => out.push('| ' + cols.map(c => c[1] ? mdEsc(c[1](r)) : kwText(r, mdEsc, w => ` (${w})`)).join(' | ') + ' |'));
+  out.push('', ': ' + mdEsc(tblCaption(rows)) + ' {#tab:' + (tst.type === 'main' ? 'topics' : 'topic-diagnostics') + '}', '');
+  return out.join('\n');
+}
+function lx(s){
+  // LaTeX の特殊文字をエスケープし，ギリシャ文字と p(w|t) を数式にする
+  s = String(s).replace(/p\(w\|t\)/g, '\u0001');
+  s = s.replace(/[\\&%$#_{}~^]/g, ch => ({'\\': '\\textbackslash{}', '&': '\\&', '%': '\\%', '$': '\\$', '#': '\\#', '_': '\\_',
+    '{': '\\{', '}': '\\}', '~': '\\textasciitilde{}', '^': '\\textasciicircum{}'})[ch]);
+  return s.replace(/\u0001/g, '$p(w\\mid t)$').replace(/α/g, '$\\alpha$').replace(/β/g, '$\\beta$').replace(/θ/g, '$\\theta$')
+    .replace(/λ/g, '$\\lambda$').replace(/≥/g, '$\\geq$').replace(/≤/g, '$\\leq$').replace(/×/g, '$\\times$')
+    .replace(/\*$/, '\\textsuperscript{*}').replace(/\$\$/g, '');
+}
+function toTeX(rows){
+  const cols = tblCols(), W = TW[tst.lang], nc = cols.length;
+  const spec = cols.map(c => c[2] === 'r' ? 'r' : c[2] === 'X' ? '>{\\raggedright\\arraybackslash}X'
+    : c[2] === 'L' ? '>{\\raggedright\\arraybackslash}p{' + (tst.type === 'main' ? '6.5em' : '7em') + '}' : 'l').join(' ');
+  const head = cols.map(c => lx(c[0])).join(' & ') + ' \\\\';
+  const key = tst.type === 'main' ? 'tab:topics' : 'tab:topic-diagnostics';
+  const body = rows.map(r => cols.map(c => c[1] ? lx(c[1](r)).replace(/^-(?=\d)/, '$-$') : kwText(r, lx, w => `\\wt{${w}}`)).join(' & ') + ' \\\\').join('\n');
+  const tbl = [
+    `% ${provenance()}`,
+    '% 必要なパッケージ：booktabs, xltabular, array。日本語を含むので LuaLaTeX + luatexja（または upLaTeX）で組む。',
+    '\\providecommand{\\wt}[1]{\\,{\\footnotesize(#1)}}',
+    '\\begingroup', tst.type === 'main' ? '\\small' : '\\footnotesize', '\\setlength{\\tabcolsep}{4pt}', '\\setlength{\\LTcapwidth}{\\linewidth}',
+    `\\begin{xltabular}{\\linewidth}{@{}${spec}@{}}`,
+    `\\caption[${lx(tblShort())}]{${lx(tblCaption(rows))}}\\label{${key}}\\\\`,
+    '\\toprule', head, '\\midrule', '\\endfirsthead',
+    `\\multicolumn{${nc}}{@{}l}{\\footnotesize\\itshape ${lx(W.cont)}}\\\\`, '\\toprule', head, '\\midrule', '\\endhead',
+    '\\bottomrule', '\\endlastfoot',
+    body, '\\end{xltabular}', '\\endgroup'].join('\n');
+  if (!tst.stand) return tbl + '\n';
+  return ['% LuaLaTeX で組む：lualatex ' + exportTblName('tex'),
+    '\\documentclass[a4paper,10pt]{article}', '\\usepackage[margin=18mm]{geometry}', '\\usepackage{luatexja}',
+    '\\usepackage{booktabs,xltabular,array}', ...(tst.lang === 'ja' ? ['\\renewcommand{\\tablename}{表}'] : []), '\\begin{document}', tbl, '\\end{document}', ''].join('\n');
+}
+function toJSON(rows){
+  return JSON.stringify({caption: tblCaption(rows), provenance: provenance(), table: tst.type, lang: tst.lang,
+    model: {label: M.label, fingerprint: M.fp, K: M.K, chunks: M.nChunks, works: M.works.length, tokens: M.N, vocabulary: M.nVocab,
+            train: M.train || {}},
+    keywords: tst.type === 'main' ? {n: tst.n, ranking: tst.rank === 'view' ? {relevance_lambda: st.lam, filters: filterDesc('en')} : 'p(w|t)', value: tst.wv === 'n' ? 'count' : 'p(w|t)'} : undefined,
+    topics: rows.map(r => ({topic: r.t, mean_theta: r.mean, alpha: r.alpha, label: r.label, provisional: r.prov, label_type: r.type || null,
+      confidence: r.conf || null, tokens: r.tokens, coherence: r.coh, exclusivity: r.exc, peak_period: r.peak,
+      keywords: tst.type === 'main' ? r.words.map(x => ({word: x.w, p: +x.p.toFixed(6), count: x.n})) : undefined}))}, null, 1);
+}
+function toHTML(rows){
+  const cols = tblCols(), e = esc;
+  const t = `<table style="border-collapse:collapse;font-size:10pt">
+<caption style="caption-side:top;text-align:left;padding-bottom:4pt">${e(tblCaption(rows))}</caption>
+<thead><tr style="border-top:1.5pt solid #000;border-bottom:.75pt solid #000">${cols.map(c => `<th style="padding:2pt 6pt;text-align:${c[2] === 'r' ? 'right' : 'left'}">${e(c[0])}</th>`).join('')}</tr></thead>
+<tbody>${rows.map((r, i) => `<tr${i === rows.length - 1 ? ' style="border-bottom:1.5pt solid #000"' : ''}>` + cols.map(c => `<td style="padding:2pt 6pt;vertical-align:top;text-align:${c[2] === 'r' ? 'right' : 'left'}">`
+    + (c[1] ? e(c[1](r)).replace(/^-(?=\d)/, '\u2212') : kwText(r, e, w => ` <span style="font-size:8pt">(${w})</span>`)) + '</td>').join('') + '</tr>').join('\n')}</tbody></table>`;
+  return t;
+}
+function toHTMLDoc(rows){
+  return `<!DOCTYPE html><html lang="${tst.lang}"><head><meta charset="utf-8"><title>${esc(tblShort())}</title></head>
+<body style="font-family:'Hiragino Sans','Yu Gothic','Noto Sans CJK JP',sans-serif"><!-- ${esc(provenance())} -->
+${toHTML(rows)}</body></html>`;
+}
+function exportTblName(ext){
+  const safe = String(M.label || 'model').replace(/[\\/:*?"<>|\s]+/g, '_');
+  return `jlit_${tst.type === 'main' ? 'topics' : 'topic_diagnostics'}_${safe}_${tst.lang}.${ext}`;
+}
+const TFMT = {csv: [toCSV, 'text/csv'], tex: [toTeX, 'application/x-tex'], md: [toMD, 'text/markdown'], json: [toJSON, 'application/json'], html: [toHTMLDoc, 'text/html']};
+function tblText(fmt){ return TFMT[fmt][0](tblRows()); }
+function tblDownload(fmt){
+  const url = URL.createObjectURL(new Blob([tblText(fmt)], {type: TFMT[fmt][1] + ';charset=utf-8'}));
+  const a = document.createElement('a'); a.href = url; a.download = exportTblName(fmt);
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+function tblView(){
+  if (!M) return;
+  $('tmainopts').hidden = tst.type !== 'main';
+  $('tcalphaw').hidden = !(M.train || {}).alpha;
+  const rows = tblRows();
+  $('tout').value = tst.prev === 'html' ? toHTML(rows) : TFMT[tst.prev][0](rows).replace(/^\ufeff/, '');
+  const noDiag = tst.type === 'diag' && !(M.diag && M.diag.coherence);
+  const noPar = !((M.train || {}).params);
+  $('tinfo').textContent = [noPar ? '学習条件（反復回数・seed など）の記録が無い：10_mallet.py train で学習し直すと入る。' : '',
+    noDiag ? 'diagnostics.xml が無いので coherence と exclusivity は出ない。' : '',
+    tst.rank === 'view' ? `いまの表示設定（λ = ${st.lam}${filterDesc('ja').length ? '・' + filterDesc('ja').join('・') : ''}）で選んでいる。` : ''].join(' ');
+}
+async function tblCopy(){
+  const txt = $('tout').value, msg = $('tmsg');
+  try {
+    if (tst.prev === 'html' && window.ClipboardItem) {
+      await navigator.clipboard.write([new ClipboardItem({'text/html': new Blob([txt], {type: 'text/html'}), 'text/plain': new Blob([txt], {type: 'text/plain'})})]);
+      msg.textContent = '表としてコピーした（Word などに貼り付けられる）';
+    } else { await navigator.clipboard.writeText(txt); msg.textContent = 'コピーした'; }
+  } catch (e) { $('tout').select(); document.execCommand('copy'); msg.textContent = 'コピーした'; }
+  setTimeout(() => { msg.textContent = ''; }, 2500);
+}
+function tblInit(){
+  const bind = (id, key, ev, conv) => { $(id)[ev] = e => { tst[key] = conv(e.target); tblView(); }; };
+  bind('ttype', 'type', 'onchange', t => t.value); bind('tlang', 'lang', 'onchange', t => t.value);
+  bind('tcorp', 'corp', 'oninput', t => t.value); bind('tsort', 'sort', 'onchange', t => t.value);
+  bind('tn', 'n', 'oninput', t => Math.max(1, Math.min(50, +t.value || 20))); bind('trank', 'rank', 'onchange', t => t.value);
+  bind('twv', 'wv', 'onchange', t => t.value); bind('tdig', 'dig', 'oninput', t => Math.max(1, Math.min(6, +t.value || 3)));
+  bind('tcmean', 'cmean', 'onchange', t => t.checked); bind('tcalpha', 'calpha', 'onchange', t => t.checked);
+  bind('tclab', 'clab', 'onchange', t => t.checked); bind('tstand', 'stand', 'onchange', t => t.checked);
+  bind('tprev', 'prev', 'onchange', t => t.value);
+  document.querySelectorAll('#tableview [data-fmt]').forEach(b => b.onclick = () => tblDownload(b.dataset.fmt));
+  $('tcopy').onclick = tblCopy;
+}
+
+// ======================================================================
 // ラベルづけ。① 診断資料（依頼文）を作って生成 AI に渡し，回答（JSON）を取り込む。
 // ② AI を使わない仮ラベルを機械的に付ける。ラベルはモデルの指紋（fp）に結び付ける
 // （トピックの番号は学習のたびに変わるので，別のモデルには当てはめない）。
 // ======================================================================
-const LTYPES = ['主題', '作品の目印', '作家の目印', '文体・機能語', '混成'];
+const LTYPES = ['主題', '作品指標', '作家指標', '文体・機能語', '混成'];
+// 旧い名前（2026年9月まで）で保存・回答されたラベルの種類は，読み込むときに新しい名前にする
+const LTYPE_OLD = {'作品の目印': '作品指標', '作家の目印': '作家指標'};
+const normType = x => LTYPE_OLD[x] || x;
+const normRec = r => (r && r.type && LTYPE_OLD[r.type] ? Object.assign({}, r, {type: LTYPE_OLD[r.type]}) : r);
 const LCONF = ['高', '中', '低'];
 const LSTORE = 'jlit-topic-labels';
 let LAB = {};
@@ -2130,12 +2453,12 @@ const lst = {scope: 'all', batch: 10, page: 0, src: 'Claude'};
 
 function loadLabels(){
   const base = (D.labels && D.labels.models) || {};
-  Object.entries(base).forEach(([fp, m]) => { LAB[fp] = Object.assign({}, m.topics || {}); });
+  Object.entries(base).forEach(([fp, m]) => { LAB[fp] = {}; Object.entries(m.topics || {}).forEach(([t, r]) => { LAB[fp][t] = normRec(r); }); });
   try {
     const loc = JSON.parse(localStorage.getItem(LSTORE) || '{}');
     Object.entries(loc).forEach(([fp, tops]) => {
       const cur = LAB[fp] || (LAB[fp] = {});
-      Object.entries(tops).forEach(([t, r]) => { if (!cur[t] || String(r.date || '') >= String(cur[t].date || '')) cur[t] = r; });
+      Object.entries(tops).forEach(([t, r]) => { r = normRec(r); if (!cur[t] || String(r.date || '') >= String(cur[t].date || '')) cur[t] = r; });
     });
   } catch (e) { /* ブラウザが保存を許さないときは，書き出したファイルだけが頼り */ }
 }
@@ -2175,7 +2498,7 @@ function autoLabel(t){
   // 仮ラベルも短く：特有の語（λ=0.6）の上位2語。時代区分は年の範囲を外して添える
   const w = topWords(t, 0.6, 2).map(x => disp(M.vocab[x.j][0]));
   // 作家名・作品名はラベルに入れない（ネットワークや詳細を見れば分かり，入れると図が読みにくい）。
-  // 目印であることだけを［ ］で示す
+  // 作品指標・作家指標であることだけを［ ］で示す
   if (p.topW && p.topW.sh > 0.5) return `${w.join('・')}［作品］`;
   if (p.topA && p.topA.sh > 0.5 && !/メタデータ無し/.test(p.topA.a)) return `${w.join('・')}［作家］`;
   return w.join('・') + (p.peak && p.peakRatio >= 1.3 ? `［${p.peak.p.replace(/[（(].*$/, '')}］` : '');
@@ -2226,7 +2549,7 @@ LDA（MALLET）でトピックモデルを学習しました。下の「診断�
 
 ## 診断の手順
 1. 上位語と特有の語から，そのトピックが何でできているかを見る。
-2. 担う作品・作家と偏りの警告から，それが**主題**なのか，1作品・1作家の**目印**
+2. 担う作品・作家と偏りの警告から，それが**主題**なのか，1作品・1作家の**指標**（作品指標・作家指標）
    （登場人物名・固有の語彙）なのか，**文体・機能語**の偏り（文語・会話体など）なのかを判断する。
 3. 時代区分ごとの割合も参考にする。
 
@@ -2236,9 +2559,9 @@ LDA（MALLET）でトピックモデルを学習しました。下の「診断�
 - 判断がつかないときは，確信度を「低」にし，caution に理由を書く。
 - ラベルは**できるだけ短く**する。日本語の名詞句で**2〜8字**を目安とし，**10字を超えない**
   （ネットワークの図にそのまま載るので，短いほど読みやすい）。説明は evidence に回す。
-- **作家名・作品名はラベルに入れない**（どの作品・作家に偏るかは図と詳細で分かる）。作品や作家の
-  目印であっても，何の束かを内容で表す（例：「探偵団」「方言の会話」「漢語の論説」）。
-  目印であることは type で示し，作家名・作品名は evidence に書く。
+- **作家名・作品名はラベルに入れない**（どの作品・作家に偏るかは図と詳細で分かる）。作品指標・作家指標で
+  あっても，何の束かを内容で表す（例：「探偵団」「方言の会話」「漢語の論説」）。
+  作品指標・作家指標であることは type で示し，作家名・作品名は evidence に書く。
 
 ## 回答の形式
 次の JSON **だけ**を返してください（説明の文章は付けない）。
@@ -2287,7 +2610,7 @@ function importAnswer(){
     const t = +x.topic;
     if (!Number.isInteger(t) || t < 0 || t >= M.K || !String(x.label || '').trim()) { ng.push(x.topic); return; }
     L[t] = {label: String(x.label).trim().slice(0, 40),
-            type: LTYPES.includes(x.type) ? x.type : '混成',
+            type: LTYPES.includes(normType(x.type)) ? normType(x.type) : '混成',
             confidence: LCONF.includes(x.confidence) ? x.confidence : '低',
             evidence: String(x.evidence || '').slice(0, 300),
             caution: String(x.caution || '').slice(0, 300),
@@ -2330,7 +2653,7 @@ function importFile(f){
       let n = 0;
       Object.entries(o.models || {}).forEach(([fp, m]) => {
         const cur = LAB[fp] || (LAB[fp] = {});
-        Object.entries(m.topics || {}).forEach(([t, r]) => { cur[t] = r; n++; });
+        Object.entries(m.topics || {}).forEach(([t, r]) => { cur[t] = normRec(r); n++; });
       });
       saveLocal(); render(); labelView();
       $('lmsg').className = 'hint'; $('lmsg').textContent = `ファイルから ${n} 件を読み込んだ（いまのモデルに当たるものだけが表示される）。`;
@@ -2423,7 +2746,7 @@ function labBox(t){
 }
 
 $('model').innerHTML = D.models.map((m, i) => `<option value="${i}">${esc(m.label)}</option>`).join('');
-$('model').onchange = e => initModel(+e.target.value);
+$('model').onchange = e => { initModel(+e.target.value); if (!$('tableview').hidden) tblView(); };
 const logInput = el => Math.round(Math.pow(10, +el.value));
 $('minc').oninput = e => { st.minc = +e.target.value === 0 ? 1 : logInput(e.target); render(); };
 $('maxdr').oninput = e => { st.maxdr = +e.target.value; render(); };
@@ -2436,6 +2759,7 @@ $('q').oninput = e => { st.q = e.target.value; render(); };
 $('sort').onchange = e => { st.sort = e.target.value; render(); };
 netInit();
 labelInit();
+tblInit();
 initModel(0);
 </script>
 </body>
