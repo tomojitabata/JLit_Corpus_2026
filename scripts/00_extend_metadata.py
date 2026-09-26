@@ -894,8 +894,20 @@ def main() -> int:
         print('[ok  ] TBD は残っていない')
     print(f'[ok  ] → {args.out}')
 
+    # ⚠ **空になったら消す。** 書かないだけでは前の回のファイルが残り，
+    #   もう存在しない指摘を読み続けることになる。2026-09-27 に実際に
+    #   起きた——needs_review 列は空になっていたのに，前の回に作られた
+    #   _needs_review.csv が残っていて「style_class を測り直せ」と
+    #   言い続けていた。**古い成果物は，黙って嘘をつく。**
+    dest = os.path.splitext(args.out)[0] + '_needs_review.csv'
+    if not review and os.path.exists(dest):
+        os.remove(dest)
+        print(f'\n[ok  ] 編者の判断が要る行は無くなった。'
+              f'前の回の {os.path.basename(dest)} を消した')
+    elif not review:
+        print('\n[ok  ] 編者の判断が要る行は無い')
+
     if review:
-        dest = os.path.splitext(args.out)[0] + '_needs_review.csv'
         with open(dest, 'w', newline='', encoding='utf-8-sig') as fh:
             w = csv.writer(fh)
             w.writerow(['id', 'author_ja', 'title_aozora', 'needs_review'])

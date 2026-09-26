@@ -323,22 +323,31 @@ python3 scripts/05_tokenise_unidic.py --in data/plain/full --out data/tokens \
     --lemma-policy mixed --expect-dict unidic-novel
 
 # 3) メタデータを作り直す（実測値もここで測り直す。period5 もここで入る）
+# **_local に書く。** 配布版 corpus_metadata_v3.csv は git 管理下なので，
+# そこへ再生成すると git pull のたびに止まる。測った版と配った版は別の名前に
 python3 scripts/00_extend_metadata.py \
     --meta metadata/corpus_metadata_v2.csv \
     --fetch-log data/aozora/fetch_log.csv \
     --candidates metadata/expansion_candidates.csv \
     --tokens data/tokens/tokens_surface --remeasure-all \
-    --out metadata/corpus_metadata_v3.csv
+    --out metadata/corpus_metadata_v3_local.csv
 
 # 4) データセットと検算
 python3 scripts/06_build_datasets.py --tokens data/tokens/tokens_content \
-    --meta metadata/corpus_metadata_v3.csv --out data/datasets --chunk 2000 --max-chunks 40
-# **v3 を渡すこと。** v2 の completeness は v1 のテクストについての記述で，
-# 再構築した本文についての記述ではない。99 は 06 の dataset_provenance.json を
-# 読んで食い違いを FATAL にするので，取り違えても気づける
-python3 scripts/99_validate.py --corpus data/plain/full --meta metadata/corpus_metadata_v3.csv \
+    --meta metadata/corpus_metadata_v3_local.csv --out data/datasets \
+    --chunk 2000 --max-chunks 40
+# **06 に渡したものと同じものを渡すこと。** completeness は「ある本文について
+# の判断」であって作品の永久の属性ではない。v2 の completeness は v1 のテクスト
+# についての記述なので，渡すともう存在しない欠陥を報告し続ける。99 は 06 の
+# dataset_provenance.json を読んで食い違いを FATAL にするので，取り違えても
+# 気づける
+python3 scripts/99_validate.py --corpus data/plain/full \
+    --meta metadata/corpus_metadata_v3_local.csv \
     --tokenise-report data/tokens/tokenise_report.csv --out logs/validate_v3.csv
 python3 scripts/check_balance.py
+
+# 5) 配布版を更新する（クローンで検証した版をマスターへ写してコミットする）
+# cp metadata/corpus_metadata_v3_local.csv <マスター>/metadata/corpus_metadata_v3.csv
 ```
 
 **`02 resolve` を先に走らせること。** 解決できなかった行は

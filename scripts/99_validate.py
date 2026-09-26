@@ -117,16 +117,44 @@ def check_meta_provenance(meta_path: str, corpus_stems: set,
             if share < 0.8:
                 return None            # 別の本文。比べる筋合いではない
 
-    if os.path.basename(used) == os.path.basename(meta_path):
-        return ('ok', f'06 と同じメタデータで検証している'
-                      f'（{os.path.basename(used)}）')
-    return ('FATAL',
-            f'**06 が使ったメタデータと違う。** データセットは '
-            f'{os.path.basename(used)} で組まれているのに，検証は '
-            f'{os.path.basename(meta_path)} に対して走っている。'
-            f'completeness はある本文についての判断なので，別の書誌と'
-            f'突き合わせると，もう存在しない欠陥を報告し続ける。'
-            f'--meta {used} を渡すこと')
+    # **`_local` は同じ書誌の別名である。** 配布版 corpus_metadata_v3.csv は
+    # git 管理下なので，クローンでは corpus_metadata_v3_local.csv に書き出す
+    # 約束にしてある（そうしないと git pull が毎回止まる）。名前が違うだけで
+    # 取り違えではないから，ここで揃えてから比べる。
+    def norm(path: str) -> str:
+        stem, ext = os.path.splitext(os.path.basename(path))
+        return stem.replace('_local', '') + ext
+
+    if norm(used) != norm(meta_path):
+        return ('FATAL',
+                f'**06 が使ったメタデータと違う。** データセットは '
+                f'{os.path.basename(used)} で組まれているのに，検証は '
+                f'{os.path.basename(meta_path)} に対して走っている。'
+                f'completeness はある本文についての判断なので，別の書誌と'
+                f'突き合わせると，もう存在しない欠陥を報告し続ける。'
+                f'--meta {used} を渡すこと')
+
+    # 名前は揃っている。**中身も揃っているか。** 配布版が古いまま残っていて，
+    # 実際に測ったのは _local の方だった——という取り違えは名前では出ない。
+    if os.path.abspath(used) != os.path.abspath(meta_path) \
+            and os.path.exists(used):
+        def key(path: str) -> dict:
+            with open(path, encoding='utf-8-sig') as fh:
+                return {(r.get('id') or ''): (r.get('completeness') or '')
+                        for r in csv.DictReader(fh)}
+        try:
+            if key(used) != key(meta_path):
+                return ('WARN',
+                        f'{os.path.basename(meta_path)} と '
+                        f'{os.path.basename(used)} は名前の約束どおり対だが，'
+                        f'**id と completeness の対応が一致しない**。'
+                        f'配布版が古いまま残っている可能性がある。'
+                        f'06 が使った {used} を渡すこと')
+        except (OSError, ValueError):
+            pass
+
+    return ('ok', f'06 と同じメタデータで検証している'
+                  f'（{os.path.basename(used)}）')
 
 
 def main() -> int:
@@ -243,9 +271,9 @@ def main() -> int:
         print('[5/8] メタデータ整合')
         got = check_meta_provenance(
             args.meta, {os.path.splitext(f)[0] for f in texts}, args.datasets)
-        if got and got[0] == 'FATAL':
-            add('FATAL', 'meta_provenance', os.path.basename(args.meta), got[1])
-            print(f'   [FATAL] {got[1]}')
+        if got and got[0] in ('FATAL', 'WARN'):
+            add(got[0], 'meta_provenance', os.path.basename(args.meta), got[1])
+            print(f'   [{got[0]:<5}] {got[1]}')
         elif got:
             print(f'   {got[1]}')
         with open(args.meta, encoding='utf-8-sig') as fh:

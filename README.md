@@ -197,8 +197,12 @@ JDK・MALLET・UniDic・取得済みテクストを `/Users/Shared/jlit` に置�
 
 受講生が Step 3 で作るメタデータは `metadata/corpus_metadata_v3_local.csv`
 （`.gitignore` 済み）に書かれ，配布版の `corpus_metadata_v3.csv` は書き換わらない。
-配布版を更新するときは，検証した自分の版をもとに
-`00_extend_metadata.py … --out metadata/corpus_metadata_v3.csv --publish` で書き出してコミットする。
+**コマンド連鎖（下の §2）も同じ約束に従う。** `00_extend_metadata.py` の
+`--out` は `_local`，`06`・`99`・`07`・`11` の `--meta` も `_local` を指す。
+配布版を更新するときは、クローンで検証した `_local` をマスターの
+`metadata/corpus_metadata_v3.csv` に**複写して**コミットする。
+**測った版と配った版を別の名前にしておく**ので、どちらを見ているのか
+取り違えず、`git pull` も衝突しない。
 
 マスターで `00_bootstrap_mac.sh` を実行しても，仮想環境は Dropbox の外
 （`~/Documents/dh_project/.venv`）に作られる。`solutions/`（模範解答）は
@@ -248,28 +252,39 @@ python scripts/05_tokenise_unidic.py \
   --expect-dict unidic-novel
 
 # メタデータを作り直す（実測値を測り直し，period5 もここで入る）
+# ⚠ **_local に書く。** 配布版 corpus_metadata_v3.csv は git 管理下なので，
+#   そこへ再生成すると git pull のたびに「local changes would be
+#   overwritten」で止まる。**測った版と配った版は別の名前にする。**
 python scripts/00_extend_metadata.py \
   --meta metadata/corpus_metadata_v2.csv \
   --fetch-log data/aozora/fetch_log.csv \
   --candidates metadata/expansion_candidates.csv \
   --tokens data/tokens/tokens_surface --remeasure-all \
-  --out metadata/corpus_metadata_v3.csv
+  --out metadata/corpus_metadata_v3_local.csv
 
 # データセット構築（2000語チャンク・作品あたり上限40）
 python scripts/06_build_datasets.py \
   --tokens data/tokens/tokens_content \
-  --meta metadata/corpus_metadata_v3.csv \
+  --meta metadata/corpus_metadata_v3_local.csv \
   --out data/datasets --chunk 2000 --max-chunks 40
 
 # 再検証：FATAL 0 になるまで進まない
-# ⚠ **v3 を渡すこと。** v2 の completeness は file_v1 すなわち v1 の
-#   テクストについての記述で，再構築した本文についての記述ではない。
-#   v2 を渡すと，もう存在しない欠陥（『灰色の巨人』の重複，『家（下）』の
-#   上巻欠落）を FATAL として報告し続ける。**本文と書誌は対で渡す。**
+# ⚠ **06 に渡したものと同じものを渡すこと。** completeness は「ある本文に
+#   ついての判断」であって作品の永久の属性ではない。v2 の completeness は
+#   file_v1 すなわち v1 のテクストについての記述なので，v2 を渡すと，もう
+#   存在しない欠陥（『灰色の巨人』の重複，『家（下）』の上巻欠落）を FATAL
+#   として報告し続ける。**本文と書誌は対で渡す。**
+#   99 は data/datasets/dataset_provenance.json を読んで食い違いを FATAL に
+#   するので，取り違えても気づける
 python scripts/99_validate.py --corpus data/plain/full \
-  --meta metadata/corpus_metadata_v3.csv \
+  --meta metadata/corpus_metadata_v3_local.csv \
   --tokenise-report data/tokens/tokenise_report.csv \
   --out logs/validate_v3.csv
+
+# 配布版を更新する（クローンで検証した版をマスターへ写してコミットする）
+# cp metadata/corpus_metadata_v3_local.csv <マスター>/metadata/corpus_metadata_v3.csv
+# cp metadata/corpus_metadata_v3_local_needs_review.csv \
+#    <マスター>/metadata/corpus_metadata_v3_needs_review.csv
 ```
 
 ### 3. 分析
@@ -278,7 +293,7 @@ python scripts/99_validate.py --corpus data/plain/full \
 # 記述統計・文体計量
 python scripts/07_descriptive_stats.py \
   --tokens data/tokens/tokens_lemma --tsv data/tokens/tsv \
-  --meta metadata/corpus_metadata_v3.csv --out results/descriptive --mfw 300
+  --meta metadata/corpus_metadata_v3_local.csv --out results/descriptive --mfw 300
 
 # 通時 word2vec（スライスの語数を揃える）
 python scripts/08_word2vec_diachronic.py \
@@ -296,7 +311,7 @@ python scripts/10_mallet.py all --datasets data/datasets \
   --out results/mallet --topics 50 --iterations 2000
 
 # 作図
-python scripts/11_visualise.py --meta metadata/corpus_metadata_v3.csv \
+python scripts/11_visualise.py --meta metadata/corpus_metadata_v3_local.csv \
   --descriptive results/descriptive --w2v results/w2v \
   --mallet results/mallet --out results/figures
 ```
