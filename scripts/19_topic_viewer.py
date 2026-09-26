@@ -490,7 +490,7 @@ svg .mut{fill:var(--mut)}
 #netsvg .node{stroke:var(--card);stroke-width:1.2;cursor:pointer;fill-opacity:var(--nop)}
 #netsvg .node.foc{stroke:var(--fg);stroke-width:2.4}
 #netsvg .edge.dim,#netsvg .node.dim,#netsvg .nlabel.dim{opacity:.15}
-#netsvg .nlabel{font-size:var(--nfs);font-weight:600;pointer-events:none;paint-order:stroke;stroke:var(--card);stroke-width:3px;stroke-linejoin:round}
+#netsvg .nlabel{font-size:var(--nfs);font-weight:600;pointer-events:none;paint-order:stroke;stroke:var(--card);stroke-width:calc(var(--nfs) * .27);stroke-linejoin:round}
 .tip{position:absolute;max-width:270px;background:var(--card);border:1px solid var(--line);border-radius:6px;padding:6px 9px;font-size:12px;line-height:1.5;box-shadow:0 2px 8px rgba(0,0,0,.12);pointer-events:none}
 #ninfo h3{font-size:13px;margin:12px 0 4px}
 #ninfo tr.go{cursor:pointer}
@@ -568,7 +568,10 @@ a.help-q:hover{border-color:var(--acc);color:var(--acc)}
       <label>色 <select id="ncol"></select></label>
       <label>線の色 <select id="necol"><option value="cat" selected>ノードの分類の色（境界は灰色の破線）</option><option value="gray">すべて灰色</option></select></label>
       <label><input type="checkbox" id="nlab" checked> ラベル</label>
-      <label>文字の大きさ <input type="range" id="nfs" min="7" max="22" step="1" value="11"> <output id="nfsO"></output></label>
+      <label>文字の大きさ <input type="range" id="nfs" min="5" max="22" step="1" value="11"> <output id="nfsO"></output></label>
+      <label>ノードの大きさ <input type="range" id="nsz" min="30" max="150" step="5" value="100"> <output id="nszO"></output></label>
+      <label id="ntcolw" hidden>トピックの色 <select id="ntcol"><option value="gray" selected>灰色（作品と区別する）</option><option value="cat">作品の色分けに合わせる</option></select></label>
+      <label id="ntszw" hidden>トピックの大きさ（作品に対して） <input type="range" id="ntsz" min="20" max="150" step="5" value="60"> <output id="ntszO"></output></label>
       <label>ノードの濃さ <input type="range" id="nno" min="15" max="100" step="5" value="100"> <output id="nnoO"></output></label>
       <label>線の濃さ <input type="range" id="neo" min="10" max="100" step="5" value="100"> <output id="neoO"></output></label>
       <button id="nre" type="button">配置し直す</button>
@@ -838,13 +841,26 @@ const PAL = ['#0072B2', '#E69F00', '#009E73', '#CC79A7', '#56B4E9', '#D55E00', '
 const GRAY = '#9a9a93';
 const NET = {view: 'list', kind: 'topic', nodes: [], edges: [], raf: 0, alpha: 0,
              scale: 1, tx: 0, ty: 0, focus: null, W: 900, H: 620};
-const nst = {meas: 'jsd', src: 'd2v', k: 2, top: 100, col: 'period', lab: true, fs: 11, nop: 100, eop: 100, ecol: 'cat', minsh: 5};
+const nst = {meas: 'jsd', src: 'd2v', k: 2, top: 100, col: 'period', lab: true, fs: 11, nop: 100, eop: 100, ecol: 'cat', minsh: 5, nsz: 100, tsz: 60, tcol: 'gray'};
 const TGRAY = '#5f5f5a';   // 作品とトピックのネットワークでのトピック（四角）の色
 // 文字の大きさと濃さは SVG の変数で持つ（配置を計算し直さずに変えられる）
 function netStyle(){
   const s = $('netsvg').style;
   s.setProperty('--nfs', nst.fs + 'px'); s.setProperty('--nop', nst.nop / 100); s.setProperty('--eop', nst.eop / 100);
   $('nfsO').textContent = nst.fs + 'px'; $('nnoO').textContent = nst.nop + '%'; $('neoO').textContent = nst.eop + '%';
+  $('nszO').textContent = nst.nsz + '%'; $('ntszO').textContent = nst.tsz + '%';
+}
+// ノードの大きさの倍率。作品とトピックのネットワークでは，トピック（四角）だけ別に縮められる
+function nodeScale(nd){ return nst.nsz / 100 * (nd.kind === 't' ? nst.tsz / 100 : 1); }
+// 大きさだけを変える（配置は計算し直さない）
+function resizeNodes(){
+  NET.nodes.forEach(p => {
+    if (p.r0 == null || !p.el) return;
+    p.r = p.r0 * nodeScale(p);
+    if (p.kind === 't') { p.el.setAttribute('width', (2 * p.r).toFixed(1)); p.el.setAttribute('height', (2 * p.r).toFixed(1)); }
+    else p.el.setAttribute('r', p.r.toFixed(1));
+  });
+  draw();
 }
 
 function setView(v){
@@ -869,7 +885,7 @@ function goTopic(t){
 function netControls(){
   let opts;
   const bip = NET.kind === 'bip';
-  $('ntopw').hidden = bip; $('nminw').hidden = !bip;
+  $('ntopw').hidden = bip; $('nminw').hidden = !bip; $('ntszw').hidden = !bip; $('ntcolw').hidden = !bip; $('ntcol').value = nst.tcol;
   $('nkL').textContent = bip ? '各作品から割合の高い順に' : '近い順に';
   $('nkU').textContent = bip ? '個のトピック' : '本';
   $('nmin').value = nst.minsh; $('nminO').textContent = nst.minsh + '%';
@@ -897,7 +913,8 @@ function netControls(){
   $('nk').value = nst.k; $('nkO').textContent = nst.k;
   $('ntop').value = nst.top; $('ntopO').textContent = nst.top + '%';
   $('nlab').checked = nst.lab;
-  $('nfs').value = nst.fs; $('nno').value = nst.nop; $('neo').value = nst.eop; netStyle();
+  $('nfs').value = nst.fs; $('nno').value = nst.nop; $('neo').value = nst.eop;
+  $('nsz').value = nst.nsz; $('ntsz').value = nst.tsz; netStyle();
 }
 
 // ---- グラフを作る -----------------------------------------------------
@@ -1023,9 +1040,9 @@ function louvain(n, edges){
 
 // ---- 色分け ------------------------------------------------------------
 function categorise(nodes, edges){
-  let cat;
+  let cat, cm = null;
   if (nst.col === 'community') {
-    const cm = louvain(nodes.length, edges);
+    cm = louvain(nodes.length, edges);
     cat = cm.map((c, i) => nodes[i].kind === 't' ? 'トピック' : 'コミュニティ ' + (c + 1));
   } else if (NET.kind === 'topic') {
     cat = nodes.map(nd => {
@@ -1056,7 +1073,29 @@ function categorise(nodes, edges){
   order = order.filter(c => c !== 'トピック');
   order.forEach(c => { color.set(c, (c === '不明' || k >= PAL.length) ? GRAY : PAL[k++]); });
   if (cnt.has('トピック')) { color.set('トピック', TGRAY); order.push('トピック'); }
-  return {cat, color, order, cnt};
+  return {cat, color, order, cnt, cm};
+}
+
+// 作品とトピックのネットワークで，トピック（四角）を作品の色分けに合わせるときの分類。
+// コミュニティのときはトピック自身のコミュニティ（作品の無いコミュニティなら下と同じ扱い），
+// 時代区分・作家などのときは，線でつながる作品の分類のうち割合（線の重み）の合計が最も大きいもの。
+// 線の無いトピックは灰色のまま
+function topicCats(g, cat, color, cm){
+  const out = [];
+  if (NET.kind !== 'bip' || nst.tcol !== 'cat') return out;
+  g.nodes.forEach((nd, i) => {
+    if (nd.kind !== 't') return;
+    if (cm) {
+      const c = 'コミュニティ ' + (cm[i] + 1);
+      if (color.has(c)) { out[i] = c; return; }
+    }
+    const sum = new Map();
+    g.edges.forEach(e => { if (e.b === i) sum.set(cat[e.a], (sum.get(cat[e.a]) || 0) + e.w); });
+    let best = null, bw = -1;
+    sum.forEach((w, c) => { if (w > bw) { bw = w; best = c; } });
+    if (best != null) out[i] = best;
+  });
+  return out;
 }
 
 // ---- 描く ---------------------------------------------------------------
@@ -1068,8 +1107,9 @@ function buildNet(){
   const g = graphData();
   NET.nodes = g.nodes; NET.edges = g.edges; NET.dir = g.dir; NET.mat = g.mat; NET.focus = null;
   NET.userView = false; NET.scale = 1; NET.tx = NET.ty = 0;
-  const {cat, color, order, cnt} = categorise(g.nodes, g.edges);
+  const {cat, color, order, cnt, cm} = categorise(g.nodes, g.edges);
   NET.cat = cat; NET.color = color;
+  const tcat = topicCats(g, cat, color, cm);
   // 初期配置は円周上（再現できるように乱数を使わない）
   const n = g.nodes.length, R = Math.min(NET.W, NET.H) * 0.38;
   g.nodes.forEach((nd, i) => {
@@ -1077,6 +1117,7 @@ function buildNet(){
     nd.x = NET.W / 2 + R * Math.cos(a); nd.y = NET.H / 2 + R * Math.sin(a);
     nd.vx = 0; nd.vy = 0; nd.fixed = false;
     nd.color = color.get(cat[i]); nd.cat = cat[i];
+    if (tcat[i]) { nd.color = color.get(tcat[i]); nd.tcat = tcat[i]; }
   });
   const svg = $('netsvg');
   svg.innerHTML = '';
@@ -1104,6 +1145,7 @@ function buildNet(){
     eg.appendChild(e.el);
   });
   g.nodes.forEach((nd, i) => {
+    nd.r0 = nd.r; nd.r = nd.r0 * nodeScale(nd);
     // トピック（作品とトピックのネットワーク）は四角で，作品の丸と形で分ける
     nd.el = nd.kind === 't'
       ? svgEl('rect', {width: (2 * nd.r).toFixed(1), height: (2 * nd.r).toFixed(1), rx: 2.5, fill: nd.color, class: 'node tnode'})
@@ -1121,7 +1163,7 @@ function buildNet(){
   edgeColors();
   applyView();
   // 凡例
-  const shown = order.filter(c => color.get(c) !== GRAY || c === '不明');
+  const shown = order.filter(c => (color.get(c) !== GRAY || c === '不明') && !(c === 'トピック' && nst.tcol === 'cat'));
   const rest = order.filter(c => color.get(c) === GRAY && c !== '不明');
   $('nleg').innerHTML = shown.map(c => `<span><i style="background:${color.get(c)}"></i>${esc(c)}（${cnt.get(c)}）</span>`).join('')
     + (rest.length ? `<span title="${esc(rest.join('・'))}"><i style="background:${GRAY}"></i>その他 ${rest.length} 種（${rest.reduce((s, c) => s + cnt.get(c), 0)}）</span>` : '');
@@ -1129,7 +1171,8 @@ function buildNet(){
   const iso = g.nodes.filter((_, i) => !g.edges.some(e => e.a === i || e.b === i)).length;
   let src;
   if (NET.kind === 'bip') src = `作品（丸）とトピック（四角）を，作品のトピック構成（チャンクの θ の平均。モデル「${esc(M.label)}」）で結ぶ。`
-    + `各作品から割合の高い順に ${nst.k} 個・割合 ${nst.minsh}% 以上。線の太さは作品内の割合。`;
+    + `各作品から割合の高い順に ${nst.k} 個・割合 ${nst.minsh}% 以上。線の太さは作品内の割合。`
+    + (nst.tcol === 'cat' ? (nst.col === 'community' ? '四角の色はトピックの属するコミュニティ（作品の無いコミュニティなら，つながる作品で重みの合計が最も大きい分類）。' : '四角の色は，線でつながる作品の分類のうち割合の合計が最も大きいもの。') : '');
   else if (NET.kind === 'topic') src = `指標：${RELS.find(x => x[0] === nst.meas)[1]}（${NET.dir > 0 ? '大きいほど近い' : '小さいほど近い'}）。円の大きさはトピックの割合。`;
   else if (nst.src === 'd2v' && D.d2v) src = `指標：doc2vec の作品ベクトル（チャンクの document vector の平均，${D.d2v.dim} 次元）のコサイン類似度。${esc(D.d2v.dir)}`;
   else src = `指標：作品のトピック構成（チャンクの θ の平均）どうしの Jensen–Shannon divergence（モデル「${esc(M.label)}」）。`
@@ -1364,7 +1407,7 @@ function showTip(i, ev){
   if (NET.kind === 'topic' || nd.kind === 't') {
     const tid = nd.kind === 't' ? nd.t : nd.id;
     const lb = labelOf(tid);
-    h = `<b>${esc(nd.label)}</b>　${(100 * M.prev[tid]).toFixed(1)}%${NET.kind === 'topic' ? '・' + esc(nd.cat) : ''}<br>` +
+    h = `<b>${esc(nd.label)}</b>　${(100 * M.prev[tid]).toFixed(1)}%${NET.kind === 'topic' ? '・' + esc(nd.cat) : ''}${nd.tcat ? '・色：' + esc(nd.tcat) : ''}<br>` +
       (lb ? `ラベル：${esc(lb.label)}（${esc(lb.type)}・確信度 ${esc(lb.confidence)}）<br>` : `仮ラベル：${esc(autoLabel(tid))}<br>`) +
       ranked(tid).list.slice(0, 8).map(x => esc(disp(M.vocab[x.j][0]))).join(' ');
   } else {
@@ -1388,8 +1431,11 @@ function netInit(){
   $('ntop').oninput = e => { nst.top = +e.target.value; $('ntopO').textContent = nst.top + '%'; buildNet(); };
   $('nmin').oninput = e => { nst.minsh = +e.target.value; $('nminO').textContent = nst.minsh + '%'; buildNet(); };
   $('necol').onchange = e => { nst.ecol = e.target.value; edgeColors(); };
+  $('ntcol').onchange = e => { nst.tcol = e.target.value; buildNet(); };
   $('nfs').oninput = e => { nst.fs = +e.target.value; netStyle(); };
   $('nno').oninput = e => { nst.nop = +e.target.value; netStyle(); };
+  $('nsz').oninput = e => { nst.nsz = +e.target.value; netStyle(); resizeNodes(); };
+  $('ntsz').oninput = e => { nst.tsz = +e.target.value; netStyle(); resizeNodes(); };
   $('neo').oninput = e => { nst.eop = +e.target.value; netStyle(); };
   $('nlab').onchange = e => { nst.lab = e.target.checked; const g = document.querySelector('#netvp > g:last-child'); if (g) g.style.display = nst.lab ? '' : 'none'; };
   $('nre').onclick = () => { NET.scale = 1; NET.tx = NET.ty = 0; buildNet(); };
