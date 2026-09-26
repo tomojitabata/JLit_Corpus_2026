@@ -481,6 +481,8 @@ svg .mut{fill:var(--mut)}
 .netbar{display:flex;gap:14px;flex-wrap:wrap;align-items:center;font-size:12.5px;margin-bottom:6px}
 .netbar label{display:flex;gap:5px;align-items:center}
 .netbar label[hidden]{display:none}
+.netbar .ntools{display:flex;gap:5px;align-items:center}
+#nlay{max-width:430px}
 .netbar button{font:inherit;font-size:12px;padding:3px 10px;border:1px solid var(--line);border-radius:5px;background:var(--card);color:var(--fg);cursor:pointer}
 .netwrap{position:relative;background:var(--card);border:1px solid var(--line);border-radius:6px;overflow:hidden}
 #netsvg{display:block;width:100%;height:auto;aspect-ratio:900/620;touch-action:none;cursor:grab}
@@ -575,6 +577,23 @@ a.help-q:hover{border-color:var(--acc);color:var(--acc)}
       <label>ノードの濃さ <input type="range" id="nno" min="15" max="100" step="5" value="100"> <output id="nnoO"></output></label>
       <label>線の濃さ <input type="range" id="neo" min="10" max="100" step="5" value="100"> <output id="neoO"></output></label>
       <button id="nre" type="button">配置し直す</button>
+    </div>
+    <div class="netbar">
+      <label>レイアウト <select id="nlay">
+        <option value="fr" selected>Fruchterman–Reingold（従来の配置）</option>
+        <option value="fa2">ForceAtlas2（Gephi 標準の力学モデル。次数の高いノードほど強く反発）</option>
+        <option value="yh">Yifan Hu（粗い配置から多段階で詰める力学モデル）</option>
+        <option value="mds">MDS（全組の距離を平面上で再現する配置。stress majorisation）</option>
+        <option value="circ">Circular（分類ごとに円周上に並べる）</option>
+      </select></label><a class="help-q" href="topic_viewer_manual.html#netlayout" target="jlit-topic-manual" title="レイアウトと補助の操作（マニュアルを別のウィンドウで開く）">？</a>
+      <label id="nlinw" hidden><input type="checkbox" id="nlin"> LinLog</label>
+      <label id="ngrw" hidden>Gravity <input type="range" id="ngr" min="0" max="5" step="0.1" value="1"> <output id="ngrO"></output></label>
+      <span class="ntools">補助：
+        <button id="nexp" type="button" title="Expansion：形を保って全体を広げる">Expansion</button>
+        <button id="ncon" type="button" title="Contraction：形を保って全体を縮める">Contraction</button>
+        <button id="nnov" type="button" title="Noverlap：ノードの重なりを解消">Noverlap</button>
+        <button id="nlad" type="button" title="Label Adjust：ラベルの重なりを解消">Label Adjust</button></span>
+      <span class="hint" id="nlayst"></span>
     </div>
     <p class="hint" id="nhint"></p>
     <p class="hint" id="necnt"></p>
@@ -834,14 +853,14 @@ function relTable(t){
 
 // ======================================================================
 // ネットワーク（トピック間・作品間）。外部のライブラリは使わない。
-// 配置は力学モデル（ばねと斥力）。ドラッグで動かし，ホイールで拡大縮小，
+// 配置は選んだレイアウト（既定は力学モデル）。ドラッグで動かし，ホイールで拡大縮小，
 // 背景のドラッグで移動する。
 // ======================================================================
 const PAL = ['#0072B2', '#E69F00', '#009E73', '#CC79A7', '#56B4E9', '#D55E00', '#8C6D31', '#6A3D9A'];
 const GRAY = '#9a9a93';
 const NET = {view: 'list', kind: 'topic', nodes: [], edges: [], raf: 0, alpha: 0,
              scale: 1, tx: 0, ty: 0, focus: null, W: 900, H: 620};
-const nst = {meas: 'jsd', src: 'd2v', k: 2, top: 100, col: 'period', lab: true, fs: 11, nop: 100, eop: 100, ecol: 'cat', minsh: 5, nsz: 100, tsz: 60, tcol: 'gray'};
+const nst = {lay: 'fr', lin: false, grav: 1, meas: 'jsd', src: 'd2v', k: 2, top: 100, col: 'period', lab: true, fs: 11, nop: 100, eop: 100, ecol: 'cat', minsh: 5, nsz: 100, tsz: 60, tcol: 'gray'};
 const TGRAY = '#5f5f5a';   // 作品とトピックのネットワークでのトピック（四角）の色
 // 文字の大きさと濃さは SVG の変数で持つ（配置を計算し直さずに変えられる）
 function netStyle(){
@@ -1108,7 +1127,7 @@ function buildNet(){
   NET.nodes = g.nodes; NET.edges = g.edges; NET.dir = g.dir; NET.mat = g.mat; NET.focus = null;
   NET.userView = false; NET.scale = 1; NET.tx = NET.ty = 0;
   const {cat, color, order, cnt, cm} = categorise(g.nodes, g.edges);
-  NET.cat = cat; NET.color = color;
+  NET.cat = cat; NET.color = color; NET.order = order;
   const tcat = topicCats(g, cat, color, cm);
   // 初期配置は円周上（再現できるように乱数を使わない）
   const n = g.nodes.length, R = Math.min(NET.W, NET.H) * 0.38;
@@ -1182,8 +1201,7 @@ function buildNet(){
     : `線が太く濃いほど近い（線にポインタを載せると値が出る）。${g.nodes.length} ノード・${g.edges.length} 辺（各ノードから近い順に ${nst.k} 本，全組の近さの上位 ${nst.top}% まで）`
       + (iso ? `・辺の無いノード ${iso}` : '') + '。' + src;
   $('ninfo').innerHTML = '';
-  NET.alpha = 1;
-  tick();
+  startLayout();
 }
 
 // 配置が落ち着いたら，全体が画面に収まるように拡大縮小する（利用者が動かしていなければ）
@@ -1226,6 +1244,372 @@ function edgeColors(){
 function applyView(){
   const vp = document.getElementById('netvp');
   if (vp) vp.setAttribute('transform', `translate(${NET.tx},${NET.ty}) scale(${NET.scale})`);
+}
+
+// ======================================================================
+// レイアウト。Fruchterman–Reingold（従来の配置）は tick() で動かしながら落ち着かせる。
+// ほかは一度に計算して置く（乱数は種を固定し，同じ条件なら同じ配置になる）。
+//   ForceAtlas2  Jacomy et al. (2014)。斥力は (次数+1) の積に比例，LinLog は Noack (2007)
+//   Yifan Hu     Hu (2005)。辺の縮約で粗いグラフを作り，粗いほうから配置して細かくする
+//   MDS          Gansner, Koren & North (2005) の stress majorisation。古典的 MDS を初期値にする
+//   Circular     分類（色）ごとにまとめて円周上に並べる
+// ======================================================================
+function prng(seed){
+  return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+}
+function layEdges(){ return NET.edges.map(e => [e.a, e.b, 0.25 + e.rel]); }
+function initCircle(){
+  const n = NET.nodes.length, R = Math.min(NET.W, NET.H) * 0.38;
+  NET.nodes.forEach((nd, i) => {
+    const a = 2 * Math.PI * i / Math.max(1, n);
+    nd.x = NET.W / 2 + R * Math.cos(a); nd.y = NET.H / 2 + R * Math.sin(a);
+    nd.vx = 0; nd.vy = 0; nd.fixed = false;
+  });
+}
+function layControls(){
+  $('nlinw').hidden = nst.lay !== 'fa2'; $('ngrw').hidden = nst.lay !== 'fa2';
+  $('nlin').checked = nst.lin; $('ngr').value = nst.grav; $('ngrO').textContent = nst.grav.toFixed(1);
+  $('nlay').value = nst.lay;
+}
+function stopSim(){ cancelAnimationFrame(NET.raf); NET.alpha = 0; }
+
+function startLayout(){
+  stopSim();
+  initCircle();
+  $('nlayst').textContent = '';
+  if (nst.lay === 'fr' || NET.nodes.length < 2) { NET.alpha = 1; tick(); return; }
+  const f = {fa2: () => byComponents(layFA2), yh: () => byComponents(layYH), mds: layMDS, circ: layCirc}[nst.lay];
+  draw();
+  $('nlayst').textContent = '配置を計算しています…';
+  const gen = NET.gen = (NET.gen || 0) + 1;
+  setTimeout(() => {
+    if (gen !== NET.gen) return;             // 途中で条件が変わったら捨てる
+    const t0 = performance.now();
+    const p = f();
+    placeFit(p.x, p.y);
+    draw();
+    if (!NET.userView) fitView();
+    $('nlayst').textContent = `（計算 ${((performance.now() - t0) / 1000).toFixed(2)} 秒）`;
+  }, 20);
+}
+// 計算した座標を，縦横比を保って描画領域に収める
+function placeFit(x, y){
+  const n = x.length;
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (let i = 0; i < n; i++) { x0 = Math.min(x0, x[i]); x1 = Math.max(x1, x[i]); y0 = Math.min(y0, y[i]); y1 = Math.max(y1, y[i]); }
+  const pad = 40, w = Math.max(1e-9, x1 - x0), h = Math.max(1e-9, y1 - y0);
+  const s = Math.min((NET.W - 2 * pad) / w, (NET.H - 2 * pad) / h);
+  NET.nodes.forEach((p, i) => {
+    p.x = NET.W / 2 + (x[i] - (x0 + x1) / 2) * s; p.y = NET.H / 2 + (y[i] - (y0 + y1) / 2) * s;
+    p.vx = p.vy = 0;
+  });
+}
+
+// 力学モデルは連結成分ごとに配置し，辺の平均の長さを揃えてから棚詰めで並べる
+// （成分どうしの斥力で全体が広がり，成分の中が潰れて見えるのを防ぐ）
+function byComponents(fn){
+  const n = NET.nodes.length, E = layEdges();
+  const par = [...Array(n).keys()];
+  const find = i => { while (par[i] !== i) { par[i] = par[par[i]]; i = par[i]; } return i; };
+  E.forEach(([a, b]) => { const p = find(a), q = find(b); if (p !== q) par[Math.max(p, q)] = Math.min(p, q); });
+  const groups = new Map();
+  for (let i = 0; i < n; i++) { const r = find(i); if (!groups.has(r)) groups.set(r, []); groups.get(r).push(i); }
+  const comps = [...groups.values()].sort((a, b) => b.length - a.length || a[0] - b[0]);
+  const x = new Float64Array(n), y = new Float64Array(n);
+  const boxes = comps.map(ids => {
+    if (ids.length === 1) return {ids, px: [0], py: [0], w: 0, h: 0};
+    const loc = new Map(ids.map((g, k) => [g, k]));
+    const sub = E.filter(e => loc.has(e[0])).map(([a, b, w]) => [loc.get(a), loc.get(b), w]);
+    const r = fn(ids.length, sub);
+    let m = 0; sub.forEach(([a, b]) => { m += Math.hypot(r.x[a] - r.x[b], r.y[a] - r.y[b]); });
+    m = m / sub.length || 1;
+    const px = Array.from(r.x, v => v / m), py = Array.from(r.y, v => v / m);
+    const x0 = Math.min(...px), y0 = Math.min(...py);
+    return {ids, px: px.map(v => v - x0), py: py.map(v => v - y0), w: Math.max(...px) - x0, h: Math.max(...py) - y0};
+  });
+  const gap = 1.5, area = boxes.reduce((s, b) => s + (b.w + gap) * (b.h + gap), 0);
+  const rowW = Math.max(boxes[0].w, Math.sqrt(area * NET.W / NET.H));
+  let cx = 0, cy = 0, rh = 0;
+  boxes.forEach(b => {
+    if (cx > 0 && cx + b.w > rowW) { cx = 0; cy += rh + gap; rh = 0; }
+    b.ids.forEach((g, k) => { x[g] = cx + b.px[k]; y[g] = cy + b.py[k]; });
+    cx += b.w + gap; rh = Math.max(rh, b.h);
+  });
+  return {x, y};
+}
+
+// ---- ForceAtlas2 ---------------------------------------------------------
+function layFA2(n, E){
+  const mass = new Array(n).fill(1); E.forEach(([a, b]) => { mass[a]++; mass[b]++; });
+  const rnd = prng(7);
+  const x = new Float64Array(n), y = new Float64Array(n);
+  for (let i = 0; i < n; i++) { x[i] = (rnd() - 0.5) * 100; y[i] = (rnd() - 0.5) * 100; }
+  const kr = n > 100 ? 2 : 10, kg = nst.grav, lin = nst.lin;
+  let dx = new Float64Array(n), dy = new Float64Array(n), ox = new Float64Array(n), oy = new Float64Array(n);
+  let speed = 1, speedEff = 1;
+  const iters = n > 600 ? 150 : n > 200 ? 300 : 600;
+  for (let it = 0; it < iters; it++) {
+    [ox, dx] = [dx, ox]; [oy, dy] = [dy, oy]; dx.fill(0); dy.fill(0);
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      let rx = x[i] - x[j], ry = y[i] - y[j], d2 = rx * rx + ry * ry;
+      if (d2 < 1e-6) { rx = 1e-3 * (i - j - 0.5); ry = 1e-3; d2 = rx * rx + ry * ry; }
+      const f = kr * mass[i] * mass[j] / d2;            // 大きさ kr·m_i·m_j / d
+      dx[i] += rx * f; dy[i] += ry * f; dx[j] -= rx * f; dy[j] -= ry * f;
+    }
+    for (let i = 0; i < n; i++) {                       // 重力（距離によらない一定の強さ）
+      const d = Math.hypot(x[i], y[i]);
+      if (d > 0) { const f = kg * mass[i] / d; dx[i] -= x[i] * f; dy[i] -= y[i] * f; }
+    }
+    E.forEach(([a, b, w]) => {                          // 引力 d（LinLog は log(1+d)）
+      const rx = x[a] - x[b], ry = y[a] - y[b], d = Math.hypot(rx, ry);
+      if (d === 0) return;
+      const f = lin ? w * Math.log(1 + d) / d : w;
+      dx[a] -= rx * f; dy[a] -= ry * f; dx[b] += rx * f; dy[b] += ry * f;
+    });
+    // 速さの自動調整（swinging と traction）
+    let swg = 0, tra = 0;
+    const sw = new Float64Array(n);
+    for (let i = 0; i < n; i++) {
+      sw[i] = Math.hypot(ox[i] - dx[i], oy[i] - dy[i]);
+      swg += mass[i] * sw[i]; tra += mass[i] * Math.hypot(ox[i] + dx[i], oy[i] + dy[i]) / 2;
+    }
+    if (!(tra > 0)) break;
+    const estJ = 0.05 * Math.sqrt(n), minJ = Math.sqrt(estJ);
+    let jt = Math.max(minJ, Math.min(10, estJ * tra / (n * n)));
+    if (swg / tra > 2) { if (speedEff > 0.05) speedEff *= 0.5; jt = Math.max(jt, 1); }
+    const target = swg > 0 ? jt * speedEff * tra / swg : speed * 1.5;
+    if (swg > jt * tra) { if (speedEff > 0.05) speedEff *= 0.7; } else if (speed < 1000) speedEff *= 1.3;
+    speed = speed + Math.min(target - speed, 0.5 * speed);
+    for (let i = 0; i < n; i++) {
+      const fac = speed / (1 + Math.sqrt(speed * sw[i]));
+      x[i] += dx[i] * fac; y[i] += dy[i] * fac;
+    }
+  }
+  return {x, y};
+}
+
+// ---- Yifan Hu（多段階）----------------------------------------------------
+function layYH(n, E){
+  const levels = [{n, E}], maps = [];
+  while (levels[levels.length - 1].n > 8 && levels.length < 25) {
+    const L = levels[levels.length - 1];
+    const adj = Array.from({length: L.n}, () => []);
+    L.E.forEach(([a, b, w]) => { if (a !== b) { adj[a].push([b, w]); adj[b].push([a, w]); } });
+    const order = [...Array(L.n).keys()].sort((a, b) => adj[a].length - adj[b].length || a - b);
+    const par = new Array(L.n).fill(-1); let nc = 0;
+    order.forEach(i => {                 // 辺の縮約（重みの大きい相手と組にする）
+      if (par[i] >= 0) return;
+      let best = -1, bw = -1;
+      adj[i].forEach(([j, w]) => { if (par[j] < 0 && w > bw) { bw = w; best = j; } });
+      par[i] = nc; if (best >= 0) par[best] = nc; nc++;
+    });
+    if (nc > 0.8 * L.n) break;
+    const agg = new Map();
+    L.E.forEach(([a, b, w]) => { const p = par[a], q = par[b]; if (p === q) return;
+      const k = Math.min(p, q) + ',' + Math.max(p, q); agg.set(k, (agg.get(k) || 0) + w); });
+    maps.push(par);
+    levels.push({n: nc, E: [...agg].map(([k, w]) => { const [a, b] = k.split(',').map(Number); return [a, b, w]; })});
+  }
+  const rnd = prng(11);
+  let L = levels[levels.length - 1];
+  let x = new Float64Array(L.n), y = new Float64Array(L.n);
+  const s0 = Math.sqrt(L.n);
+  for (let i = 0; i < L.n; i++) { x[i] = rnd() * s0; y[i] = rnd() * s0; }
+  huRefine(x, y, L, 400, 1);
+  for (let l = levels.length - 2; l >= 0; l--) {
+    const par = maps[l], F = levels[l], sc = Math.sqrt(F.n / levels[l + 1].n);
+    const nx = new Float64Array(F.n), ny = new Float64Array(F.n);
+    for (let i = 0; i < F.n; i++) { nx[i] = x[par[i]] * sc + (rnd() - 0.5) * 0.2; ny[i] = y[par[i]] * sc + (rnd() - 0.5) * 0.2; }
+    x = nx; y = ny;
+    huRefine(x, y, F, l === 0 ? 300 : 150, 0.3);
+  }
+  return {x, y};
+}
+// 斥力 C·K²/d，引力 d²/K の spring-electrical モデル。歩幅は Hu の適応的な冷却で決める
+function huRefine(x, y, L, iters, step){
+  const n = L.n, K = 1, C = 0.2, t = 0.9;
+  const mw = L.E.length ? L.E.reduce((s, e) => s + e[2], 0) / L.E.length : 1;
+  const fx = new Float64Array(n), fy = new Float64Array(n);
+  let E0 = Infinity, progress = 0;
+  for (let it = 0; it < iters; it++) {
+    fx.fill(0); fy.fill(0);
+    let cx = 0, cy = 0;
+    for (let i = 0; i < n; i++) { cx += x[i]; cy += y[i]; }
+    cx /= n; cy /= n;
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      let rx = x[i] - x[j], ry = y[i] - y[j], d2 = rx * rx + ry * ry;
+      if (d2 < 1e-9) { rx = 1e-3 * (i - j - 0.5); ry = 1e-3; d2 = rx * rx + ry * ry; }
+      const f = C * K * K / d2;
+      fx[i] += rx * f; fy[i] += ry * f; fx[j] -= rx * f; fy[j] -= ry * f;
+    }
+    L.E.forEach(([a, b, w]) => {
+      const rx = x[a] - x[b], ry = y[a] - y[b], d = Math.hypot(rx, ry), f = d / K * (w / mw);
+      fx[a] -= rx * f; fy[a] -= ry * f; fx[b] += rx * f; fy[b] += ry * f;
+    });
+    let energy = 0, moved = 0;
+    for (let i = 0; i < n; i++) {
+      fx[i] -= 0.02 * (x[i] - cx); fy[i] -= 0.02 * (y[i] - cy);   // 連結でない部分が離れすぎないように
+      const m = Math.hypot(fx[i], fy[i]); energy += m * m;
+      if (m > 0) { x[i] += step * fx[i] / m; y[i] += step * fy[i] / m; moved += step; }
+    }
+    if (energy < E0) { if (++progress >= 5) { progress = 0; step /= t; } } else { progress = 0; step *= t; }
+    E0 = energy;
+    if (moved < 1e-3 * K * n) break;
+  }
+}
+
+// ---- MDS（stress majorisation）--------------------------------------------
+function layMDS(){
+  const n = NET.nodes.length;
+  const D = Array.from({length: n}, () => new Float64Array(n));
+  if (NET.mat && NET.kind !== 'bip') {
+    // 指標を非類似度にする（小さいほど近い指標はそのまま，大きいほど近い指標は 1 − 値）
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      const v = (NET.mat[i][j] + NET.mat[j][i]) / 2;
+      D[i][j] = D[j][i] = Math.max(0, NET.dir < 0 ? v : 1 - v);
+    }
+  } else {
+    // 作品とトピックのネットワーク：辺をたどる最短経路の長さ（つながらない組は最大値＋1）
+    const adj = Array.from({length: n}, () => []);
+    NET.edges.forEach(e => { adj[e.a].push(e.b); adj[e.b].push(e.a); });
+    let mx = 0;
+    for (let s = 0; s < n; s++) {
+      const d = new Int32Array(n).fill(-1); d[s] = 0; const q = [s];
+      for (let h = 0; h < q.length; h++) adj[q[h]].forEach(v => { if (d[v] < 0) { d[v] = d[q[h]] + 1; q.push(v); } });
+      for (let j = 0; j < n; j++) { D[s][j] = d[j]; if (d[j] > mx) mx = d[j]; }
+    }
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) if (D[i][j] < 0) D[i][j] = mx + 1;
+  }
+  let mx = 0;
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) if (D[i][j] > mx) mx = D[i][j];
+  const eps = mx > 0 ? mx * 1e-3 : 1;
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) if (i !== j && D[i][j] < eps) D[i][j] = eps;
+  // 古典的 MDS（二重中心化した −D²/2 の上位 2 固有ベクトル，べき乗法）
+  const B = Array.from({length: n}, (_, i) => Float64Array.from(D[i], v => -0.5 * v * v));
+  const rm = B.map(r => r.reduce((s, v) => s + v, 0) / n), gm = rm.reduce((s, v) => s + v, 0) / n;
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) B[i][j] += gm - rm[i] - rm[j];
+  const eig = prev => {
+    let v = Float64Array.from({length: n}, (_, i) => ((i * 7919) % 97) / 97 - 0.5), lam = 0;
+    for (let it = 0; it < 120; it++) {
+      if (prev) { const p = v.reduce((s, x, i) => s + x * prev[i], 0); for (let i = 0; i < n; i++) v[i] -= p * prev[i]; }
+      const w = new Float64Array(n);
+      for (let i = 0; i < n; i++) { let s = 0; const r = B[i]; for (let j = 0; j < n; j++) s += r[j] * v[j]; w[i] = s; }
+      const nm = Math.hypot(...w) || 1; lam = w.reduce((s, x, i) => s + x * v[i], 0);
+      v = w.map(x => x / nm);
+    }
+    return {v, lam};
+  };
+  const e1 = eig(null), e2 = eig(e1.v);
+  const rnd = prng(5);
+  const x = new Float64Array(n), y = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    x[i] = e1.lam > 0 ? e1.v[i] * Math.sqrt(e1.lam) : rnd() * mx;
+    y[i] = e2.lam > 0 ? e2.v[i] * Math.sqrt(e2.lam) : rnd() * mx;
+  }
+  // stress majorisation（重み d⁻²）
+  const iters = n > 600 ? 40 : n > 200 ? 80 : 200;
+  for (let it = 0; it < iters; it++) {
+    for (let i = 0; i < n; i++) {
+      let sx = 0, sy = 0, sw = 0;
+      for (let j = 0; j < n; j++) {
+        if (j === i) continue;
+        const d = D[i][j], w = 1 / (d * d);
+        let rx = x[i] - x[j], ry = y[i] - y[j], r = Math.hypot(rx, ry);
+        if (r < 1e-12) { rx = 1e-6; ry = 0; r = 1e-6; }
+        sx += w * (x[j] + d * rx / r); sy += w * (y[j] + d * ry / r); sw += w;
+      }
+      x[i] = sx / sw; y[i] = sy / sw;
+    }
+  }
+  return {x, y};
+}
+
+// ---- Circular（分類ごと）---------------------------------------------------
+function layCirc(){
+  const N = NET.nodes, n = N.length, x = new Float64Array(n), y = new Float64Array(n);
+  const rank = new Map((NET.order || []).map((c, i) => [c, i]));
+  const ring = idx => {                 // idx の順に，分類の切れ目で 1 ノード分あけて並べる
+    const slots = []; let prev = null;
+    idx.forEach(i => { if (prev !== null && N[i].cat !== prev) slots.push(-1); slots.push(i); prev = N[i].cat; });
+    if (idx.length > 1 && N[idx[0]].cat !== N[idx[idx.length - 1]].cat) slots.push(-1);
+    return slots;
+  };
+  const byCat = arr => arr.sort((a, b) => (rank.get(N[a].cat) ?? 99) - (rank.get(N[b].cat) ?? 99) || a - b);
+  if (NET.kind === 'bip') {
+    // 外側に作品（分類ごと），内側にトピック（つながる作品の角度の平均の順）
+    const ws = byCat(N.map((p, i) => i).filter(i => N[i].kind !== 't'));
+    const ts = N.map((p, i) => i).filter(i => N[i].kind === 't');
+    const sl = ring(ws), ang = new Float64Array(n);
+    sl.forEach((i, k) => { if (i >= 0) { ang[i] = 2 * Math.PI * k / sl.length; x[i] = Math.cos(ang[i]); y[i] = Math.sin(ang[i]); } });
+    const bary = new Map(ts.map(t => [t, [0, 0]]));
+    NET.edges.forEach(e => { const b = bary.get(e.b); if (b) { b[0] += e.w * Math.cos(ang[e.a]); b[1] += e.w * Math.sin(ang[e.a]); } });
+    const ta = t => { const b = bary.get(t); return (b[0] || b[1]) ? Math.atan2(b[1], b[0]) : 9 + t; };
+    ts.sort((a, b) => ta(a) - ta(b) || a - b);
+    const a0 = ts.length && ta(ts[0]) < 9 ? ta(ts[0]) : 0;   // 等間隔に置き，向きを作品側に合わせる
+    ts.forEach((i, k) => { const a = a0 + 2 * Math.PI * k / ts.length; x[i] = 0.5 * Math.cos(a); y[i] = 0.5 * Math.sin(a); });
+  } else {
+    const sl = ring(byCat([...Array(n).keys()]));
+    sl.forEach((i, k) => { if (i >= 0) { const a = 2 * Math.PI * k / sl.length; x[i] = Math.cos(a); y[i] = Math.sin(a); } });
+  }
+  return {x, y};
+}
+
+// ---- 補助の操作 -------------------------------------------------------------
+function afterTool(){ draw(); if (!NET.userView) fitView(); }
+function toolScale(k){
+  stopSim();
+  const N = NET.nodes; if (!N.length) return;
+  const cx = N.reduce((s, p) => s + p.x, 0) / N.length, cy = N.reduce((s, p) => s + p.y, 0) / N.length;
+  N.forEach(p => { p.x = cx + (p.x - cx) * k; p.y = cy + (p.y - cy) * k; });
+  afterTool();
+}
+const nodeRad = p => p.kind === 't' ? p.r * 1.42 : p.r;
+function toolNoverlap(){
+  stopSim();
+  const N = NET.nodes, n = N.length;
+  for (let it = 0; it < 400; it++) {
+    let moved = false;
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      const p = N[i], q = N[j];
+      let dx = q.x - p.x, dy = q.y - p.y, d = Math.hypot(dx, dy);
+      const m = nodeRad(p) + nodeRad(q) + 3;
+      if (d >= m) continue;
+      if (d < 1e-6) { dx = Math.cos(i + j); dy = Math.sin(i + j); d = 1; }
+      const push = (m - d) / 2 + 0.01;
+      p.x -= dx / d * push; p.y -= dy / d * push; q.x += dx / d * push; q.y += dy / d * push;
+      moved = true;
+    }
+    if (!moved) break;
+  }
+  afterTool();
+}
+// ラベルとノードを合わせた矩形どうしの重なりを，重なりの浅い向きに押し分ける
+function toolLabelAdjust(){
+  if (!nst.lab) { toolNoverlap(); return; }
+  stopSim(); draw();
+  const N = NET.nodes, n = N.length;
+  const box = N.map(p => {
+    let b; try { b = p.tx.getBBox(); } catch (e) { b = null; }
+    const r = nodeRad(p);
+    const l = Math.min(-r, b ? b.x - p.x : -r), rr = Math.max(r, b ? b.x + b.width - p.x : r);
+    const t = Math.min(-r, b ? b.y - p.y : -r), bt = Math.max(r, b ? b.y + b.height - p.y : r);
+    return {l: l - 1.5, r: rr + 1.5, t: t - 1.5, b: bt + 1.5};
+  });
+  for (let it = 0; it < 400; it++) {
+    let moved = false;
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      const p = N[i], q = N[j], a = box[i], c = box[j];
+      const ox = Math.min(p.x + a.r, q.x + c.r) - Math.max(p.x + a.l, q.x + c.l);
+      const oy = Math.min(p.y + a.b, q.y + c.b) - Math.max(p.y + a.t, q.y + c.t);
+      if (ox <= 0 || oy <= 0) continue;
+      if (ox < oy) { const s = (p.x + (a.l + a.r) / 2 <= q.x + (c.l + c.r) / 2 ? 1 : -1) * (ox / 2 + 0.01); p.x -= s; q.x += s; }
+      else { const s = (p.y + (a.t + a.b) / 2 <= q.y + (c.t + c.b) / 2 ? 1 : -1) * (oy / 2 + 0.01); p.y -= s; q.y += s; }
+      moved = true;
+    }
+    if (!moved) break;
+  }
+  afterTool();
 }
 
 function tick(){
@@ -1347,7 +1731,7 @@ let DRAG = null, LASTCLICK = {i: -1, t: 0};
 function nodeDouble(nd){
   if (NET.kind === 'topic') goTopic(nd.id);
   else if (nd.kind === 't') goTopic(nd.t);
-  else { nd.fixed = false; reheat(0.2); }
+  else if (nst.lay === 'fr') { nd.fixed = false; reheat(0.2); }
 }
 function netEvents(){
   const svg = $('netsvg');
@@ -1367,7 +1751,7 @@ function netEvents(){
     const pt = svgPoint(ev);
     if (DRAG) {
       if (Math.abs(pt.x - DRAG.sx) + Math.abs(pt.y - DRAG.sy) > 3) DRAG.moved = true;
-      if (DRAG.kind === 'node' && DRAG.moved) { NET.userView = true; DRAG.nd.x = pt.gx; DRAG.nd.y = pt.gy; reheat(0.15); draw(); }
+      if (DRAG.kind === 'node' && DRAG.moved) { NET.userView = true; DRAG.nd.x = pt.gx; DRAG.nd.y = pt.gy; if (nst.lay === 'fr') reheat(0.15); draw(); }
       if (DRAG.kind === 'pan' && DRAG.moved) { NET.userView = true; NET.tx = DRAG.tx + pt.x - DRAG.sx; NET.ty = DRAG.ty + pt.y - DRAG.sy; applyView(); }
       $('ntip').hidden = true;
       return;
@@ -1439,6 +1823,15 @@ function netInit(){
   $('neo').oninput = e => { nst.eop = +e.target.value; netStyle(); };
   $('nlab').onchange = e => { nst.lab = e.target.checked; const g = document.querySelector('#netvp > g:last-child'); if (g) g.style.display = nst.lab ? '' : 'none'; };
   $('nre').onclick = () => { NET.scale = 1; NET.tx = NET.ty = 0; buildNet(); };
+  $('nlay').onchange = e => { nst.lay = e.target.value; layControls(); NET.userView = false; startLayout(); };
+  $('nlin').onchange = e => { nst.lin = e.target.checked; if (nst.lay === 'fa2') { NET.userView = false; startLayout(); } };
+  $('ngr').oninput = e => { nst.grav = +e.target.value; $('ngrO').textContent = nst.grav.toFixed(1); };
+  $('ngr').onchange = () => { if (nst.lay === 'fa2') { NET.userView = false; startLayout(); } };
+  $('nexp').onclick = () => toolScale(1.2);
+  $('ncon').onclick = () => toolScale(1 / 1.2);
+  $('nnov').onclick = () => toolNoverlap();
+  $('nlad').onclick = () => toolLabelAdjust();
+  layControls();
   netEvents();
 }
 

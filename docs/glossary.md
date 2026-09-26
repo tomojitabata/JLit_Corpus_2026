@@ -2051,6 +2051,11 @@ exclusivity / lift / トピック分布のエントロピー / 解釈できな�
 ⚠ この生成過程は**現実の執筆過程の記述ではない**。あくまで計算のための
 仮定である。「作家がトピックを選んで書いた」と解釈しないこと。
 
+日本語で読める適用例として，FLOB コーパスの言語使用域をトピックモデルで記述したもの（田畑 2017）と，
+英国古典小説のコーパス ORCHiDS（Osaka Reference Corpus for Historical/Diachronic Stylistics）を
+LDA で分類し「遠読」したもの（田畑 2020; 2024）がある。
+FLOB の分析については，英語での口頭発表（Tabata 2017）もある。
+
 #### ディリクレ分布 / α と β
 
 「確率分布を生成する確率分布」。α は文書あたりのトピックの散らばり，
@@ -2138,7 +2143,10 @@ dp_in で絞り，relevance λ で並べ替え，トピックごとに時代別�
 
 **ネットワーク。** 上部のタブで「トピックのネットワーク」「作品のネットワーク」に切り替える。
 近いものどうしを，各ノードから近い順に k 本の辺で結び（弱い辺は「全組の近さの上位 N%」で消す），
-力学モデルで配置する。トピックは上の5つの指標で，作品は **doc2vec の作品ベクトル**（Step 7。
+選んだレイアウトで配置する。レイアウトは Fruchterman–Reingold（既定。Fruchterman & Reingold 1991），
+ForceAtlas2（Jacomy et al. 2014。LinLog は Noack 2007），Yifan Hu（Hu 2005），
+MDS（stress majorisation; Gansner, Koren & North 2005），Circular（分類ごとに円周上）から選び，
+Expansion／Contraction・Noverlap・Label Adjust で重なりを整える。トピックは上の5つの指標で，作品は **doc2vec の作品ベクトル**（Step 7。
 `--d2v` で渡す）のコサイン類似度か，**トピック構成**（θ の作品平均）の Jensen–Shannon divergence で結ぶ。
 色は時代区分・作家・ジャンル・文体・コミュニティ（Louvain 法; Blondel et al. 2008）。
 「作品とトピックのネットワーク」は，作品（丸）とトピック（四角）を作品のトピック構成（θ の作品平均）で結ぶ
@@ -2146,7 +2154,7 @@ dp_in で絞り，relevance λ で並べ替え，トピックごとに時代別�
 1人の作家の作品だけが集まるトピックは作家の目印，色の違う作品が多く集まるトピックは作家をまたぐ主題の候補である。
 同じ作品の集合を2つの表現で結んで見比べると，それぞれが何を捉えているか（作家か時代か）が見える。
 ⚠ 形とコミュニティは指標・k・残す割合で変わる。設定を変えても残るまとまりだけを読み，
-配置の上下左右や距離そのものは読まない。
+配置の上下左右は読まない。距離も，全組の距離を近似する MDS のほかは読まない。
 
 **ラベルづけ。** トピックの名前づけは LDA の難問である（Lau et al. 2011）。ビューアの「ラベルづけ」は2段構えにしてある。
 
@@ -2797,11 +2805,20 @@ drift が大きい語は KWIC で用例を読む。トピックは，そのト�
 | 8 | Aitchison, J. (1986) *The Statistical Analysis of Compositional Data*. Chapman & Hall. |
 | 8 | Blei, Ng & Jordan (2003) Latent Dirichlet Allocation. *JMLR* 3. |
 | 8 | Blondel, V. D., Guillaume, J.-L., Lambiotte, R. & Lefebvre, E. (2008) Fast unfolding of communities in large networks. *Journal of Statistical Mechanics: Theory and Experiment* 2008(10): P10008. |
+| 8 | Fruchterman, T. M. J. & Reingold, E. M. (1991) Graph drawing by force-directed placement. *Software: Practice and Experience* 21(11): 1129–1164. |
+| 8 | Gansner, E. R., Koren, Y. & North, S. (2005) Graph drawing by stress majorization. In J. Pach (ed.), *Graph Drawing: GD 2004* (LNCS 3383). Springer, 239–250. |
+| 8 | Hu, Y. (2005) Efficient, high-quality force-directed graph drawing. *The Mathematica Journal* 10(1): 37–71. |
+| 8 | Jacomy, M., Venturini, T., Heymann, S. & Bastian, M. (2014) ForceAtlas2, a continuous graph layout algorithm for handy network visualization designed for the Gephi software. *PLoS ONE* 9(6): e98679. |
 | 8 | Lau, J. H., Grieser, K., Newman, D. & Baldwin, T. (2011) Automatic labelling of topic models. *Proceedings of the 49th Annual Meeting of the Association for Computational Linguistics*: 1536–1545. |
 | 8 | Lin, J. (1991) Divergence measures based on the Shannon entropy. *IEEE Transactions on Information Theory* 37(1): 145–151. |
 | 8 | Mimno et al. (2011) Optimizing semantic coherence in topic models. *EMNLP*. |
+| 8 | Noack, A. (2007) Energy models for graph clustering. *Journal of Graph Algorithms and Applications* 11(2): 453–480. |
 | 8 | Sievert, C. & Shirley, K. (2014) LDAvis: a method for visualizing and interpreting topics. *Proceedings of the Workshop on Interactive Language Learning, Visualization, and Interfaces*: 63–70. |
 | 8 | Smith, P. W. H. & Aldridge, W. (2011) Improving authorship attribution: optimizing Burrows' Delta method. *Journal of Quantitative Linguistics* 18(1): 63–88. |
+| 8 | 田畑智司 (2017)「FLOBコーパスの意味構造：確率論的トピックモデルによる言語使用域の特徴付け」『言語文化共同研究プロジェクト2016 テクストマイニングとデジタルヒューマニティーズ』大阪大学大学院言語文化研究科，5–21. |
+| 8 | Tabata, T. (2017) Applying topic models to describe the composition of the FLOB corpus: can the external criteria be associated with meaningful sets of internal evidence? Paper presented at the 43rd Conference of the Japan Association for English Corpus Studies (JAECS), Kwansei Gakuin University, 30 September 2017. |
+| 8 | 田畑智司 (2020)「英国 Classic Fiction コーパスの潜在的トピック：LDA によるテクストクラスタリング」『テクストマイニングとデジタルヒューマニティーズ 2019』大阪大学大学院言語文化研究科，47–58. <https://doi.org/10.18910/76991> |
+| 8 | 田畑智司 (2024)「確率論的トピックモデリングによるBritish classic fictionの『遠読』」『英文學研究支部統合号』XVI: 36–45. |
 | 8 | Underwood, T. (2019) *Distant Horizons*. Chicago UP. |
 ---
 
@@ -2885,6 +2902,7 @@ drift が大きい語は KWIC で用例を読む。トピックは，そのト�
 | 4つのストリーム | 3 |
 | 4つの方法の総合 | 8 |
 | 乱数シードと再現性 | 3 |
+| レイアウト（ネットワークの配置。補助の操作） | 8 |
 
 ## 欧文・記号（アルファベット順）
 
@@ -2922,6 +2940,8 @@ drift が大きい語は KWIC で用例を読む。トピックは，そのト�
 | drift | 6 |
 | `euc_jis_2004` → 面区点 | 2 |
 | exclusivity → トピック数 K を選ぶ | 8 |
+| FLOB コーパス → LDA の適用例 | 8 |
+| ForceAtlas2 / Yifan Hu / MDS / Circular → レイアウト | 8 |
 | `gaiji_resolved` / `gaiji_unresolved` / 残存 `※` | 2 |
 | Gibbs サンプリング | 8 |
 | GroupKFold | 7 |
@@ -2940,6 +2960,7 @@ drift が大きい語は KWIC で用例を読む。トピックは，そのト�
 | MFW | 4 |
 | NDC | 1 |
 | `need()` | 共 |
+| ORCHiDS（英国古典小説のコーパス）→ LDA の適用例 | 8 |
 | orthBase → 異綴形 | 3 |
 | `@part="I\|M\|F"` | 2 |
 | Paragraph Vector (PV-DM / PV-DBOW) | 7 |

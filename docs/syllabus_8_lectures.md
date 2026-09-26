@@ -427,10 +427,14 @@ Antoniak & Mimno (2018) の議論を必ず扱う。
 - Dubossarsky, H. et al. (2017) Outta control: laws of semantic change and inherent biases in word representation models. *EMNLP*.
 - Eder, M., Rybicki, J. & Kestemont, M. (2016) Stylometry with R: a package for computational text analysis. *The R Journal* 8(1): 107–121.
 - Evert, S. (2008) Corpora and collocations. In A. Lüdeling & M. Kytö (eds), *Corpus Linguistics: An International Handbook*, Vol. 2, 1212–1248. Mouton de Gruyter.
+- Fruchterman, T. M. J. & Reingold, E. M. (1991) Graph drawing by force-directed placement. *Software: Practice and Experience* 21(11): 1129–1164.
+- Gansner, E. R., Koren, Y. & North, S. (2005) Graph drawing by stress majorization. In J. Pach (ed.), *Graph Drawing: GD 2004* (LNCS 3383). Springer, 239–250.
 - Gries, S. Th. (2013) 50-something years of work on collocations: what is or should be next …. *International Journal of Corpus Linguistics* 18(1): 137–165.
 - Hamilton, W., Leskovec, J. & Jurafsky, D. (2016) Diachronic word embeddings reveal statistical laws of semantic change. *ACL*.
 - Hoover, D. L. (2004a) Testing Burrows's Delta. *Literary and Linguistic Computing* 19(4): 453–475.
 - Hoover, D. L. (2004b) Delta prime? *Literary and Linguistic Computing* 19(4): 477–495.
+- Hu, Y. (2005) Efficient, high-quality force-directed graph drawing. *The Mathematica Journal* 10(1): 37–71.
+- Jacomy, M., Venturini, T., Heymann, S. & Bastian, M. (2014) ForceAtlas2, a continuous graph layout algorithm for handy network visualization designed for the Gephi software. *PLoS ONE* 9(6): e98679.
 - 金明哲 (2021)『テキストアナリティクス』共立出版
 - Klaussner, C., Nerbonne, J. & Çöltekin, Ç. (2015) Finding characteristic features in stylometric analysis. *Digital Scholarship in the Humanities* 30(Supplement 1): 114–129.
 - Lau, J. H., Grieser, K., Newman, D. & Baldwin, T. (2011) Automatic labelling of topic models. *Proceedings of the 49th Annual Meeting of the Association for Computational Linguistics*: 1536–1545.
@@ -438,6 +442,7 @@ Antoniak & Mimno (2018) の議論を必ず扱う。
 - Levy, O. & Goldberg, Y. (2014) Neural word embedding as implicit matrix factorization. *NIPS*.
 - Lin, J. (1991) Divergence measures based on the Shannon entropy. *IEEE Transactions on Information Theory* 37(1): 145–151.
 - 前川喜久雄 編 (2013)『コーパス入門』（講座日本語コーパス1）朝倉書店
+- Noack, A. (2007) Energy models for graph clustering. *Journal of Graph Algorithms and Applications* 11(2): 453–480.
 - Prokić, J., Çöltekin, Ç. & Nerbonne, J. (2012) Detecting shibboleths. *Proceedings of the EACL 2012 Joint Workshop of LINGVIS & UNCLH*.
 - Rychlý, P. (2008) A lexicographer-friendly association score. *Proceedings of Recent Advances in Slavonic Natural Language Processing (RASLAN 2008)*: 6–9.
 - Schöch, C., Schlör, D., Zehe, A., Gebhard, H., Becker, M. & Hotho, A. (2018) Burrows' Zeta: exploring and evaluating variants and parameters. *DH2018 Book of Abstracts*.
@@ -445,5 +450,9 @@ Antoniak & Mimno (2018) の議論を必ず扱う。
 - Smith, P. W. H. & Aldridge, W. (2011) Improving authorship attribution: optimizing Burrows' Delta method. *Journal of Quantitative Linguistics* 18(1): 63–88.
 - Tabata, T. (2012) Approaching Dickens' style through Random Forests. *Digital Humanities 2012: Conference Abstracts*, University of Hamburg.
 - Tabata, T. (2015) Stylometry of Dickens's language: an experiment with random forests. In P. L. Arthur & K. Bode (eds), *Advancing Digital Humanities: Research, Methods, Theories*. Palgrave Macmillan.
+- 田畑智司 (2017)「FLOBコーパスの意味構造：確率論的トピックモデルによる言語使用域の特徴付け」『言語文化共同研究プロジェクト2016 テクストマイニングとデジタルヒューマニティーズ』大阪大学大学院言語文化研究科，5–21.
+- Tabata, T. (2017) Applying topic models to describe the composition of the FLOB corpus: can the external criteria be associated with meaningful sets of internal evidence? Paper presented at the 43rd Conference of the Japan Association for English Corpus Studies (JAECS), Kwansei Gakuin University, 30 September 2017.
+- 田畑智司 (2020)「英国 Classic Fiction コーパスの潜在的トピック：LDA によるテクストクラスタリング」『テクストマイニングとデジタルヒューマニティーズ 2019』大阪大学大学院言語文化研究科，47–58. <https://doi.org/10.18910/76991>
+- 田畑智司 (2024)「確率論的トピックモデリングによるBritish classic fictionの『遠読』」『英文學研究支部統合号』XVI: 36–45.
 - Tabata, T. (2026) Using word embeddings as a semantic approach to key word analysis. *PALA 2026: The Philosophy of Stylistics*, Uppsala, 19–22 August 2026. 資料: <https://tinyurl.com/tabata-pala2026>
 - Underwood, T. (2019) *Distant Horizons: Digital Evidence and Literary Change*. University of Chicago Press.
