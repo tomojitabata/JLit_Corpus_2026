@@ -642,13 +642,7 @@ def main() -> int:
         if args.tokens:
             if remeasure(row, stem, args.tokens):
                 pass
-        # **本文を持たない行は，人が埋めようのない列を要確認にしない。**
-        # 分冊（merged）・v1 の合本（superseded）・短すぎる行（too_short）は
-        # 集計から外れる書誌だけの行で，トークン列が無いのだから
-        # style_class も語数も測りようがない。ここを要確認に挙げ続けると，
-        # **消せない [FATAL] が毎回出る**。本当に直すべき行が埋もれるので，
-        # 警告は「直せるもの」だけに絞る。
-        # （2026-09-26：『夜明け前』の分冊3行がこれに当たっていた。）
+
         textless = row.get('completeness') in ('merged', 'superseded', 'too_short')
         # **本文を持たない行には TBD を書かない。**
         # TBD は「人が確かめて埋めよ」の印だが，分冊・合本・短すぎる行には
@@ -731,6 +725,34 @@ def main() -> int:
         print(f'[fix ] 初出年と食い違っていた時代区分を直した（{len(moved)} 件）')
         for a, t, y, old, new in moved:
             print(f'       {a}『{t}』{y}年  {old} → {new}')
+
+    # ---- 本文を持たない行に，本文が要る指摘を残さない ---------------------
+    # ⚠ ``needs_review`` は増補行を組み立てた時点で決めているが，
+    #   ``completeness`` は**その後**に編者の判断表や分冊結合の後始末で
+    #   変わる。決めた時点では complete だった行が，最後には merged に
+    #   なっている——『夜明け前』の分冊3行に「style_class を測り直せ」と
+    #   出ていたのはこれである。トークン列を持たない行は誰も測りようが
+    #   ないので，その指摘は**本当に直すべき行を埋もれさせる**。
+    #   TBD のときと同じ手当て：**消すのではなく，最後の値で引き直す。**
+    TEXTLESS = ('merged', 'superseded', 'too_short')
+    MEASURE_HINT = ('style_class', '実測列')
+    final = {r.get('id'): (r.get('completeness') or '') for r in out_rows}
+    reviewed = {i for i, *_ in review}
+    pruned = []
+    for i, a, t, n in review:
+        if final.get(i) in TEXTLESS:
+            n = [k for k in n if not any(h in k for h in MEASURE_HINT)]
+            if not n:
+                continue
+        pruned.append((i, a, t, n))
+    if len(pruned) != len(review):
+        print(f'[fix ] 本文を持たない行から，測りようのない指摘を外した'
+              f'（{len(review) - len(pruned)} 行）')
+    review = pruned
+    kept = {i: ' '.join(n) for i, a, t, n in review}
+    for r in out_rows:
+        if r.get('id') in reviewed:
+            r['needs_review'] = kept.get(r.get('id'), '')
 
     os.makedirs(os.path.dirname(args.out) or '.', exist_ok=True)
     with open(args.out, 'w', newline='', encoding='utf-8-sig') as fh:

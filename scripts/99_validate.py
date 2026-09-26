@@ -15,10 +15,10 @@ v1 で見つかった 3 種類の欠陥（重複テクスト・外字欠落・�
 3. **奥付・入力者注の混入** — 「入力：」「校正：」「青空文庫作成ファイル」等。
 4. **踊り字の残存** — ``ゝゞヽヾ`` ``〳〵`` が正規化後も残っていないか。
 5. **メタデータの整合** — 必須列の欠損，初出年の範囲，ファイルとの対応。
-6. **長さの偏り** — 本文の文字数と，05 のリポートがあれば語数の最長／最短比。
-7. **未知語率** — 05 のリポートがあれば，異常値を報告。
+6. **長さの偏り** — 本文の文字数と，05 のレポートがあれば語数の最長／最短比。
+7. **未知語率** — 05 のレポートがあれば，異常値を報告。
 8. **抽出の取りこぼし** — ``--xhtml`` を渡すと，青空文庫の原本と
-   本文字数を突き合わせ，抽出率が通常を下回る作品を検出する。
+   本文字数を突き合わせ，抽出率が落ちている作品を検出する。
 
 使い方
 ------
@@ -32,12 +32,13 @@ v1 で見つかった 3 種類の欠陥（重複テクスト・外字欠落・�
 ``--corpus`` に渡すのは ``data/plain/full``，すなわち**分かち書きされていない
 生テクスト**である。``str.split()`` で語数を数えてはいけない。空白が無いので
 段落がそのまま「語」になり，『花月の夜』の語数が 6 と出る。本スクリプトは
-本文を**文字数**で数え，語数が必要な箇所は ``--tokenise-report`` から採る。
+本文を**文字数**で数え，語数が要る箇所は ``--tokenise-report`` から採る。
 """
 from __future__ import annotations
 
 import argparse
 import csv
+import json
 import itertools
 import os
 import re
@@ -53,7 +54,7 @@ ANNOTATION_LEAK = ['はママ］', '］', '［＃', '《', '》']
 def shingles(text: str, n: int = 12, step: int = 6) -> set:
     """重複検出用の n-gram 集合。**文字単位**で取る。
 
-    ``text.split()`` で語に切ってはいけない。本検査が受け取るのは
+    以前は ``text.split()`` で語に切っていたが，本検査が受け取るのは
     ``data/plain/full`` すなわち**分かち書きされていない生テクスト**である。
     空白で切ると段落がそのまま「語」になり，8-gram が 8 段落の並びを
     指すことになって，部分的な重複をまったく捉えられない。
@@ -67,6 +68,67 @@ def shingles(text: str, n: int = 12, step: int = 6) -> set:
     return {hash(body[i:i + n]) for i in range(0, len(body) - n, step)}
 
 
+def check_meta_provenance(meta_path: str, corpus_stems: set,
+                          datasets_dir: str) -> tuple[str, str] | None:
+    """**06 が使ったメタデータと，いま検証しているメタデータが同じか。**
+
+    なぜ要るか
+    ----------
+    ``completeness`` は「ある本文についての判断」であって，作品についての
+    永久の属性ではない。``corpus_metadata_v2.csv`` の ``completeness`` は
+    ``file_v1`` 列が示すとおり **v1 のテクスト**についての記述である。
+    だから再構築した本文を v2 と突き合わせると，**もう存在しない欠陥**を
+    FATAL として報告し続ける。
+
+    2026-09-27 に実際に起きた。外字がすべて解決し分冊結合も直った回でも
+    FATAL が2件残り，中身は江戸川乱歩『灰色の巨人』の ``DUPLICATE`` と
+    島崎藤村『家（下）』の ``PARTIAL`` ——どちらも v3 では ``complete`` と
+    ``merged`` に直っている。README の連鎖が v2 を渡していたのは，v2 しか
+    メタデータが無かった頃の名残であった。**手順書を直すだけでは足りない。**
+
+    パスでは判断しない
+    ------------------
+    v1 の診断では，別の本文を別の書誌で検証するのが**正しい**。だから
+    「v2 を渡したら警告」では誤報になる。**いま見ている本文が，その
+    データセットを作った本文かどうか**をファイル名の集合で確かめてから
+    比べる。無関係な本文なら黙って見送る。
+    """
+    prov = os.path.join(datasets_dir or '', 'dataset_provenance.json')
+    if not meta_path or not os.path.exists(prov):
+        return None
+    try:
+        with open(prov, encoding='utf-8') as fh:
+            rec = json.load(fh)
+    except (OSError, ValueError):
+        return None
+    used = (rec.get('meta') or '').strip()
+    if not used:
+        return None
+
+    # この本文が，そのデータセットのもとになった本文か
+    idx = os.path.join(datasets_dir, 'chunks_index.csv')
+    if os.path.exists(idx):
+        with open(idx, encoding='utf-8-sig') as fh:
+            ds_stems = {(r.get('work_stem') or '').strip()
+                        for r in csv.DictReader(fh)}
+        ds_stems.discard('')
+        if ds_stems:
+            share = len(ds_stems & corpus_stems) / len(ds_stems)
+            if share < 0.8:
+                return None            # 別の本文。比べる筋合いではない
+
+    if os.path.basename(used) == os.path.basename(meta_path):
+        return ('ok', f'06 と同じメタデータで検証している'
+                      f'（{os.path.basename(used)}）')
+    return ('FATAL',
+            f'**06 が使ったメタデータと違う。** データセットは '
+            f'{os.path.basename(used)} で組まれているのに，検証は '
+            f'{os.path.basename(meta_path)} に対して走っている。'
+            f'completeness はある本文についての判断なので，別の書誌と'
+            f'突き合わせると，もう存在しない欠陥を報告し続ける。'
+            f'--meta {used} を渡すこと')
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument('--corpus', required=True)
@@ -77,6 +139,10 @@ def main() -> int:
     ap.add_argument('--xhtml', default=None,
                     help='data/aozora/xhtml。渡すと原本と突き合わせて'
                          '抽出の取りこぼしを検出する')
+    ap.add_argument('--datasets', default='data/datasets',
+                    help='06 が書いた dataset_provenance.json のあるところ。'
+                         '渡されたメタデータが 06 の使ったものと同じか'
+                         '確かめるのに使う')
     ap.add_argument('--min-chars', type=int, default=3000,
                     help='これ未満の本文を「短すぎる」として報告する')
     args = ap.parse_args()
@@ -91,7 +157,7 @@ def main() -> int:
     # 「000129_004376 の未知語率が 2.95%」と言われても，それが鴎外の
     # 翻訳であることが分からなければ，直すべき欠陥なのか底本の性質なのか
     # 判断できない。--meta があれば作者と作品名を添える。
-    # キーの 0 埋めは 06 と同じ落とし穴なので，両方の綴りを登録する。
+    # 鍵の 0 埋めは 06 と同じ落とし穴なので，両方の綴りを登録する。
     # ------------------------------------------------------------------
     labels, orth = {}, {}
     if args.meta and os.path.exists(args.meta):
@@ -136,7 +202,7 @@ def main() -> int:
     # 2. 外字欠落
     # ※ と 〓 は別のものである。一緒に数えてはいけない。
     #   〓 … 面区点も U+ も字名も解決できなかった外字。復元不能な**欠字**
-    #   ※ … 外字マーカーの消し残し（欠陥），あるいは底本そのものが使う記号
+    #   ※ … 外字マーカの消し残し（欠陥），あるいは底本そのものが使う記号
     #        （編者注の印，伏字）。後者は本文の一部であって欠陥ではない
     print('[2/8] 外字欠落')
     for f, t in texts.items():
@@ -148,7 +214,7 @@ def main() -> int:
         if n_m:
             add('WARN', 'gaiji_marker', f,
                 f'※ が {n_m} 箇所。底本の記号（編者注・伏字）か'
-                '外字マーカーの消し残しかを確認すること')
+                '外字マーカの消し残しかを確認すること')
             print(f'   [WARN ] {lab(f)}: ※ {n_m} 箇所（底本の記号か消し残しか要確認）')
 
     # 3. 奥付混入
@@ -175,6 +241,13 @@ def main() -> int:
     # 5. メタデータ整合
     if args.meta:
         print('[5/8] メタデータ整合')
+        got = check_meta_provenance(
+            args.meta, {os.path.splitext(f)[0] for f in texts}, args.datasets)
+        if got and got[0] == 'FATAL':
+            add('FATAL', 'meta_provenance', os.path.basename(args.meta), got[1])
+            print(f'   [FATAL] {got[1]}')
+        elif got:
+            print(f'   {got[1]}')
         with open(args.meta, encoding='utf-8-sig') as fh:
             meta = list(csv.DictReader(fh))
         required = ['id', 'author_ja', 'title_aozora', 'year_first', 'ndc',
@@ -230,7 +303,7 @@ def main() -> int:
     # 6. 長さの偏り
     # 単位に注意。この検査が受け取るのは分かち書きされていない生テクストなので，
     # ``len(t.split())`` は段落数であって語数ではない（『花月の夜』が 6 と出る）。
-    # 本文は**文字数**で数え，語数は 05 のリポートがあればそちらから採る。
+    # 本文は**文字数**で数え，語数は 05 のレポートがあればそちらから採る。
     print('[6/8] 長さの偏り')
     lens = {f: len(re.sub(r'\s', '', t)) for f, t in texts.items()}
     lo, hi = min(lens.values()), max(lens.values())
@@ -326,16 +399,16 @@ def main() -> int:
                           f'（同じ表記の中央値 {gmed:.2%}）')
         print(f'   全体の中央値 {med:.2%}')
     else:
-        print('[7/8] 未知語率 — リポートが指定されていないため省略')
+        print('[7/8] 未知語率 — レポートが指定されていないため省略')
 
     # 8. 抽出の取りこぼし（--xhtml を渡したときだけ）
     #
     # **短い作品が「本当に短い」のか「抽出に失敗して短くなった」のかは，
     # 出来上がったテクストだけを見ても分からない。** 原本と突き合わせる。
     # 原本の本文字数に対する抽出後の比は作品によらずほぼ一定なので，
-    # 比がその水準を下回る作品を外れ値として拾える。
-    # たとえば『夜明け前（五）』が 191,582 字中 12,671 字しか取れていない
-    # といった取りこぼしは，この検査ですぐに分かる。
+    # 比が落ちている作品を外れ値として拾える。
+    # 『夜明け前（五）』が 191,582 字中 12,671 字しか取れていなかった
+    # 事故は，この検査があれば一発で出ていた。
     if args.xhtml and os.path.isdir(args.xhtml):
         print('[8/8] 抽出の取りこぼし（原本との突合）')
         ratios, noext = {}, []
