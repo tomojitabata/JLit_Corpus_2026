@@ -16,7 +16,7 @@ XHTML 版は ``<ruby>`` 要素と ``<span class="notes">`` で構造化されて
 ---------------
 ``list_person_all_extended_utf8.zip`` には公開中の全作品について
 作品ID・作品名・**初出**・**分類番号(NDC)**・文字遣い種別・底本・
-テクスト/XHTML ファイル URL が入っている。図書カードを1件ずつ読む必要がなく，
+テキスト/XHTML ファイル URL が入っている。図書カードを1件ずつ読む必要がなく，
 かつ書誌の典拠が一元化される。v1 の ``year`` 列の誤りはすべて，この索引を
 使っていれば起きなかった種類の誤りである。
 
@@ -60,11 +60,7 @@ UA = "JLitCorpus/2026 (academic corpus construction; contact: tomoji.tabata@exam
 SLEEP = 1.0
 
 # 取得済み XHTML の共有キャッシュ（マシン内。admin 権限は要らない）
-# 共用 iMac は /Users/Shared/jlit，自分の Mac（--personal）は ~/.jlit
-DEFAULT_CACHE = (next((os.path.join(d, 'aozora-cache')
-                       for d in ('/Users/Shared/jlit', os.path.expanduser('~/.jlit'))
-                       if os.path.isdir(d)), '/Users/Shared/jlit/aozora-cache')
-                 if sys.platform == 'darwin' else '')
+DEFAULT_CACHE = '/Users/Shared/jlit/aozora-cache' if sys.platform == 'darwin' else ''
 
 
 class FetchError(RuntimeError):
@@ -74,11 +70,11 @@ class FetchError(RuntimeError):
 def shared_cache(args) -> str:
     """XHTML の共有キャッシュの場所を返す。無ければ空文字。
 
-    DH Lab の iMac は XCreds 認証でホームがマシンごとに別々（共有されない）ため，
+    DH Lab の iMac は XCreds 認証でホームがマシンをまたがないため，
     別のマシンに移るたびに 100 件超を取り直すことになる。青空文庫の
     サーバにも負荷をかけるので，**マシン内で共有できる場所**に
     キャッシュを置く。macOS の ``/Users/Shared`` は admin 権限なしに
-    全ユーザーが読み書きできるので，そこを既定にしている。
+    全ユーザが読み書きできるので，そこを既定にしている。
 
     優先順位: ``--cache`` > 環境変数 ``JLIT_AOZORA_CACHE`` > 既定の共有場所
     """
@@ -111,8 +107,8 @@ def fetch(url: str, timeout: int = 60) -> bytes:
             f'{url}\n  接続できない（{e.reason}）。次を順に確かめること。\n'
             '   1. ネットワークにつながっているか\n'
             '   2. 学内プロキシの設定が要るか（環境変数 HTTPS_PROXY）\n'
-            '   3. 青空文庫のサーバが一時的に止まっていないか\n'
-            '   しばらくして再実行する（取得済みの分は共有キャッシュから読むので速い）。') from e
+            '   3. 青空文庫のサーバが一時的に落ちていないか\n'
+            '   共用 iMac では，代表者が取得した data/aozora/ を共有してもよい。') from e
     except TimeoutError as e:
         raise FetchError(f'{url}\n  時間切れ。回線が遅い場合は時間をおいて再実行する。') from e
 
@@ -166,13 +162,13 @@ def norm_author(s: str) -> str:
 
     青空文庫の索引は姓と名を別の列に持つため連結して比較するが，
     利用者は「ツルゲーネフ イワン」「ツルゲーネフ・イワン」のように
-    区切りを入れて書きがちである。区切りをすべて除いて比較する。
+    区切りを入れて書きがちである。区切りをすべて落として比較する。
     """
     return re.sub(r'[\s　・･]', '', s)
 
 
 def norm_title(s: str) -> str:
-    """作品名照合用の正規化。副題・巻次・記号を除く。"""
+    """作品名照合用の正規化。副題・巻次・記号を落とす。"""
     s = re.sub(r'[\s　]', '', s)
     s = re.sub(r'[「」『』（）()【】〔〕・,，、。．.]', '', s)
     s = re.sub(r'^\d+', '', s)
@@ -253,8 +249,11 @@ def diagnose(m: dict, by_author: dict[str, list[dict]]) -> dict:
         rec.update({
             'cause': 'author_not_found',
             'diagnosis': '青空文庫にこの著者名の登録がない',
-            'action': ('著作権保護期間中の可能性が高い（没後70年）。'
-                       'マニフェストから外すか，著者名の表記を確認する'),
+            'action': ('理由は3つありうる。(1) **未電子化**（保護期間は切れて'
+                       'いるのに青空文庫に入っていない。明治初期の著者に多い）'
+                       '／(2) 保護期間中（没後70年）／(3) 著者名の表記ゆれ。'
+                       '**作品名で索引を引くと (3) と他が区別できる**。'
+                       '没年を確かめてから外すこと'),
             'candidates': ' / '.join(near),
         })
         return rec
@@ -325,7 +324,7 @@ def year_from_shoshutsu(s: str) -> tuple[str, str]:
 
 
 def report_misses(miss: list[dict], idx: list[dict], out_dir: str) -> None:
-    """未解決行を原因つきで表示し，CSV に書き出す。"""
+    """未解決行を原因つきで表示し，CSV に落とす。"""
     if not miss:
         print('[ok  ] 未解決なし')
         return
@@ -340,7 +339,8 @@ def report_misses(miss: list[dict], idx: list[dict], out_dir: str) -> None:
     for cause, label in (
             ('title_mismatch', '■ 作品名が一致しない（マニフェストを直せば解決する）'),
             ('author_differs', '■ 別の著者名の下にある（翻訳作品に多い）'),
-            ('author_not_found', '■ 著者が青空文庫に未登録（保護期間中の可能性）')):
+            ('author_not_found',
+             '■ 著者が青空文庫に未登録（未電子化／保護期間中／表記ゆれ）')):
         group = [r for r in recs if r['cause'] == cause]
         if not group:
             continue
@@ -413,7 +413,7 @@ def cmd_works(args) -> int:
         # （03 は .html を .xml に replace するだけ）。青空文庫の索引は
         # ID を6桁に 0 埋めして配っているが，それに頼らず自分で揃える。
         # 索引の書式が変われば語幹が変わり，メタデータとの突合が静かに
-        # 外れる。
+        # 外れる（2026-09-22 に 07 で起きた事故と同じ型）。
         name = (f"{str(h['person_id']).strip().zfill(6)}"
                 f"_{str(h['work_id']).strip().zfill(6)}.html")
         dest = os.path.join(raw, name)
@@ -422,7 +422,7 @@ def cmd_works(args) -> int:
             log.append((name, h, 'cached'))
             continue
         # 共有キャッシュにあれば青空文庫には取りに行かない。
-        # DH Lab の iMac はホームがマシンごとに別々（共有されない）ので，別のユーザーや
+        # DH Lab の iMac はホームがマシンをまたがないので，別のユーザや
         # 前の授業回で取得済みのものを使い回せると待ち時間が大きく減る。
         cached = os.path.join(cache, name) if cache else ''
         if cached and os.path.exists(cached) and not args.force:
@@ -443,13 +443,7 @@ def cmd_works(args) -> int:
             fh.write(blob)
         if cache:
             try:                      # 次の人のために共有キャッシュにも置く
-                # 仮の名前で書いてから名前を変える。別のユーザーが同時に
-                # 読んでも書きかけのファイルを読み込まない。誰でも読めるようにする
-                final = os.path.join(cache, name)
-                part = f'{final}.part.{os.getpid()}'
-                shutil.copyfile(dest, part)
-                os.chmod(part, 0o644)
-                os.replace(part, final)
+                shutil.copyfile(dest, os.path.join(cache, name))
             except OSError as e:
                 print(f'  [warn] 共有キャッシュに書けない（{e}）。取得は成功している')
         yf, yt = year_from_shoshutsu(h['shoshutsu'])
