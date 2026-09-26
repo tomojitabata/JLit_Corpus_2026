@@ -20,6 +20,8 @@ lib/aozora.py
 """
 from __future__ import annotations
 
+import csv
+import os
 import re
 import unicodedata
 
@@ -77,12 +79,79 @@ NAMED_GAIJI = {
 NAMED_RE = re.compile('|'.join(re.escape(k) for k in NAMED_GAIJI))
 
 
-def resolve_gaiji(desc: str) -> tuple[str | None, str]:
+def load_gaiji_supplement(path: str) -> dict[str, dict]:
+    """外字の補助対照表を読む（``config/gaiji_supplement.tsv``）。
+
+    青空文庫は **JIS X 0213 に無い**文字を ※［＃「巾＋兌」、47-下段-24］ の
+    形で示す。面区点が無いので機械には復元しようがないが，JIS X 0213 に
+    無いだけで **Unicode には在る字が大半**である。編者が同定した対応を
+    この表に書けば復元できる。
+
+    ⚠ **面区点からの復元とは性質が違う。** 前者は EUC-JIS-2004 を介した
+    確定的な変換だが，こちらは**字形の説明文からの推定**であり，編者の
+    判断である。だから XML には ``resp="editor"`` を付けて区別する。
+
+    ``kind`` が ``glyph`` の行は，**Unicode に符号点が無い**字
+    （「まいらせそろ」の合略仮名など）。文字を当てるのではなく，
+    TEI の ``<g ref="#id"/>`` として記録し，字形の定義を
+    ``teiHeader/charDecl`` に置く。平文の派生物では私用領域の文字で表す。
+    """
+    out: dict[str, dict] = {}
+    if not path or not os.path.exists(path):
+        return out
+    with open(path, encoding='utf-8-sig') as fh:
+        rdr = csv.DictReader((l for l in fh if not l.startswith('#')),
+                             delimiter='\t')
+        for r in rdr:
+            note = (r.get('note') or '').strip()
+            ch = (r.get('char') or '').strip()
+            if not note or not ch:
+                continue
+            want = (r.get('codepoint') or '').strip().upper()
+            if want and want != f'U+{ord(ch):04X}':
+                raise ValueError(
+                    f'{path}: 「{note}」の char と codepoint が食い違う'
+                    f'（{ch} は U+{ord(ch):04X}，表には {want}）')
+            out[note] = {'char': ch,
+                         'kind': (r.get('kind') or 'unicode').strip(),
+                         'glyph_id': (r.get('glyph_id') or '').strip(),
+                         'evidence': (r.get('evidence') or '').strip()}
+    return out
+
+
+def resolve_gaiji(desc: str,
+                  supplement: dict[str, dict] | None = None
+                  ) -> tuple[str | None, str]:
     """注記本文から外字の実体を求める。
 
-    戻り値 ``(文字 or None, 種別)``。種別は
-    ``menkuten`` / ``uplus`` / ``named`` / ``unresolved`` のいずれか。
+    戻り値 ``(文字 or None, 種別)``。種別は ``menkuten`` / ``uplus`` /
+    ``named`` / ``supplement`` / ``glyph`` / ``unresolved`` のいずれか。
+
+    ``supplement`` は :func:`load_gaiji_supplement` の戻り値。**面区点より
+    先に引く。**
+
+    ⚠ 当初は「底本が番号を与えているならそちらが優先」と考えて面区点を先に
+    引いたが，それでは誤る注記がある。
+
+        ※［＃「※(第4水準2-13-74) 」の「斤」に代えて「りっとう」、132-中段-24］
+
+    これは「2-13-74 の**斤を立刀に替えた字**」の意で，面区点は**別の字の
+    説明の中に入れ子**になっている。先に面区点を引くと基の字（斲）が返り，
+    **違う字が本文に入る**。例外は出ないので誰も気づかない。
+
+    編者が対照表に鍵を書いた以上，その判断が機械的な変換に優先する。
+    表に無ければ従来どおり面区点・U+・名前の順に引く。
     """
+    if supplement:
+        # 注記は ※［＃「巾＋兌」、47-下段-24］ の形。鍵は 「」 の中身だが，
+        # 鉤括弧を使わない書き方（※［＃「穀」の「禾」に代えて「黄」…］）も
+        # あるので，**表の鍵が注記に含まれるか**で引く。長い鍵から順に見る
+        # （「口＋罅のつくり」が「口＋罅」に食われないように）。
+        for key in sorted(supplement, key=len, reverse=True):
+            if key in desc:
+                e = supplement[key]
+                return e['char'], ('glyph' if e['kind'] == 'glyph'
+                                   else 'supplement')
     m = MENKUTEN_RE.search(desc)
     if m:
         ch = menkuten_to_char(int(m['men']), int(m['ku']), int(m['ten']))

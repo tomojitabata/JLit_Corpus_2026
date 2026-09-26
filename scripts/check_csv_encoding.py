@@ -5,14 +5,14 @@ check_csv_encoding.py
 =====================
 CSV / TSV が **macOS の Excel で文字化けしない**かを検査する。
 
-なぜ必要か
+なぜ要るのか
 ------------
 macOS の Excel は，BOM の無い UTF-8 の CSV を開くと文字コードを推定し，
-**日本語を Shift_JIS と読み，すべて文字化けさせる。** 化けるのは表示だけなので，
+**日本語を Shift_JIS と読んで全部化けさせる。** 化けるのは表示だけなので，
 受講生は「スクリプトが壊れた」と思い，教員は「こちらでは化けない」と答える
 （Windows の Excel や Numbers では化けないことがある）。
 
-対策は2つあり，両方とも必要である。
+対策は2つ。両方要る。
 
 1. **書くときは BOM 付き**（``encoding='utf-8-sig'``）。Excel はこれを見て
    UTF-8 と判定する
@@ -48,7 +48,8 @@ BOM = '﻿'
 
 # 人が手で編集する設定ファイル。BOM は付けない（Git の差分が読みにくくなる）。
 # ただし**読む側は BOM を許す**ので，Excel で保存されても壊れない。
-CONFIG_FILES = {'config/corpus_manifest.tsv', 'config/merge_volumes.tsv'}
+CONFIG_FILES = {'config/corpus_manifest.tsv', 'config/merge_volumes.tsv',
+                'config/gaiji_supplement.tsv'}
 
 
 def check_files(root: str, fix: bool) -> list[tuple]:
@@ -80,9 +81,10 @@ READ_RE = re.compile(r"open\([^)]*encoding=['\"]utf-8['\"]")
 def call_text(src: str, i: int) -> str:
     """``open(`` の位置から**その呼び出しだけ**を取り出す（括弧を数える）。
 
-    ⚠ 前後の数行をまとめて見ると，**次の文で .tsv を書いている**とき，
+    ⚠ 前は前後4行をまとめて見ていたので，**次の文で .tsv を書いている**と
     その手前の ``.txt`` を書く open まで「CSV を BOM 無しで書いた」と
-    誤って咎めてしまう。呼び出しの範囲だけを見れば取り違えない。
+    誤って咎めた（18_pos_select.py で実際に起きた）。
+    呼び出しの範囲だけを見れば取り違えない。
     """
     j = src.index('(', i)
     depth, k = 0, j

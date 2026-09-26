@@ -59,8 +59,32 @@ from lib.aozora import normalise_chars, normalise_iteration_marks  # noqa: E402
 UNRESOLVED_CHAR = '〓'
 
 
+def glyph_map(root: ET.Element) -> dict[str, str]:
+    """``teiHeader/charDecl`` の字形定義を {xml:id: 私用領域の文字} で返す。
+
+    **Unicode に符号点の無い字**（「まいらせそろ」の合略仮名など）は，
+    XML では ``<g ref="#mairasesoro"/>`` として記録され，文字を持たない。
+    平文に落とすときに当てる文字を，XML 自身が ``<mapping type="PUA">``
+    で持っている。**定義を本文と一緒に持ち運ぶ**ので，あとから元の
+    字形に戻せる。
+    """
+    out: dict[str, str] = {}
+    for g in root.iter('glyph'):
+        gid = (g.get('{http://www.w3.org/XML/1998/namespace}id')
+               or g.get('xml:id') or g.get('id') or '')
+        m = g.find('mapping')
+        if not gid or m is None or not (m.text or '').startswith('U+'):
+            continue
+        try:
+            out[gid] = chr(int(m.text[2:], 16))
+        except ValueError:
+            continue
+    return out
+
+
 def extract(elem: ET.Element, mode: str, keep_ruby_base: bool = True,
-            narration_excludes_embedded: bool = False) -> str:
+            narration_excludes_embedded: bool = False,
+            glyphs: dict[str, str] | None = None) -> str:
     """要素木から解析対象の文字列を取り出す。
 
     mode:
@@ -74,6 +98,7 @@ def extract(elem: ET.Element, mode: str, keep_ruby_base: bool = True,
     外したいときは ``narration_excludes_embedded`` を真にする。
     """
     parts: list[str] = []
+    glyphs = glyphs or {}
 
     def rec(e: ET.Element, in_said: bool, in_emb: bool) -> None:
         tag = e.tag
@@ -84,8 +109,17 @@ def extract(elem: ET.Element, mode: str, keep_ruby_base: bool = True,
             return
         if tag == 'g':
             ref = e.get('ref', '')
-            emit((e.text or '') if ref != 'unresolved' else UNRESOLVED_CHAR,
-                 in_said, in_emb)
+            if ref.startswith('#'):
+                # Unicode に符号点の無い字。**当てる文字が無い**ので，
+                # teiHeader/charDecl の mapping（私用領域）で表す。
+                # 定義は XML 自身が持っているので，この平文は
+                # あとから元の字形に戻せる。「削らず・変えずに残す」。
+                txt = glyphs.get(ref[1:], UNRESOLVED_CHAR)
+            elif ref == 'unresolved':
+                txt = UNRESOLVED_CHAR
+            else:
+                txt = e.text or ''
+            emit(txt, in_said, in_emb)
             if e.tail:
                 emit(e.tail, in_said, in_emb)
             return
@@ -306,9 +340,11 @@ def main() -> int:
                     markup = cr.get('target') or 'full'
         row = {'file': name, 'author': author, 'title': title,
                'speech_markup': markup}
+        # 符号点の無い字の定義は，その XML 自身が持っている
+        glyphs = glyph_map(root)
         for mode in streams:
             raw = extract(body, mode, cfg['keep_ruby_base'],
-                          cfg['narration_excludes_embedded'])
+                          cfg['narration_excludes_embedded'], glyphs)
             stats = {}
             if cfg['expand_iteration_marks']:
                 raw, stats = normalise_iteration_marks(raw)

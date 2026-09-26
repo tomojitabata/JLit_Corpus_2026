@@ -55,12 +55,17 @@ import xml.etree.ElementTree as ET
 from xml.sax.saxutils import escape, quoteattr
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from lib.aozora import resolve_gaiji  # noqa: E402
+from lib.aozora import resolve_gaiji, load_gaiji_supplement  # noqa: E402
+
+#: 外字の補助対照表（config/gaiji_supplement.tsv）。main() が読み込む。
+#: **面区点や U+ が書かれていない注記だけ**がここを引く。底本が番号を
+#: 与えているならそちらが優先で，編者の推定が機械的な変換を上書きしない。
+SUPPLEMENT: dict[str, dict] = {}
 
 try:
     from lxml import html as LH
 except ImportError:                                            # pragma: no cover
-    sys.exit("lxml が必要である:  pip install lxml")
+    sys.exit("lxml が必要です:  pip install lxml")
 
 
 GAIJI_ALT_RE = re.compile(r'※?\(?(?P<ch>[^,()]*),\s*(?P<men>\d)-(?P<ku>\d{1,2})-(?P<ten>\d{1,2})\)?')
@@ -93,8 +98,11 @@ def classify_note(text: str) -> str:
 
 class Stats:
     def __init__(self):
-        self.gaiji_resolved = 0
+        self.gaiji_resolved = 0      # 面区点・U+ から機械的に復元した数
         self.gaiji_unresolved = 0
+        self.gaiji_supplement = 0    # 補助対照表から**編者の判断で**当てた数
+        self.gaiji_glyph = 0         # 符号点が無く <g ref="#id"/> で記録した数
+        self.glyphs: set = set()     # この作品で使った字形の id
         self.ruby = 0
         self.notes = 0
         self.heads = 0
@@ -107,7 +115,7 @@ class Stats:
         self.speech_markup = ''  # full / partial / none
         self.extract_ratio = 1.0 # 本文／body 全体。低いと抽出が切れている
         self.div_dropped = 0     # 取り除いた余剰の </div>（底本 HTML の破れ）
-        self.old_format = False  # main_text を持たない旧形式。奥付を手で除いた
+        self.old_format = False  # main_text を持たない旧形式。奥付を手で落とした
         self.said_density = 0.0  # 1万字あたりの会話数
         self.chars_body = 0
 
@@ -161,8 +169,32 @@ def gaiji_from_img(el, st: Stats) -> str:
 
 
 def gaiji_from_note(note_text: str, st: Stats) -> str | None:
-    """``※`` の直後に来る外字注記を <g> にする。"""
-    ch, kind = resolve_gaiji(note_text)
+    """``※`` の直後に来る外字注記を <g> にする。
+
+    3つの経路がある。**由来が違うものを同じ顔で書かない。**
+
+    ``ref="1-84-7"``        面区点からの復元。EUC-JIS-2004 を介した確定的な変換
+    ``ref="supplement"``    補助対照表からの同定。``resp="editor"`` を付ける。
+                            **字形の説明文からの推定であり，編者の判断**である
+    ``ref="#id"``           Unicode に符号点が無い字。文字を当てず，字形を指す。
+                            定義は teiHeader/charDecl に置く（削らず・変えずに残す）
+    """
+    ch, kind = resolve_gaiji(note_text, SUPPLEMENT)
+    if kind == 'glyph':
+        # 当てる文字が無い。**字形への参照**として記録する。
+        gid = ''
+        for key in sorted(SUPPLEMENT, key=len, reverse=True):
+            if key in note_text and SUPPLEMENT[key]['kind'] == 'glyph':
+                gid = SUPPLEMENT[key]['glyph_id'] or key
+                break
+        st.gaiji_glyph += 1
+        st.glyphs.add(gid)
+        return (f'<g ref={quoteattr("#" + gid)} n={quoteattr(note_text[:40])}'
+                f' resp="editor"/>')
+    if kind == 'supplement':
+        st.gaiji_supplement += 1
+        return (f'<g ref="supplement" n={quoteattr(note_text[:40])}'
+                f' resp="editor">{escape(ch)}</g>')
     if ch:
         st.gaiji_resolved += 1
         ref = ''
@@ -180,7 +212,7 @@ GAIJI_MARKER = '※'
 
 
 def find_last_marker(out: list, lookback: int = 6) -> tuple[int, int] | None:
-    """直前の外字マーカー ``※`` の位置（出力断片の番号, 文字位置）を返す。
+    """直前の外字マーカ ``※`` の位置（出力断片の番号, 文字位置）を返す。
 
     ``※`` は直前の文字断片の末尾にあるのが普通だが，**ルビの基底文字の中**に
     現れることもある::
@@ -278,7 +310,7 @@ def walk(el, st: Stats, out: list) -> None:
             out.append(escape(el.tail))
         return
 
-    # 既定：テクストと子要素をそのまま流す
+    # 既定：テキストと子要素をそのまま流す
     if el.text:
         out.append(escape(el.text))
     for ch in el:
@@ -293,7 +325,7 @@ P_RE = re.compile(r'(<p>)(.*?)(</p>)', re.S)
 
 # 会話の連鎖を打ち切る境界は**見出しだけ**にする。
 # 字下げブロック ``<ab>`` を境界に含めると，会話の中に引用詩歌が
-# 字下げで入る型（岡本かの子ほか）で会話の追跡が途切れてしまうため。
+# 字下げで入る型（岡本かの子ほか）で会話が復帰できなくなるため。
 HEAD_BOUNDARY_RE = re.compile(r'<head')
 
 MAX_PAR_DEFAULT = 150      # 会話が何段落続くまで追跡するか
@@ -352,7 +384,7 @@ def plan_spans(paras: list[tuple[str, bool]], openc: str, closec: str,
                max_par: int, embed_min: int, st: Stats) -> dict:
     """**第一走査**。括弧を文書全体で対応づけ，位置ごとの役割を決める。
 
-    対応の取れた括弧の列は正規言語ではない（正規表現では扱えない）ので，走査で決めるほかない。ここでは
+    括弧の対応は正規言語ではないので，走査で決めるほかない。ここでは
     次の三つを区別する。
 
     継続引用符
@@ -371,8 +403,8 @@ def plan_spans(paras: list[tuple[str, bool]], openc: str, closec: str,
         として別に標示する**。
 
     未閉の開き括弧
-        どこまでも閉じない ``「`` は，ただの文字として残す。素朴に扱うと
-        巻き添えで同じ連鎖の**閉じている対**まで標示を捨ててしまうので，
+        どこまでも閉じない ``「`` は，ただの文字として残す。従来は
+        巻き添えで同じ連鎖の**閉じている対**まで標示を捨てていたが，
         ここでは未閉の括弧だけを降格し，正しく閉じている対は標示を残す。
     """
     n = len(paras)
@@ -652,11 +684,11 @@ def trim_old_format(text: str) -> tuple[str, bool]:
     （海野十三『敗戦日記』000160_001255 など）。``find_main_text()`` の
     フォールバックは div を class で取り除く実装なので，**div が無い
     ファイルには何も効かず，奥付も外字注記もまるごと本文に入る**。
-    99_validate の奥付混入の検査（FATAL）に掛かるのはこの型である。
+    99_validate が奥付混入として FATAL を出していたのはこれである。
 
     旧形式は ``<hr>`` で前付・本文・奥付を区切る。奥付を示す語が直後に
-    現れる ``<hr>`` を見つけて，そこから後ろを除く。前付側も，文書の
-    冒頭近くに ``<hr>`` があればそこまでを除く。
+    現れる ``<hr>`` を見つけて，そこから後ろを落とす。前付側も，文書の
+    冒頭近くに ``<hr>`` があればそこまでを落とす。
     戻り値は ``(切り出した文字列, 切り出したか)``。
     """
     if MAIN_OPEN_RE.search(text):
@@ -697,7 +729,7 @@ def repair_main_text_divs(text: str) -> tuple[str, int]:
     青空文庫が生成する XHTML には ``<div>`` と ``</div>` の数が合わない
     ものがある。島崎藤村『夜明け前（五）』は開き 72 に対し閉じ 125 で，
     余分な閉じタグが本文の途中に現れる。lxml は最初の余剰で
-    ``<div class="main_text">`` を閉じてしまうので，**本文の 94% が失われる**。
+    ``<div class="main_text">`` を閉じてしまうので，**本文の 94% が落ちる**。
     例外も警告も出ない。
 
     そこで解析の前に文字列として直す。``main_text`` の開始から奥付
@@ -808,7 +840,7 @@ def convert(path: str, meta: dict, st: Stats,
     text = decode_html(raw)
     # 文字列から解析するので，残っている XML 宣言は取り除く（lxml が拒否する）
     text = XMLDECL_RE.sub('', text, count=1)
-    # main_text を持たない旧形式は，奥付を除いてから解析する。
+    # main_text を持たない旧形式は，奥付を落としてから解析する。
     # 順序に注意: repair_main_text_divs より**先**に呼ぶこと。
     text, st.old_format = trim_old_format(text)
     text, st.div_dropped = repair_main_text_divs(text)
@@ -831,7 +863,7 @@ def convert(path: str, meta: dict, st: Stats,
     st.grade_speech_markup(min_density)
 
     # 本文抽出が途中で切れていないかを見る。<div class="main_text"> の中に
-    # </div> が紛れていると lxml がそこで閉じ，本文の大半が失われる。
+    # </div> が紛れていると lxml がそこで閉じ，本文の大半が落ちる。
     # 島崎藤村『夜明け前（五）』では body 215,718 字に対し main_text が
     # 13,944 字しか取れていなかった。エラーは出ないので，比で検知する。
     #
@@ -860,6 +892,25 @@ def convert(path: str, meta: dict, st: Stats,
     def a(k):
         return quoteattr(str(meta.get(k, '') or ''))
 
+    # **符号点の無い字は，字形の定義を本文と一緒に持ち運ぶ。**
+    # <g ref="#mairasesoro"/> だけでは，あとから見て何の字か分からない。
+    # 派生物（04 の平文）は，ここの mapping を読んで置換する。
+    chardecl = ''
+    if st.glyphs:
+        rev = {v['glyph_id']: (k, v) for k, v in SUPPLEMENT.items()
+               if v['kind'] == 'glyph' and v['glyph_id']}
+        gl = []
+        for gid in sorted(st.glyphs):
+            name, ent = rev.get(gid, (gid, {'char': '', 'evidence': ''}))
+            pua = (f'<mapping type="PUA">U+{ord(ent["char"]):04X}</mapping>'
+                   if ent.get('char') else '')
+            gl.append(f'      <glyph xml:id={quoteattr(gid)}>'
+                      f'<glyphName>{escape(name)}</glyphName>'
+                      f'{pua}'
+                      f'<desc>{escape(ent.get("evidence", ""))}</desc></glyph>')
+        chardecl = ('\n      <charDecl>\n' + '\n'.join(gl)
+                    + '\n      </charDecl>')
+
     header = f"""  <teiHeader>
     <fileDesc>
       <titleStmt><title>{escape(meta.get('title_aozora', ''))}</title>
@@ -887,7 +938,10 @@ def convert(path: str, meta: dict, st: Stats,
     <encodingDesc>
       <p>青空文庫 XHTML より 03_aozora2xml.py が自動生成。外字は面区点から
          EUC-JIS-2004 経由で復元し &lt;g&gt; に格納。ルビは &lt;ruby @rt&gt; に保持。
-         入力者注・組版指示は &lt;note&gt; に分離し本文カウントから除外する。</p>
+         入力者注・組版指示は &lt;note&gt; に分離し本文カウントから除外する。
+         &lt;g resp="editor"&gt; は，底本が面区点を与えていない外字に編者が
+         字を当てたもの（config/gaiji_supplement.tsv）。機械的な復元とは
+         区別すること。</p>{chardecl}
     </encodingDesc>
   </teiHeader>"""
 
@@ -895,7 +949,7 @@ def convert(path: str, meta: dict, st: Stats,
            f'  <text><body>\n{body}\n  </body></text>\n</TEI>\n')
 
     # 整形式（well-formed）であることをここで確かめる。
-    # 壊れた XML を書き出すと，後段の 04_normalise.py が読めずに止まる。
+    # 壊れた XML を書き出すと，後段の 04_normalise.py が読めずに落ちる。
     try:
         ET.fromstring(xml)
     except ET.ParseError as e:
@@ -922,7 +976,26 @@ def main() -> int:
     ap.add_argument('--min-said-density', type=float, default=MIN_DENSITY_DEFAULT,
                     help='1万字あたりの会話数がこれ未満なら会話標示を'
                          'partial と判定する（既定 %(default)s）')
+    ap.add_argument('--gaiji-supplement',
+                    default=os.path.join(
+                        os.path.dirname(os.path.dirname(
+                            os.path.abspath(__file__))),
+                        'config', 'gaiji_supplement.tsv'),
+                    help='外字の補助対照表。JIS X 0213 に無く面区点を'
+                         '与えられない外字に，編者が同定した字を当てる')
     args = ap.parse_args()
+
+    global SUPPLEMENT
+    try:
+        SUPPLEMENT = load_gaiji_supplement(args.gaiji_supplement)
+    except ValueError as e:
+        sys.exit(f'[FATAL] 外字の補助対照表が壊れている: {e}')
+    if SUPPLEMENT:
+        n_u = sum(1 for v in SUPPLEMENT.values() if v['kind'] != 'glyph')
+        n_g = len(SUPPLEMENT) - n_u
+        print(f'[gaiji] 補助対照表 {len(SUPPLEMENT)} 件'
+              f'（字を当てる {n_u} ／ 字形として記録 {n_g}）'
+              f' ← {args.gaiji_supplement}')
 
     os.makedirs(args.out, exist_ok=True)
     with open(args.log, encoding='utf-8-sig') as fh:
@@ -960,11 +1033,17 @@ def main() -> int:
                'extract_ratio': st.extract_ratio,
                'div_dropped': st.div_dropped,
                'gaiji_resolved': st.gaiji_resolved,
+               'gaiji_supplement': st.gaiji_supplement,
+               'gaiji_glyph': st.gaiji_glyph,
                'gaiji_unresolved': st.gaiji_unresolved}
         report.append(row)
         flags = []
         if st.gaiji_unresolved:
             flags.append('外字未解決')
+        if st.gaiji_supplement:
+            flags.append(f'編者が当てた外字{st.gaiji_supplement}')
+        if st.gaiji_glyph:
+            flags.append(f'符号点の無い字{st.gaiji_glyph}')
         if st.said_unclosed:
             flags.append(f'未閉の開き括弧{st.said_unclosed}')
         if st.quote_embedded:
@@ -989,12 +1068,23 @@ def main() -> int:
             w.writeheader()
             w.writerows(report)
         tot_r = sum(r['gaiji_resolved'] for r in report)
+        tot_s = sum(r['gaiji_supplement'] for r in report)
+        tot_g = sum(r['gaiji_glyph'] for r in report)
         tot_u = sum(r['gaiji_unresolved'] for r in report)
         tot_c = sum(r['said_unclosed'] for r in report)
         tot_e = sum(r['quote_embedded'] for r in report)
         tot_k = sum(r['said_cont'] for r in report)
         futae = [r['file'] for r in report if r['speech_mark'] == '『』']
-        print(f'\n[ok  ] {len(report)} ファイル変換。外字 復元 {tot_r} / 未解決 {tot_u}')
+        print(f'\n[ok  ] {len(report)} ファイル変換。'
+              f'外字 機械復元 {tot_r} / 編者が当てた {tot_s} / '
+              f'符号点の無い字 {tot_g} / 未解決 {tot_u}')
+        if tot_s or tot_g:
+            print('       **由来の違うものを混ぜて数えない。** '
+                  '機械復元は面区点からの確定的な変換，'
+                  '\n       編者が当てたのは字形の説明からの推定'
+                  '（config/gaiji_supplement.tsv，XML では resp="editor"），'
+                  '\n       符号点の無い字は <g ref="#id"/> として字形を指す'
+                  '（teiHeader/charDecl に定義）。')
         print(f'[note] 継続引用符での接続 {tot_k} 箇所，'
               f'埋め込みテクスト <quote type="embedded"> {tot_e} 件')
         if futae:
@@ -1016,7 +1106,7 @@ def main() -> int:
                 print(f'[note] 会話標示 {grade} が {len(g)} 件 — '
                       '会話文比率は 0 ではなく**欠測**として扱うこと: '
                       + '，'.join(f"{r['title']}" for r in g))
-        print(f'[ok  ] リポート → {dest}')
+        print(f'[ok  ] レポート → {dest}')
     return 0
 
 

@@ -81,6 +81,7 @@ JLit_Corpus_2026/
 │   ├── pipeline.yaml            全工程の設定。これが「何をどう数えたか」の記録
 │   ├── corpus_manifest.tsv      取得する作品（現行64点＋増補候補59点）
 │   ├── design_targets.yaml      設計目標。「バランスが良い」を数値にした表
+│   ├── gaiji_supplement.tsv     JIS X 0213 に無い外字に編者が当てた字の対照表
 │   └── stopwords_ja.txt         292語。書誌由来の語（底本・入力・校正…）を含む
 ├── docs/
 │   ├── 00_setup_students.md     受講生の環境構築（macOS 27 / Windows 11）
