@@ -5,7 +5,7 @@
 ====================
 分冊で公開されている長篇を，1作品1ファイルにまとめる。
 
-なぜ必要か
+なぜ要るのか
 ------------
 青空文庫は長篇を分冊ごとに別カードで公開する。『夜明け前』は4カード，
 『家』は上下2カードである。**そのまま使うと分析の単位が「作品」ではなく
@@ -13,9 +13,9 @@
 
 * Delta や doc2vec の最近傍が，同じ作品の別の巻になる。「最近傍が同じ
   作家である割合」は自明に上がり，作家効果の指標として意味を失う
-* 1作家あたりの作品数が水増しされる。島崎藤村なら，『夜明け前』4冊と
-  『家』2冊を別作品として数えるだけで9点になる
-* 語数・TTR・文体指標が巻ごとに分かれ，他の作品と比べられない
+* 1作家あたりの作品数が水増しされる。島崎藤村が9点あったのは，
+  『夜明け前』4冊と『家』2冊を別作品として数えていたからである
+* 語数・TTR・文体指標が巻ごとにばらけ，他の作品と比べられない
 
 どの段階でまとめるか
 --------------------
@@ -27,7 +27,7 @@
 どれか1つを忘れると気づかないまま食い違う。
 
 まとめたもとの巻別 XML は ``data/xml/_volumes/`` に退避する。捨てない。
-巻ごとに比較したくなったときに必要になる。
+巻ごとの比較をしたくなったときに要る。
 
 使い方
 ------
@@ -52,7 +52,7 @@ import sys
 try:
     from lxml import etree as ET
 except ImportError:                                          # noqa: BLE001
-    sys.exit('lxml が必要である: pip install lxml --break-system-packages')
+    sys.exit('lxml が要る: pip install lxml --break-system-packages')
 
 VOL_DIR = '_volumes'
 
@@ -103,7 +103,31 @@ def merge_group(xmldir: str, g: dict, dry: bool) -> tuple[bool, str]:
                     nb.text = b.text
                     nb.set('n', stem)
                     src.append(nb)
+    # --- 字形の定義: 各巻の charDecl を統合する -------------------------
+    # ⚠ **これを忘れると 2巻目以降の <g ref="#id"/> が定義を失う。**
+    #   04_normalise.py は teiHeader/charDecl を引いて平文に当てる字を
+    #   決めるので，定義の無い字形は黙って 〓 になる。島崎藤村『家』の
+    #   下巻にあった屋号記号「ヤマにナ」8箇所がこれで欠落した。
+    #   03 の <g> は巻ごとに書かれるが，charDecl も巻ごとなので，本文だけ
+    #   結合しても定義は付いてこない。
+    n_glyph = 0
     enc = root.find('.//{*}encodingDesc')
+    if enc is not None:
+        XMLID = '{http://www.w3.org/XML/1998/namespace}id'
+        chard = enc.find('{*}charDecl')
+        have = {gl.get(XMLID) for gl in chard.findall('{*}glyph')} if \
+            chard is not None else set()
+        for d in docs[1:]:
+            for gl in d.getroot().findall(
+                    './/{*}encodingDesc/{*}charDecl/{*}glyph'):
+                gid = gl.get(XMLID)
+                if not gid or gid in have:
+                    continue
+                if chard is None:
+                    chard = ET.SubElement(enc, 'charDecl')
+                chard.append(gl)
+                have.add(gid)
+                n_glyph += 1
     if enc is not None:
         note = ET.SubElement(enc, 'p')
         note.text = ('分冊を 03b_merge_volumes.py が結合: '
@@ -143,8 +167,10 @@ def merge_group(xmldir: str, g: dict, dry: bool) -> tuple[bool, str]:
 
     out = os.path.join(xmldir, g['canonical'] + '.xml')
     n_div = len(body.findall('{*}div'))
+    gmsg = f'・字形定義 +{n_glyph}' if n_glyph else ''
     if dry:
-        return True, f'（確認のみ）{len(g["members"])} 巻 → {out} に div {n_div} 個'
+        return True, (f'（確認のみ）{len(g["members"])} 巻 → {out} に '
+                      f'div {n_div} 個{gmsg}')
 
     # 先にもとのファイルを退避してから書く。canonical は上書きになるので，
     # 退避が後回しだと結合結果を退避してしまう。
@@ -153,7 +179,8 @@ def merge_group(xmldir: str, g: dict, dry: bool) -> tuple[bool, str]:
     for m, p in zip(g['members'], paths):
         shutil.move(p, os.path.join(vdir, m + '.xml'))
     base.write(out, encoding='UTF-8', xml_declaration=True)
-    return True, f'{len(g["members"])} 巻 → {os.path.basename(out)}（div {n_div} 個）'
+    return True, (f'{len(g["members"])} 巻 → {os.path.basename(out)}'
+                  f'（div {n_div} 個{gmsg}）')
 
 
 def main() -> int:
