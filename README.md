@@ -262,9 +262,14 @@ python scripts/06_build_datasets.py \
   --out data/datasets --chunk 2000 --max-chunks 40
 
 # 再検証：FATAL 0 になるまで進まない
+# ⚠ **v3 を渡すこと。** v2 の completeness は file_v1 すなわち v1 の
+#   テクストについての記述で，再構築した本文についての記述ではない。
+#   v2 を渡すと，もう存在しない欠陥（『灰色の巨人』の重複，『家（下）』の
+#   上巻欠落）を FATAL として報告し続ける。**本文と書誌は対で渡す。**
 python scripts/99_validate.py --corpus data/plain/full \
-  --meta metadata/corpus_metadata_v2.csv \
-  --tokenise-report data/tokens/tokenise_report.csv
+  --meta metadata/corpus_metadata_v3.csv \
+  --tokenise-report data/tokens/tokenise_report.csv \
+  --out logs/validate_v3.csv
 ```
 
 ### 3. 分析
@@ -273,7 +278,7 @@ python scripts/99_validate.py --corpus data/plain/full \
 # 記述統計・文体計量
 python scripts/07_descriptive_stats.py \
   --tokens data/tokens/tokens_lemma --tsv data/tokens/tsv \
-  --meta metadata/corpus_metadata_v2.csv --out results/descriptive --mfw 300
+  --meta metadata/corpus_metadata_v3.csv --out results/descriptive --mfw 300
 
 # 通時 word2vec（スライスの語数を揃える）
 python scripts/08_word2vec_diachronic.py \
@@ -291,7 +296,7 @@ python scripts/10_mallet.py all --datasets data/datasets \
   --out results/mallet --topics 50 --iterations 2000
 
 # 作図
-python scripts/11_visualise.py --meta metadata/corpus_metadata_v2.csv \
+python scripts/11_visualise.py --meta metadata/corpus_metadata_v3.csv \
   --descriptive results/descriptive --w2v results/w2v \
   --mallet results/mallet --out results/figures
 ```
