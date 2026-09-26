@@ -484,12 +484,13 @@ svg .mut{fill:var(--mut)}
 .netbar button{font:inherit;font-size:12px;padding:3px 10px;border:1px solid var(--line);border-radius:5px;background:var(--card);color:var(--fg);cursor:pointer}
 .netwrap{position:relative;background:var(--card);border:1px solid var(--line);border-radius:6px;overflow:hidden}
 #netsvg{display:block;width:100%;height:auto;aspect-ratio:900/620;touch-action:none;cursor:grab}
-#netsvg .edge{stroke:var(--mut);stroke-linecap:round}
+#netsvg{--nop:1;--eop:1;--nfs:11px}
+#netsvg .edge{stroke:var(--mut);stroke-linecap:round;opacity:var(--eop)}
 #netsvg .edge:hover{stroke:var(--acc)}
-#netsvg .node{stroke:var(--card);stroke-width:1.2;cursor:pointer}
+#netsvg .node{stroke:var(--card);stroke-width:1.2;cursor:pointer;fill-opacity:var(--nop)}
 #netsvg .node.foc{stroke:var(--fg);stroke-width:2.4}
-#netsvg .dim{opacity:.15}
-#netsvg .nlabel{font-size:10px;fill:var(--fg);pointer-events:none;paint-order:stroke;stroke:var(--card);stroke-width:3px}
+#netsvg .edge.dim,#netsvg .node.dim,#netsvg .nlabel.dim{opacity:.15}
+#netsvg .nlabel{font-size:var(--nfs);font-weight:600;pointer-events:none;paint-order:stroke;stroke:var(--card);stroke-width:3px;stroke-linejoin:round}
 .tip{position:absolute;max-width:270px;background:var(--card);border:1px solid var(--line);border-radius:6px;padding:6px 9px;font-size:12px;line-height:1.5;box-shadow:0 2px 8px rgba(0,0,0,.12);pointer-events:none}
 #ninfo h3{font-size:13px;margin:12px 0 4px}
 #ninfo tr.go{cursor:pointer}
@@ -565,6 +566,9 @@ a.help-q:hover{border-color:var(--acc);color:var(--acc)}
       <label>辺として残す：全組の近さの上位 <input type="range" id="ntop" min="1" max="100" step="1" value="100"> <output id="ntopO"></output></label>
       <label>色 <select id="ncol"></select></label>
       <label><input type="checkbox" id="nlab" checked> ラベル</label>
+      <label>文字の大きさ <input type="range" id="nfs" min="7" max="22" step="1" value="11"> <output id="nfsO"></output></label>
+      <label>ノードの濃さ <input type="range" id="nno" min="15" max="100" step="5" value="100"> <output id="nnoO"></output></label>
+      <label>線の濃さ <input type="range" id="neo" min="10" max="100" step="5" value="100"> <output id="neoO"></output></label>
       <button id="nre" type="button">配置し直す</button>
     </div>
     <p class="hint" id="nhint"></p>
@@ -831,7 +835,13 @@ const PAL = ['#0072B2', '#E69F00', '#009E73', '#CC79A7', '#56B4E9', '#D55E00', '
 const GRAY = '#9a9a93';
 const NET = {view: 'list', kind: 'topic', nodes: [], edges: [], raf: 0, alpha: 0,
              scale: 1, tx: 0, ty: 0, focus: null, W: 900, H: 620};
-const nst = {meas: 'jsd', src: 'd2v', k: 2, top: 100, col: 'period', lab: true};
+const nst = {meas: 'jsd', src: 'd2v', k: 2, top: 100, col: 'period', lab: true, fs: 11, nop: 100, eop: 100};
+// 文字の大きさと濃さは SVG の変数で持つ（配置を計算し直さずに変えられる）
+function netStyle(){
+  const s = $('netsvg').style;
+  s.setProperty('--nfs', nst.fs + 'px'); s.setProperty('--nop', nst.nop / 100); s.setProperty('--eop', nst.eop / 100);
+  $('nfsO').textContent = nst.fs + 'px'; $('nnoO').textContent = nst.nop + '%'; $('neoO').textContent = nst.eop + '%';
+}
 
 function setView(v){
   NET.view = v;
@@ -876,6 +886,7 @@ function netControls(){
   $('nk').value = nst.k; $('nkO').textContent = nst.k;
   $('ntop').value = nst.top; $('ntopO').textContent = nst.top + '%';
   $('nlab').checked = nst.lab;
+  $('nfs').value = nst.fs; $('nno').value = nst.nop; $('neo').value = nst.eop; netStyle();
 }
 
 // ---- グラフを作る -----------------------------------------------------
@@ -1060,7 +1071,10 @@ function buildNet(){
     nd.el = svgEl('circle', {r: nd.r.toFixed(1), fill: nd.color, class: 'node'});
     nd.el.dataset.i = i;
     ng.appendChild(nd.el);
+    // ラベルの字はノードと同じ色（灰色のノードは灰色）。縁取りで背景から浮かせる
+    // （共通の CSS「svg text{fill:…}」が属性より強いので，style で指定する）
     nd.tx = svgEl('text', {class: 'nlabel', 'text-anchor': 'middle'});
+    nd.tx.style.fill = nd.color;
     nd.tx.textContent = nd.label;
     lg.appendChild(nd.tx);
   });
@@ -1089,7 +1103,7 @@ function buildNet(){
 function fitView(){
   const N = NET.nodes; if (!N.length) return;
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-  N.forEach(p => { x0 = Math.min(x0, p.x - p.r); y0 = Math.min(y0, p.y - p.r - 14); x1 = Math.max(x1, p.x + p.r); y1 = Math.max(y1, p.y + p.r); });
+  N.forEach(p => { x0 = Math.min(x0, p.x - p.r); y0 = Math.min(y0, p.y - p.r - (nst.lab ? nst.fs + 5 : 0)); x1 = Math.max(x1, p.x + p.r); y1 = Math.max(y1, p.y + p.r); });
   const pad = 24, w = Math.max(1, x1 - x0), h = Math.max(1, y1 - y0);
   const s = Math.min(1.6, Math.max(0.3, Math.min((NET.W - 2 * pad) / w, (NET.H - 2 * pad) / h)));
   NET.scale = s; NET.tx = (NET.W - s * (x0 + x1)) / 2; NET.ty = (NET.H - s * (y0 + y1)) / 2;
@@ -1269,6 +1283,9 @@ function netInit(){
   $('ncol').onchange = e => { nst.col = e.target.value; buildNet(); };
   $('nk').oninput = e => { nst.k = +e.target.value; $('nkO').textContent = nst.k; buildNet(); };
   $('ntop').oninput = e => { nst.top = +e.target.value; $('ntopO').textContent = nst.top + '%'; buildNet(); };
+  $('nfs').oninput = e => { nst.fs = +e.target.value; netStyle(); };
+  $('nno').oninput = e => { nst.nop = +e.target.value; netStyle(); };
+  $('neo').oninput = e => { nst.eop = +e.target.value; netStyle(); };
   $('nlab').onchange = e => { nst.lab = e.target.checked; const g = document.querySelector('#netvp > g:last-child'); if (g) g.style.display = nst.lab ? '' : 'none'; };
   $('nre').onclick = () => { NET.scale = 1; NET.tx = NET.ty = 0; buildNet(); };
   netEvents();
@@ -1329,10 +1346,28 @@ function topicProfile(t){
 }
 function autoLabel(t){
   const p = topicProfile(t);
-  const w = topWords(t, 0.6, 3).map(x => disp(M.vocab[x.j][0]));
-  if (p.topW && p.topW.sh > 0.5) return `⚠ 『${p.topW.w[2]}』の目印（${w.join('・')}）`;
-  if (p.topA && p.topA.sh > 0.5 && !/メタデータ無し/.test(p.topA.a)) return `⚠ ${p.topA.a}の目印（${w.join('・')}）`;
-  return w.join('・') + (p.peak && p.peakRatio >= 1.3 ? `（${p.peak.p}に多い）` : '');
+  // 仮ラベルも短く：特有の語（λ=0.6）の上位2語。時代区分は年の範囲を外して添える
+  const w = topWords(t, 0.6, 2).map(x => disp(M.vocab[x.j][0]));
+  // 作家名・作品名はラベルに入れない（ネットワークや詳細を見れば分かり，入れると図が読みにくい）。
+  // 目印であることだけを［ ］で示す
+  if (p.topW && p.topW.sh > 0.5) return `${w.join('・')}［作品］`;
+  if (p.topA && p.topA.sh > 0.5 && !/メタデータ無し/.test(p.topA.a)) return `${w.join('・')}［作家］`;
+  return w.join('・') + (p.peak && p.peakRatio >= 1.3 ? `［${p.peak.p.replace(/[（(].*$/, '')}］` : '');
+}
+// ラベルに入っている作家名・作品名（2字以上の題）を探す。見つかれば一覧で注意を出す
+function namesIn(label){
+  const s = String(label || ''), hit = new Set();
+  M.works.forEach(w => {
+    const a = String(w[1] || '');
+    if (a && !/メタデータ無し/.test(a)) {
+      // 姓・号だけで書かれることが多い（藤村・漱石・鴎外）。4字以上の名は前後2字も見る
+      const parts = a.length >= 4 ? [a, a.slice(0, 2), a.slice(-2)] : [a];
+      if (parts.some(x => s.includes(x))) hit.add(a);
+    }
+    const ti = String(w[2] || '').replace(/[（(].*$/, '');
+    if (ti.length >= 2 && s.includes(ti)) hit.add('『' + ti + '』');
+  });
+  return [...hit];
 }
 function shortLabel(s, n){ s = String(s || ''); return s.length > n ? s.slice(0, n) + '…' : s; }
 
@@ -1373,7 +1408,11 @@ LDA（MALLET）でトピックモデルを学習しました。下の「診断�
 - 根拠は**資料にある語と作品だけ**から挙げる。作品について一般に知られていることを使ったときは，
   「一般知識」と明記する。資料から言えないことは推測しない。
 - 判断がつかないときは，確信度を「低」にし，caution に理由を書く。
-- ラベルは日本語で15字以内。作品の目印なら「○○『△△』の登場人物」のように，そうと分かる名前にする。
+- ラベルは**できるだけ短く**する。日本語の名詞句で**2〜8字**を目安とし，**10字を超えない**
+  （ネットワークの図にそのまま載るので，短いほど読みやすい）。説明は evidence に回す。
+- **作家名・作品名はラベルに入れない**（どの作品・作家に偏るかは図と詳細で分かる）。作品や作家の
+  目印であっても，何の束かを内容で表す（例：「探偵団」「方言の会話」「漢語の論説」）。
+  目印であることは type で示し，作家名・作品名は evidence に書く。
 
 ## 回答の形式
 次の JSON **だけ**を返してください（説明の文章は付けない）。
@@ -1430,8 +1469,13 @@ function importAnswer(){
     ok.push(t);
   });
   saveLocal();
-  msg.className = ng.length ? 'warn' : 'hint';
-  msg.textContent = `${ok.length} 件を取り込んだ` + (ng.length ? `。読めなかった項目：${ng.join('，')}（番号の誤り・ラベルが空）` : '。')
+  const named = ok.filter(t => namesIn(L[t].label).length);
+  const long = ok.filter(t => [...L[t].label].length > 10);
+  msg.className = ng.length || named.length || long.length ? 'warn' : 'hint';
+  msg.textContent = `${ok.length} 件を取り込んだ`
+    + (named.length ? `。作家名・作品名の入ったラベルがある：${named.map(t => 'T' + String(t).padStart(2, '0')).join('，')}（一覧で直すとよい）` : '')
+    + (long.length ? `。10字を超えるラベルがある：${long.map(t => 'T' + String(t).padStart(2, '0')).join('，')}（短く直すとよい）` : '')
+    + '' + (ng.length ? `。読めなかった項目：${ng.join('，')}（番号の誤り・ラベルが空）` : '。')
     + ' ラベルは AI の仮説である。根拠の語と作品を，詳細と KWIC で確かめること。';
   render(); labelView();
   if (NET.view === 'topicnet') buildNet();
@@ -1493,7 +1537,7 @@ function labelView(){
       const r = L[t];
       return `<tr data-t="${t}"><td><a href="#" data-go="${t}">T${String(t).padStart(2, '0')}</a></td>
         <td class="hint">${esc(autoLabel(t))}</td>
-        <td><input type="text" class="lin" value="${esc(r ? r.label : '')}" placeholder="（未）"></td>
+        <td><input type="text" class="lin" value="${esc(r ? r.label : '')}" placeholder="（未）">${r && namesIn(r.label).length ? `<div class="warn">⚠ ${esc(namesIn(r.label).join('・'))} が入っている</div>` : ''}${r && [...r.label].length > 10 ? `<div class="warn">⚠ 長い（${[...r.label].length}字）。10字以内に</div>` : ''}</td>
         <td><select class="lty">${['', ...LTYPES].map(x => `<option${r && r.type === x ? ' selected' : ''}>${x}</option>`).join('')}</select></td>
         <td><select class="lcf">${['', ...LCONF].map(x => `<option${r && r.confidence === x ? ' selected' : ''}>${x}</option>`).join('')}</select></td>
         <td class="hint">${r ? esc(r.evidence || '') + (r.caution ? '<br>⚠ ' + esc(r.caution) : '') : ''}</td>
