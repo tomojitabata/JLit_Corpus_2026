@@ -656,6 +656,7 @@ a.help-q:hover{border-color:var(--acc);color:var(--acc)}
       <span class="ntools">書き出し：
         <button id="nsvg" type="button" title="いまの図を SVG ファイルに保存する（凡例つき）">SVG</button>
         <button id="npdf" type="button" title="印刷の画面を開く。印刷先に「PDF に保存」を選ぶ（A4 横に収める）">PDF（印刷）</button>
+        <label title="書き出す図の英数字の書体。和文はいつも和文の書体で書く">欧文 <select id="nlatin"><option value="gill" selected>Gill Sans</option><option value="same">和文と同じ書体</option></select></label>
         <label title="モデルの学習条件・グラフの作り方・表示と配置の設定を，図の下縁に小さな字で添える（再現のため）"><input type="checkbox" id="nnote" checked> 条件を添える</label></span>
     </div>
     <p class="hint" id="nhint"></p>
@@ -923,7 +924,7 @@ const PAL = ['#0072B2', '#E69F00', '#009E73', '#CC79A7', '#56B4E9', '#D55E00', '
 const GRAY = '#9a9a93';
 const NET = {view: 'list', kind: 'topic', nodes: [], edges: [], raf: 0, alpha: 0,
              scale: 1, tx: 0, ty: 0, focus: null, W: 900, H: 620};
-const nst = {lay: 'fr', lin: false, grav: 1, curve: false, note: true, meas: 'jsd', src: 'd2v', k: 2, top: 100, col: 'period', lab: true, fs: 11, nop: 100, eop: 100, ecol: 'cat', minsh: 5, nsz: 100, tsz: 60, tcol: 'gray'};
+const nst = {lay: 'fr', lin: false, grav: 1, curve: false, note: true, latin: 'gill', meas: 'jsd', src: 'd2v', k: 2, top: 100, col: 'period', lab: true, fs: 11, nop: 100, eop: 100, ecol: 'cat', minsh: 5, nsz: 100, tsz: 60, tcol: 'gray'};
 const TGRAY = '#5f5f5a';   // 作品とトピックのネットワークでのトピック（四角）の色
 // 文字の大きさと濃さは SVG の変数で持つ（配置を計算し直さずに変えられる）
 function netStyle(){
@@ -1757,6 +1758,25 @@ function nNodesScale(){ return NET.nodes.length > 100 ? 2 : 10; }
 // 背景は白，凡例を下に付ける。強調（押したノードの周り）もそのまま写る
 const EXPORT_PROPS = ['stroke', 'stroke-width', 'stroke-opacity', 'stroke-dasharray', 'stroke-linecap', 'stroke-linejoin',
   'fill', 'fill-opacity', 'opacity', 'font-size', 'font-weight', 'font-family', 'paint-order'];
+// 欧文（英数字・欧文の記号）の連なりだけを別の書体にする。和文の書体と並べて指定するだけでは，
+// 最初の書体しか見ないソフト（Illustrator など）で和文が化けるので，<tspan> に分けて書体を明示する
+const LATIN_FF = "'Gill Sans', 'Gill Sans MT', 'Gill Sans Nova'";
+const isLatin = ch => /[ -ɏ‐-‧‰-⁞×°]/.test(ch);
+function latinRuns(str){
+  const out = []; let cur = '', lat = null;
+  for (const ch of String(str)) {
+    const l = isLatin(ch);
+    if (lat === null || l === lat || (ch === ' ' && lat)) { cur += ch; if (lat === null) lat = l; }
+    else { out.push([cur, lat]); cur = ch; lat = l; }
+  }
+  if (cur) out.push([cur, lat]);
+  return out;
+}
+function latinMarkup(str, esc2, jpFF){
+  if (nst.latin !== 'gill') return esc2(str);
+  return latinRuns(str).map(([t, l]) => l && /[0-9A-Za-z]/.test(t)
+    ? `<tspan font-family="${LATIN_FF}, ${jpFF}">${esc2(t)}</tspan>` : esc2(t)).join('');
+}
 function exportSvgText(){
   const src = $('netsvg'), vp = document.getElementById('netvp');
   if (!vp || !NET.nodes.length) return null;
@@ -1790,6 +1810,14 @@ function exportSvgText(){
     t.parentNode.insertBefore(halo, t);
     ['stroke', 'stroke-width', 'stroke-linejoin', 'stroke-opacity', 'paint-order'].forEach(p => t.removeAttribute(p));
   });
+  if (nst.latin === 'gill') clone.querySelectorAll('text').forEach(t => {
+    const jp = t.getAttribute('font-family') || 'sans-serif', txt = t.textContent;
+    [...t.childNodes].forEach(ch => { if (ch.nodeType === 3) ch.remove(); });
+    latinRuns(txt).forEach(([str, l]) => {
+      if (l && /[0-9A-Za-z]/.test(str)) { const sp = document.createElementNS(SVGNS, 'tspan'); sp.setAttribute('font-family', `${LATIN_FF}, ${jp}`); sp.textContent = str; t.appendChild(sp); }
+      else t.appendChild(document.createTextNode(str));
+    });
+  });
   // 切り出す範囲（ラベルを含む）
   const bb = vp.getBBox(), pad = 16;
   const x0 = bb.x - pad, y0 = bb.y - pad, w = bb.width + 2 * pad;
@@ -1815,7 +1843,7 @@ function exportSvgText(){
   items.forEach((it, k) => {
     const [px, py] = pos[k], gx = x0 + pad + px, gy = y0 + bb.height + 2 * pad + py;
     leg += `<rect x="${gx.toFixed(1)}" y="${(gy + 3).toFixed(1)}" width="10" height="10" rx="2" fill="${it.col}"/>`
-      + `<text x="${(gx + 14).toFixed(1)}" y="${(gy + 12).toFixed(1)}" font-size="${lfs}" fill="#444" font-family="${ff}">${esc2(it.txt)}</text>`;
+      + `<text x="${(gx + 14).toFixed(1)}" y="${(gy + 12).toFixed(1)}" font-size="${lfs}" fill="#444" font-family="${ff}">${latinMarkup(it.txt, esc2, ff)}</text>`;
   });
   const s = `<?xml version="1.0" encoding="UTF-8"?>\n`
     + `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${x0.toFixed(1)} ${y0.toFixed(1)} ${w.toFixed(1)} ${h.toFixed(1)}" width="${w.toFixed(0)}" height="${h.toFixed(0)}" font-family="${ff}">\n`
@@ -1823,7 +1851,7 @@ function exportSvgText(){
     + new XMLSerializer().serializeToString(clone).replace(/ xmlns="http:\/\/www\.w3\.org\/2000\/svg"/g, '') + '\n'
     + (leg ? `<g>${leg}</g>\n` : '')
     + (noteRows.length ? `<g font-size="${nfs}" fill="#555" font-family="${ff}">` + noteRows.map((r, k) =>
-        `<text x="${(x0 + pad).toFixed(1)}" y="${(y0 + bb.height + 2 * pad + legH + 4 + (k + 1) * nlh - 2).toFixed(1)}" xml:space="preserve">${esc2(r)}</text>`).join('') + '</g>\n' : '')
+        `<text x="${(x0 + pad).toFixed(1)}" y="${(y0 + bb.height + 2 * pad + legH + 4 + (k + 1) * nlh - 2).toFixed(1)}" xml:space="preserve">${latinMarkup(r, esc2, ff)}</text>`).join('') + '</g>\n' : '')
     + '</svg>\n';
   return s;
 }
@@ -2082,6 +2110,7 @@ function netInit(){
   $('nrot').onclick = () => toolRotate(+$('nrotA').value);
   $('nsvg').onclick = () => exportSVG();
   $('nnote').onchange = e => { nst.note = e.target.checked; };
+  $('nlatin').onchange = e => { nst.latin = e.target.value; };
   $('ncurve').onchange = e => { nst.curve = e.target.value === 'curve'; draw(); };
   $('npdf').onclick = () => exportPDF();
   layControls();

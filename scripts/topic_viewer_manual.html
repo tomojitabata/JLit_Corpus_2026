@@ -402,7 +402,13 @@ Gephi の Scaling に当たる操作は，画面に合わせて自動で拡大�
 <code>train_params.json</code> に書く。これより前に学習したモデルでは「記録なし」と出る（学習し直すと入る）。</p>
 <div class="box warn"><b>⚠</b>MALLET は threads が 2 以上だと，同じ seed でも結果がわずかに揺れる。完全に同じモデルを作り直すには threads 1 で学習する。
 手で動かしたノードがある図は，注記だけからは同じ配置にならない。</div>
-<div class="box tip"><b>文字の書体</b>SVG の文字は，開いたコンピュータにある書体で表示される（ヒラギノ角ゴ・游ゴシック・Noto Sans CJK JP の順に探す）。
+<p><span class="ui">欧文</span> で，書き出す図の英数字（ラベル・凡例・注記の中の数字，英字，欧文の記号）の書体を選ぶ。
+初期値は <b>Gill Sans</b>（無ければ Gill Sans MT・Gill Sans Nova）で，和文はいつも和文の書体で書く。
+「和文と同じ書体」にすると，英数字も和文の書体で書く。画面の表示は変わらない。</p>
+<p>英数字の部分は，文字列を和文と欧文の連なりに分け，欧文の連なりだけに書体を指定している（SVG の <code>&lt;tspan&gt;</code>）。
+書体を並べて指定するだけでは，最初の書体しか見ないソフト（Illustrator など）で和文が化けるためである。</p>
+<div class="box tip"><b>文字の書体</b>SVG の文字は，開いたコンピュータにある書体で表示される（和文はヒラギノ角ゴ・游ゴシック・Noto Sans CJK JP の順に探す。
+Gill Sans は macOS には標準で入っているが，Windows では Office などに付く Gill Sans MT が要る）。
 別のコンピュータで字形が変わって困るときは，PDF で書き出すか，Inkscape などで文字をアウトライン化する。</div>
 <div class="box warn"><b>⚠</b>力学モデル（Fruchterman–Reingold・ForceAtlas2・Yifan Hu）の配置では，
 離れたノードどうしの距離には意味が無い（辺があるかどうかと，その強さを読む）。MDS の距離は指標の近さを近似するが，
