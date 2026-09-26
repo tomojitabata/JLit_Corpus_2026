@@ -232,6 +232,11 @@ python scripts/02_fetch_aozora.py works \
 python scripts/03_aozora2xml.py \
   --in data/aozora/xhtml --log data/aozora/fetch_log.csv --out data/xml
 
+# 分冊の結合（『夜明け前』4巻・『家』2巻を1作品に）
+# **03 の直後に必ず。** 03 は毎回 XML を作り直すので，03 のたびに結合は解ける
+python scripts/03b_merge_volumes.py \
+  --xml data/xml --config config/merge_volumes.tsv
+
 # 正規化（踊り字展開，3ストリーム生成）
 python scripts/04_normalise.py \
   --in data/xml --out data/plain --config config/pipeline.yaml

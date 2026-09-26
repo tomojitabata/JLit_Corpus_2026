@@ -645,9 +645,20 @@ def main() -> int:
         if not row.get('style_class'):
             row['style_class'] = c.get('style_expect', '') or TBD
 
-        need = [k for k in cols if row.get(k) == TBD]
-        if not row.get('measure_source'):
-            need.append('実測列（--tokens を付けて測り直すこと）')
+        # **本文を持たない行は，人が埋めようのない列を要確認にしない。**
+        # 分冊（merged）・v1 の合本（superseded）・短すぎる行（too_short）は
+        # 集計から外れる書誌だけの行で，トークン列が無いのだから
+        # style_class も語数も測りようがない。ここを要確認に挙げ続けると，
+        # **消せない [FATAL] が毎回出る**。本当に直すべき行が埋もれるので，
+        # 警告は「直せるもの」だけに絞る。
+        # （2026-09-26：『夜明け前』の分冊3行がこれに当たっていた。）
+        textless = row.get('completeness') in ('merged', 'superseded', 'too_short')
+        if textless:
+            need = [k for k in JUDGEMENT_COLS if row.get(k) == TBD]
+        else:
+            need = [k for k in cols if row.get(k) == TBD]
+            if not row.get('measure_source'):
+                need.append('実測列（--tokens を付けて測り直すこと）')
         row['needs_review'] = ' '.join(need)
         added.append(row)
         if need:

@@ -256,6 +256,8 @@ python3 scripts/02_fetch_aozora.py works --manifest config/corpus_manifest.tsv -
 
 # 2) XML 化 → 正規化 → 形態素解析
 python3 scripts/03_aozora2xml.py --in data/aozora/xhtml --log data/aozora/fetch_log.csv --out data/xml
+# 03 の直後に必ず。03 は毎回 XML を作り直すので，03 のたびに結合は解ける
+python3 scripts/03b_merge_volumes.py --xml data/xml --config config/merge_volumes.tsv
 python3 scripts/04_normalise.py --in data/xml --out data/plain --config config/pipeline.yaml
 python3 scripts/05_tokenise_unidic.py --in data/plain/full --out data/tokens \
     --lemma-policy mixed --expect-dict unidic-novel

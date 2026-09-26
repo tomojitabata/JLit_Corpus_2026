@@ -78,7 +78,7 @@ def extract(elem: ET.Element, mode: str, keep_ruby_base: bool = True,
     def rec(e: ET.Element, in_said: bool, in_emb: bool) -> None:
         tag = e.tag
         if tag == 'note':
-            # 注記の中身は常に除外するが，直後のテクスト（tail）は本文なので拾う
+            # 注記の中身は常に除外するが，直後のテキスト（tail）は本文なので拾う
             if e.tail:
                 emit(e.tail, in_said, in_emb)
             return
@@ -185,7 +185,7 @@ def drop_stale(outdirs, keep_stems, label='出力'):
     03b_merge_volumes.py で『夜明け前』の4巻を1ファイルに統合すると，
     data/xml から巻別の XML は消えるが，**すでに作ってある
     data/plain と data/tokens の巻別ファイルは残る**。06 はそれを
-    そのままチャンクに分割するので，統合前の巻と統合後の作品が二重にコーパスへ入る。
+    そのまま刻むので，統合前の巻と統合後の作品が二重にコーパスへ入る。
     しかもエラーは出ない。
 
     出力ディレクトリは毎回この工程が作り直すものなので，入力に対応が
@@ -212,20 +212,79 @@ def drop_stale(outdirs, keep_stems, label='出力'):
     return removed
 
 
+def check_merged(indir: str, cfg_path: str) -> list[str]:
+    """**分冊が結合されないまま来ていないか**を確かめる。
+
+    なぜ要るのか
+        ``03b_merge_volumes.py`` は分冊を canonical の XML に流し込み，
+        元の巻別 XML を ``_volumes/`` へ退避する。ところが ``03`` は毎回
+        XHTML から XML を作り直すので，**一度まとめても ``03`` のたびに
+        解ける**。``03`` と ``03b`` は対で走らせねばならない。
+
+        2026-09-26 まで，README の再構築の連鎖に ``03b`` が入っていなかった。
+        その結果『夜明け前』は第一部上（12 万語）だけ，『家』は上巻
+        （7.6 万語）だけが集計に入り，**藤村の 43 万語がどの集計にも
+        入っていなかった**。巻別の行は ``completeness=merged`` で集計から
+        外れるので，**誰も文句を言わない**。
+
+    ここで止めはしない（結合せずに巻ごとに分析したい場合もある）。
+    ただし**黙って通さない**。
+    """
+    import csv as _csv
+    path = os.path.join(os.path.dirname(cfg_path) or '.', 'merge_volumes.tsv')
+    if not os.path.exists(path):
+        return []
+    try:
+        with open(path, encoding='utf-8-sig') as fh:
+            rows = list(_csv.DictReader(
+                (l for l in fh if not l.startswith('#')), delimiter='\t'))
+    except OSError:
+        return []
+    left = []
+    for r in rows:
+        canon = (r.get('canonical') or '').strip()
+        for m in (r.get('members') or '').split(','):
+            m = m.strip()
+            if m and m != canon and os.path.exists(
+                    os.path.join(indir, m + '.xml')):
+                left.append(f"{r.get('title', '')}：{m}.xml")
+    return left
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument('--in', dest='indir', required=True)
     ap.add_argument('--out', required=True)
     ap.add_argument('--config', default='config/pipeline.yaml')
     ap.add_argument('--streams', nargs='*', default=None)
+    ap.add_argument('--allow-unmerged', action='store_true',
+                    help='分冊が結合されていなくても警告だけで進む'
+                         '（巻ごとに分析したいとき）')
     args = ap.parse_args()
 
-    # 素の FileNotFoundError を投げると，何を先に実行すればよいのかが
+    # 素の FileNotFoundError を投げると，何を先に走らせればよいのかが
     # 分からない。前の工程の名前まで書く。
     if not os.path.isdir(args.indir):
         sys.exit(f'入力のディレクトリが無い: {args.indir}\n'
                  '  03_aozora2xml.py（分冊があれば 03b_merge_volumes.py も）を'
-                 '先に実行すること。')
+                 '先に走らせること。')
+
+    unmerged = check_merged(args.indir, args.config)
+    if unmerged:
+        print('[FATAL] **分冊が結合されていない。** 巻別の XML が残っている:')
+        for u in unmerged:
+            print(f'         {u}')
+        print('        03 は毎回 XML を作り直すので，**03 のたびに結合は解ける**。')
+        print('        03 の直後に 03b を走らせること:')
+        print('          python3 scripts/03b_merge_volumes.py '
+              '--xml data/xml --config config/merge_volumes.tsv')
+        print('        このまま進めると，巻別の行は completeness=merged で'
+              '集計から外れ，\n        **canonical の行は第一巻だけ**になる。'
+              'それでも例外は出ない。')
+        print('        巻ごとに分析したいときは --allow-unmerged を付ける。')
+        if not args.allow_unmerged:
+            return 1
+        print('[warn] --allow-unmerged が指定されたので続ける。')
 
     cfg = load_config(args.config)
     streams = args.streams or cfg['streams']
@@ -290,7 +349,7 @@ def main() -> int:
 
     if report:
         # 列は全行の和集合。作品によって embedded_chars が無かったりするので，
-        # 最初の行の keys だけを使うとエラーで止まる。
+        # 最初の行の keys だけを使うと落ちる。
         keys = []
         for r in report:
             for k in r:
@@ -303,7 +362,7 @@ def main() -> int:
             w.writerows(report)
         na = [r for r in report if r.get('speech_ratio') == '']
         emb = [r for r in report if r.get('embedded_chars')]
-        print(f'\n[ok  ] {len(report)} ファイル。リポート → {dest}')
+        print(f'\n[ok  ] {len(report)} ファイル。レポート → {dest}')
         if na:
             print(f'[note] 会話文比率を欠測にした作品 {len(na)} 件: '
                   + '，'.join(f"{r['title']}({r['speech_markup']})" for r in na))

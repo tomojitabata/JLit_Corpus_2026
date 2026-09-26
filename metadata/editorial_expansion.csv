@@ -63,3 +63,5 @@
 000040,000737,織田作之助,世相,first,canonical,general,short-story,Fiction,Modern,M,complete,magazine,1946,card,,「人間」1946年4月号,語り手は作家の「私」。戦後の男性作家として宮本百合子の偏重を薄める
 000040,000337,織田作之助,土曜夫人,third,middlebrow,general,novel,Fiction,Melodrama,M,incomplete,newspaper,1946,editor,,「読売新聞」1946年8月〜1947年1月。連載中に作者が没し未完,**初出年は要典拠**（青空文庫のカードに初出の記載が無く，編者の記入）。新聞連載の風俗小説なので register は middlebrow とした
 000168,002149,横光利一,微笑,first,canonical,general,short-story,Fiction,Modern,M,complete,magazine,1948,editor,,「人間」1948年,**初出年は要典拠**（カードに記載が無く，編者の記入。作者は1947年12月没）。語り手は要確認
+000291,052236,林芙美子,浮雲,third,canonical,general,novel,Fiction,Modern,F,complete,magazine,1949,editor,1951,「風雪」1949年11月〜1950年8月，「文學界」1950年9月〜1951年4月に連載。1951年に単行本,**二葉亭四迷『浮雲』(1887) と同題**。作者名で区別すること。初出年は連載開始の1949年を採り，year_first_end に完結の1951年を入れた（年は編者の記入。カードの初出欄を確認されたい）。戦後の女性作家の長篇として，女性比と宮本百合子偏重の双方に効く
+000291,059364,林芙美子,晩菊,third,canonical,general,short-story,Fiction,Modern,F,complete,magazine,1948,editor,1948,「別冊文藝春秋」1948年11月号,初出年は編者の記入。カードの初出欄を確認されたい
