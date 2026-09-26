@@ -368,8 +368,23 @@ Gephi の Scaling に当たる操作は，画面に合わせて自動で拡大�
   <tr><td><span class="ui">Noverlap</span></td><td>ノードの重なりを解消（重なったノードだけを押し分ける）</td></tr>
   <tr><td><span class="ui">Label Adjust</span></td><td>ラベルの重なりを解消（ラベルとノードを合わせた枠が重ならないように押し分ける）。
       ラベルを出していないときは Noverlap と同じ。文字を大きくしたあとは，もう一度押す</td></tr>
+  <tr><td><span class="ui">Rotate</span>（角度 °）</td><td>形を保って全体を回す。横の欄に角度（度）を入れて押す。正は時計回り，負は反時計回り
+      （例：90 → −90 で元に戻る）。ラベルは水平のまま。回しても配置の意味は変わらない（向きには意味が無い）</td></tr>
 </table>
 <p>補助の操作は，いまの配置に重ねて効く（レイアウトを選び直すか <span class="ui">配置し直す</span> を押すと元に戻る）。</p>
+<h3 id="netexport">図を書き出す（SVG・PDF）</h3>
+<p>操作欄の <span class="ui">書き出し</span> で，いま画面にある図をファイルにする。拡大縮小や移動の状態にかかわらず，
+ノードとラベルの全体が入るように切り出し，下に凡例を付ける。背景は白（画面が暗い配色でも白地の色にする）。
+配置・色分け・線の色・文字の大きさ・濃さ・ノードを押したときの強調は，画面のとおりに写る。</p>
+<table>
+  <tr><th>ボタン</th><th>働き</th></tr>
+  <tr><td><span class="ui">SVG</span></td><td>SVG ファイルを保存する（ファイル名は <code>jlit_network_種類_モデル_レイアウト.svg</code>）。
+      線と文字はベクトルのままなので，Inkscape や Illustrator で手直しでき，論文やスライドに入れても粗くならない</td></tr>
+  <tr><td><span class="ui">PDF（印刷）</span></td><td>図だけを A4 横 1 ページに収めた印刷の画面を開く。印刷先（送信先）に<b>「PDF に保存」</b>を選ぶ。
+      これもベクトルのまま保存される</td></tr>
+</table>
+<div class="box tip"><b>文字の書体</b>SVG の文字は，開いたコンピュータにある書体で表示される（ヒラギノ角ゴ・游ゴシック・Noto Sans CJK JP の順に探す）。
+別のコンピュータで字形が変わって困るときは，PDF で書き出すか，Inkscape などで文字をアウトライン化する。</div>
 <div class="box warn"><b>⚠</b>力学モデル（Fruchterman–Reingold・ForceAtlas2・Yifan Hu）の配置では，
 離れたノードどうしの距離には意味が無い（辺があるかどうかと，その強さを読む）。MDS の距離は指標の近さを近似するが，
 2次元に押し込めた歪みがある。Circular の位置は分類の順に過ぎない。</div>

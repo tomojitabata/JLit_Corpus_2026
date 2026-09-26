@@ -592,7 +592,12 @@ a.help-q:hover{border-color:var(--acc);color:var(--acc)}
         <button id="nexp" type="button" title="Expansion：形を保って全体を広げる">Expansion</button>
         <button id="ncon" type="button" title="Contraction：形を保って全体を縮める">Contraction</button>
         <button id="nnov" type="button" title="Noverlap：ノードの重なりを解消">Noverlap</button>
-        <button id="nlad" type="button" title="Label Adjust：ラベルの重なりを解消">Label Adjust</button></span>
+        <button id="nlad" type="button" title="Label Adjust：ラベルの重なりを解消">Label Adjust</button>
+        <button id="nrot" type="button" title="Rotate：形を保って全体を回す（正の角度は時計回り，負は反時計回り）">Rotate</button>
+        <input type="number" id="nrotA" value="15" step="1" min="-360" max="360" style="width:62px" title="回す角度（度）"> °</span>
+      <span class="ntools">書き出し：
+        <button id="nsvg" type="button" title="いまの図を SVG ファイルに保存する（凡例つき）">SVG</button>
+        <button id="npdf" type="button" title="印刷の画面を開く。印刷先に「PDF に保存」を選ぶ（A4 横に収める）">PDF（印刷）</button></span>
       <span class="hint" id="nlayst"></span>
     </div>
     <p class="hint" id="nhint"></p>
@@ -1612,6 +1617,110 @@ function toolLabelAdjust(){
   afterTool();
 }
 
+// 形を保って全体を回す（正の角度は時計回り。ラベルは水平のまま）
+function toolRotate(deg){
+  stopSim();
+  const N = NET.nodes; if (!N.length || !isFinite(deg)) return;
+  const a = deg * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
+  const cx = N.reduce((t, p) => t + p.x, 0) / N.length, cy = N.reduce((t, p) => t + p.y, 0) / N.length;
+  N.forEach(p => { const dx = p.x - cx, dy = p.y - cy; p.x = cx + dx * c - dy * s; p.y = cy + dx * s + dy * c; });
+  afterTool();
+}
+
+// ---- 書き出し（SVG・PDF）-------------------------------------------------
+// いま画面にある図を，拡大縮小・移動に関係なく全体が入るように切り出し，
+// 見た目（色・太さ・濃さ・破線・文字）を属性に写した単独の SVG にする。
+// 背景は白，凡例を下に付ける。強調（押したノードの周り）もそのまま写る
+const EXPORT_PROPS = ['stroke', 'stroke-width', 'stroke-opacity', 'stroke-dasharray', 'stroke-linecap', 'stroke-linejoin',
+  'fill', 'fill-opacity', 'opacity', 'font-size', 'font-weight', 'font-family', 'paint-order'];
+function exportSvgText(){
+  const src = $('netsvg'), vp = document.getElementById('netvp');
+  if (!vp || !NET.nodes.length) return null;
+  const lightMut = '#6b6b66', rootCs = getComputedStyle(document.documentElement);
+  const card = rootCs.getPropertyValue('--card').trim(), mut = rootCs.getPropertyValue('--mut').trim();
+  const norm = v => { const d = document.createElement('div'); d.style.color = v; document.body.appendChild(d); const r = getComputedStyle(d).color; d.remove(); return r; };
+  const cardRGB = norm(card), mutRGB = norm(mut);
+  const clone = vp.cloneNode(true);
+  clone.removeAttribute('transform'); clone.removeAttribute('id');
+  const os = vp.querySelectorAll('*'), cs = clone.querySelectorAll('*');
+  os.forEach((o, k) => {
+    const c = cs[k];
+    if (o.tagName === 'title') return;
+    const st = getComputedStyle(o);
+    if (st.display === 'none') { c.setAttribute('display', 'none'); return; }
+    EXPORT_PROPS.forEach(p => {
+      let v = st.getPropertyValue(p);
+      if (!v || v === 'normal' || (p === 'stroke-dasharray' && v === 'none')) return;
+      if (p === 'stroke' || p === 'fill') {           // 暗い配色でも白地に合う色にする
+        if (v === cardRGB) v = '#ffffff'; else if (v === mutRGB) v = lightMut;
+      }
+      c.setAttribute(p, v);
+    });
+    c.removeAttribute('class'); c.removeAttribute('style'); c.removeAttribute('data-i');
+  });
+  // ラベルの縁取り（paint-order）を読めないソフト（Illustrator など）のために，
+  // 縁取りだけの文字を下に敷き，本体の文字からは縁取りを外す
+  clone.querySelectorAll('text[paint-order]').forEach(t => {
+    const halo = t.cloneNode(true);
+    halo.removeAttribute('paint-order'); halo.setAttribute('fill', t.getAttribute('stroke') || '#ffffff');
+    t.parentNode.insertBefore(halo, t);
+    ['stroke', 'stroke-width', 'stroke-linejoin', 'stroke-opacity', 'paint-order'].forEach(p => t.removeAttribute(p));
+  });
+  // 切り出す範囲（ラベルを含む）
+  const bb = vp.getBBox(), pad = 16;
+  const x0 = bb.x - pad, y0 = bb.y - pad, w = bb.width + 2 * pad;
+  // 凡例
+  const items = [...$('nleg').querySelectorAll('span')].map(sp => ({col: sp.querySelector('i') ? getComputedStyle(sp.querySelector('i')).backgroundColor : '#999', txt: sp.textContent.trim()}));
+  const lfs = 11, lh = 18, charW = t => [...t].reduce((s, ch) => s + (ch.charCodeAt(0) > 0x2e7f ? lfs : lfs * 0.6), 0);
+  let lx = 0, ly = 0; const pos = [];
+  items.forEach(it => { const iw = 14 + charW(it.txt) + 14; if (lx > 0 && lx + iw > w - 2 * pad) { lx = 0; ly += lh; } pos.push([lx, ly]); lx += iw; });
+  const legH = items.length ? ly + lh + 8 : 0;
+  const h = bb.height + 2 * pad + legH;
+  const esc2 = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const ff = getComputedStyle(document.body).fontFamily.replace(/"/g, "'");
+  let leg = '';
+  items.forEach((it, k) => {
+    const [px, py] = pos[k], gx = x0 + pad + px, gy = y0 + bb.height + 2 * pad + py;
+    leg += `<rect x="${gx.toFixed(1)}" y="${(gy + 3).toFixed(1)}" width="10" height="10" rx="2" fill="${it.col}"/>`
+      + `<text x="${(gx + 14).toFixed(1)}" y="${(gy + 12).toFixed(1)}" font-size="${lfs}" fill="#444" font-family="${ff}">${esc2(it.txt)}</text>`;
+  });
+  const s = `<?xml version="1.0" encoding="UTF-8"?>\n`
+    + `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${x0.toFixed(1)} ${y0.toFixed(1)} ${w.toFixed(1)} ${h.toFixed(1)}" width="${w.toFixed(0)}" height="${h.toFixed(0)}" font-family="${ff}">\n`
+    + `<rect x="${x0.toFixed(1)}" y="${y0.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" fill="#ffffff"/>\n`
+    + new XMLSerializer().serializeToString(clone).replace(/ xmlns="http:\/\/www\.w3\.org\/2000\/svg"/g, '') + '\n'
+    + (leg ? `<g>${leg}</g>\n` : '') + '</svg>\n';
+  return s;
+}
+function exportName(ext){
+  const kind = {topic: 'topics', work: 'works', bip: 'works_topics'}[NET.kind] || NET.kind;
+  const safe = String(M.label || 'model').replace(/[\\/:*?"<>|\s]+/g, '_');
+  return `jlit_network_${kind}_${safe}_${nst.lay}.${ext}`;
+}
+function exportSVG(){
+  const s = exportSvgText(); if (!s) return;
+  const url = URL.createObjectURL(new Blob([s], {type: 'image/svg+xml'}));
+  const a = document.createElement('a'); a.href = url; a.download = exportName('svg');
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+// PDF はブラウザの印刷で作る（印刷先に「PDF に保存」を選ぶ）。図だけを 1 ページに収める。
+// 線と文字は画像にならず，拡大しても粗くならない
+function exportPDF(){
+  const s = exportSvgText(); if (!s) return;
+  const svg = s.replace(/^<\?xml[^>]*>\s*/, '').replace(/ width="[\d.]+" height="[\d.]+"/, ' width="100%" height="100%" preserveAspectRatio="xMidYMid meet"');
+  const old = document.getElementById('nprint'); if (old) old.remove();
+  const fr = document.createElement('iframe');
+  fr.id = 'nprint'; fr.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
+  document.body.appendChild(fr);
+  const d = fr.contentDocument;
+  d.open();
+  d.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${exportName('pdf')}</title><style>
+@page{size:A4 landscape;margin:10mm}html,body{margin:0;height:100%;background:#fff}
+.pg{width:277mm;height:190mm}svg{display:block}</style></head><body><div class="pg">${svg}</div></body></html>`);
+  d.close();
+  setTimeout(() => { fr.contentWindow.focus(); fr.contentWindow.print(); }, 150);
+}
+
 function tick(){
   const N = NET.nodes, E = NET.edges, a = NET.alpha;
   const cx = NET.W / 2, cy = NET.H / 2;
@@ -1831,6 +1940,9 @@ function netInit(){
   $('ncon').onclick = () => toolScale(1 / 1.2);
   $('nnov').onclick = () => toolNoverlap();
   $('nlad').onclick = () => toolLabelAdjust();
+  $('nrot').onclick = () => toolRotate(+$('nrotA').value);
+  $('nsvg').onclick = () => exportSVG();
+  $('npdf').onclick = () => exportPDF();
   layControls();
   netEvents();
 }
