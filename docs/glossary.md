@@ -2146,7 +2146,7 @@ dp_in で絞り，relevance λ で並べ替え，トピックごとに時代別�
 選んだレイアウトで配置する。レイアウトは Fruchterman–Reingold（既定。Fruchterman & Reingold 1991），
 ForceAtlas2（Jacomy et al. 2014。LinLog は Noack 2007），Yifan Hu（Hu 2005），
 MDS（stress majorisation; Gansner, Koren & North 2005），Circular（分類ごとに円周上）から選び，
-Expansion／Contraction・Noverlap・Label Adjust で重なりを整え，Rotate（角度を指定）で向きを変える。
+Expansion／Contraction・Noverlap・Label Adjust で重なりを整え，Rotate（角度を指定）で向きを変える。線は直線か曲線を選べる。
 図は凡例つきの SVG か，印刷経由の PDF（A4 横）に書き出せる。トピックは上の5つの指標で，作品は **doc2vec の作品ベクトル**（Step 7。
 `--d2v` で渡す）のコサイン類似度か，**トピック構成**（θ の作品平均）の Jensen–Shannon divergence で結ぶ。
 色は時代区分・作家・ジャンル・文体・コミュニティ（Louvain 法; Blondel et al. 2008）。

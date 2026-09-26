@@ -478,16 +478,21 @@ svg .mut{fill:var(--mut)}
 .tabs{display:flex;gap:0;margin-bottom:12px;border-bottom:1px solid var(--line);align-items:center}
 .tabs button{font:inherit;font-size:13px;padding:6px 14px;border:1px solid transparent;border-bottom:0;background:none;color:var(--mut);cursor:pointer;border-radius:6px 6px 0 0}
 .tabs button.on{border-color:var(--line);background:var(--card);color:var(--fg);font-weight:600;margin-bottom:-1px}
-.netbar{display:flex;gap:14px;flex-wrap:wrap;align-items:center;font-size:12.5px;margin-bottom:6px}
+.netbar{display:flex;gap:6px 12px;flex-wrap:wrap;align-items:center;font-size:12px;margin-bottom:5px}
+.netbar input[type=range]{width:78px}
+.netbar select{max-width:190px}
+.netbar .fa2opt.off{opacity:.4}
 .netbar label{display:flex;gap:5px;align-items:center}
 .netbar label[hidden]{display:none}
 .netbar .ntools{display:flex;gap:5px;align-items:center}
-#nlay{max-width:430px}
-.netbar button{font:inherit;font-size:12px;padding:3px 10px;border:1px solid var(--line);border-radius:5px;background:var(--card);color:var(--fg);cursor:pointer}
+#nlay{width:200px}
+#necol{width:150px}
+.netbar output{min-width:2.2em}
+.netbar button{font:inherit;font-size:12px;padding:2px 8px;border:1px solid var(--line);border-radius:5px;background:var(--card);color:var(--fg);cursor:pointer}
 .netwrap{position:relative;background:var(--card);border:1px solid var(--line);border-radius:6px;overflow:hidden}
 #netsvg{display:block;width:100%;height:auto;aspect-ratio:900/620;touch-action:none;cursor:grab}
 #netsvg{--nop:1;--eop:1;--nfs:11px}
-#netsvg .edge{stroke:var(--mut);stroke-linecap:round;opacity:var(--eop)}
+#netsvg .edge{fill:none;stroke:var(--mut);stroke-linecap:round;opacity:var(--eop)}
 #netsvg .edge:hover{stroke:var(--acc)}
 #netsvg .node{stroke:var(--card);stroke-width:1.2;cursor:pointer;fill-opacity:var(--nop)}
 #netsvg .node.foc{stroke:var(--fg);stroke-width:2.4}
@@ -565,18 +570,19 @@ a.help-q:hover{border-color:var(--acc);color:var(--acc)}
       <label id="nmeasw">指標 <select id="nmeas"></select></label>
       <label id="nsrcw" hidden>作品の表し方 <select id="nsrc"></select></label>
       <label><span id="nkL">近い順に</span> <input type="range" id="nk" min="1" max="5" step="1" value="2"> <output id="nkO"></output> <span id="nkU">本</span></label>
-      <label id="ntopw">辺として残す：全組の近さの上位 <input type="range" id="ntop" min="1" max="100" step="1" value="100"> <output id="ntopO"></output></label>
+      <label id="ntopw" title="すべての組の近さを順位にし，上位 N% に入らない辺を消す">辺を残す：近さの上位 <input type="range" id="ntop" min="1" max="100" step="1" value="100"> <output id="ntopO"></output></label>
       <label id="nminw" hidden>作品内の割合が <input type="range" id="nmin" min="0" max="30" step="1" value="5"> <output id="nminO"></output> 以上</label>
       <label>色 <select id="ncol"></select></label>
+      <label id="ntcolw" hidden>トピックの色 <select id="ntcol"><option value="gray" selected>灰色（作品と区別する）</option><option value="cat">作品の色分けに合わせる</option></select></label>
+    </div>
+    <div class="netbar">
       <label>線の色 <select id="necol"><option value="cat" selected>ノードの分類の色（境界は灰色の破線）</option><option value="gray">すべて灰色</option></select></label>
+      <label>線の形 <select id="ncurve"><option value="line" selected>直線</option><option value="curve">曲線</option></select></label>
       <label><input type="checkbox" id="nlab" checked> ラベル</label>
       <label>文字の大きさ <input type="range" id="nfs" min="5" max="22" step="1" value="11"> <output id="nfsO"></output></label>
-      <label>ノードの大きさ <input type="range" id="nsz" min="30" max="150" step="5" value="100"> <output id="nszO"></output></label>
-      <label id="ntcolw" hidden>トピックの色 <select id="ntcol"><option value="gray" selected>灰色（作品と区別する）</option><option value="cat">作品の色分けに合わせる</option></select></label>
-      <label id="ntszw" hidden>トピックの大きさ（作品に対して） <input type="range" id="ntsz" min="20" max="150" step="5" value="60"> <output id="ntszO"></output></label>
-      <label>ノードの濃さ <input type="range" id="nno" min="15" max="100" step="5" value="100"> <output id="nnoO"></output></label>
-      <label>線の濃さ <input type="range" id="neo" min="10" max="100" step="5" value="100"> <output id="neoO"></output></label>
-      <button id="nre" type="button">配置し直す</button>
+      <span class="ntools">大きさ：
+        <label>ノード <input type="range" id="nsz" min="30" max="150" step="5" value="100"> <output id="nszO"></output></label>
+        <label id="ntszw" hidden title="トピック（四角）の大きさを作品（丸）に対して変える">トピック <input type="range" id="ntsz" min="20" max="150" step="5" value="60"> <output id="ntszO"></output></label></span>
     </div>
     <div class="netbar">
       <label>レイアウト <select id="nlay">
@@ -586,19 +592,25 @@ a.help-q:hover{border-color:var(--acc);color:var(--acc)}
         <option value="mds">MDS（全組の距離を平面上で再現する配置。stress majorisation）</option>
         <option value="circ">Circular（分類ごとに円周上に並べる）</option>
       </select></label><a class="help-q" href="topic_viewer_manual.html#netlayout" target="jlit-topic-manual" title="レイアウトと補助の操作（マニュアルを別のウィンドウで開く）">？</a>
-      <label id="nlinw" hidden><input type="checkbox" id="nlin"> LinLog</label>
-      <label id="ngrw" hidden>Gravity <input type="range" id="ngr" min="0" max="5" step="0.1" value="1"> <output id="ngrO"></output></label>
+      <label id="nlinw" class="fa2opt"><input type="checkbox" id="nlin"> LinLog</label>
+      <label id="ngrw" class="fa2opt">Gravity <input type="range" style="width:60px" id="ngr" min="0" max="5" step="0.1" value="1"> <output id="ngrO"></output></label>
+      <button id="nre" type="button">配置し直す</button>
+      <span class="hint" id="nlayst"></span>
+      <span class="ntools">濃さ：
+        <label>ノード <input type="range" id="nno" min="15" max="100" step="5" value="100"> <output id="nnoO"></output></label>
+        <label>線 <input type="range" id="neo" min="10" max="100" step="5" value="100"> <output id="neoO"></output></label></span>
+    </div>
+    <div class="netbar">
       <span class="ntools">補助：
         <button id="nexp" type="button" title="Expansion：形を保って全体を広げる">Expansion</button>
         <button id="ncon" type="button" title="Contraction：形を保って全体を縮める">Contraction</button>
         <button id="nnov" type="button" title="Noverlap：ノードの重なりを解消">Noverlap</button>
         <button id="nlad" type="button" title="Label Adjust：ラベルの重なりを解消">Label Adjust</button>
         <button id="nrot" type="button" title="Rotate：形を保って全体を回す（正の角度は時計回り，負は反時計回り）">Rotate</button>
-        <input type="number" id="nrotA" value="15" step="1" min="-360" max="360" style="width:62px" title="回す角度（度）"> °</span>
+        <input type="number" id="nrotA" value="15" step="1" min="-360" max="360" style="width:58px" title="回す角度（度）"> °</span>
       <span class="ntools">書き出し：
         <button id="nsvg" type="button" title="いまの図を SVG ファイルに保存する（凡例つき）">SVG</button>
         <button id="npdf" type="button" title="印刷の画面を開く。印刷先に「PDF に保存」を選ぶ（A4 横に収める）">PDF（印刷）</button></span>
-      <span class="hint" id="nlayst"></span>
     </div>
     <p class="hint" id="nhint"></p>
     <p class="hint" id="necnt"></p>
@@ -865,7 +877,7 @@ const PAL = ['#0072B2', '#E69F00', '#009E73', '#CC79A7', '#56B4E9', '#D55E00', '
 const GRAY = '#9a9a93';
 const NET = {view: 'list', kind: 'topic', nodes: [], edges: [], raf: 0, alpha: 0,
              scale: 1, tx: 0, ty: 0, focus: null, W: 900, H: 620};
-const nst = {lay: 'fr', lin: false, grav: 1, meas: 'jsd', src: 'd2v', k: 2, top: 100, col: 'period', lab: true, fs: 11, nop: 100, eop: 100, ecol: 'cat', minsh: 5, nsz: 100, tsz: 60, tcol: 'gray'};
+const nst = {lay: 'fr', lin: false, grav: 1, curve: false, meas: 'jsd', src: 'd2v', k: 2, top: 100, col: 'period', lab: true, fs: 11, nop: 100, eop: 100, ecol: 'cat', minsh: 5, nsz: 100, tsz: 60, tcol: 'gray'};
 const TGRAY = '#5f5f5a';   // 作品とトピックのネットワークでのトピック（四角）の色
 // 文字の大きさと濃さは SVG の変数で持つ（配置を計算し直さずに変えられる）
 function netStyle(){
@@ -1156,7 +1168,7 @@ function buildNet(){
   const lab = i => (NET.kind === 'topic' || g.nodes[i].kind === 't') ? g.nodes[i].label : `${g.nodes[i].w[1]}『${g.nodes[i].w[2]}』`;
   g.edges.forEach(e => {
     e.rel = wmax > wmin ? (e.w - wmin) / (wmax - wmin) : 1;
-    e.el = svgEl('line', {class: 'edge', 'stroke-width': (0.7 + 4.8 * e.rel).toFixed(2),
+    e.el = svgEl('path', {class: 'edge', 'stroke-width': (0.7 + 4.8 * e.rel).toFixed(2),
       'stroke-opacity': (0.28 + 0.6 * e.rel).toFixed(2)});
     // 両端が同じ分類なら内側の辺，違えば境界の辺（作家・時代などを橋渡しする辺）
     e.inside = cat[e.a] === cat[e.b];
@@ -1273,7 +1285,11 @@ function initCircle(){
   });
 }
 function layControls(){
-  $('nlinw').hidden = nst.lay !== 'fa2'; $('ngrw').hidden = nst.lay !== 'fa2';
+  // LinLog と Gravity はいつも見せ，ForceAtlas2 以外では薄くして押せないようにする
+  const on = nst.lay === 'fa2';
+  ['nlinw', 'ngrw'].forEach(id => { $(id).classList.toggle('off', !on);
+    $(id).title = on ? '' : 'ForceAtlas2 を選んだときに効く'; });
+  $('nlin').disabled = !on; $('ngr').disabled = !on;
   $('nlin').checked = nst.lin; $('ngr').value = nst.grav; $('ngrO').textContent = nst.grav.toFixed(1);
   $('nlay').value = nst.lay;
 }
@@ -1758,8 +1774,11 @@ function tick(){
 function draw(){
   NET.edges.forEach(e => {
     const p = NET.nodes[e.a], q = NET.nodes[e.b];
-    e.el.setAttribute('x1', p.x.toFixed(1)); e.el.setAttribute('y1', p.y.toFixed(1));
-    e.el.setAttribute('x2', q.x.toFixed(1)); e.el.setAttribute('y2', q.y.toFixed(1));
+    // 曲線は 2 点を結ぶ 2 次ベジエ。制御点を中点から線の長さの 18% だけ横へずらす（向きはどの線も同じ側）
+    let d = `M${p.x.toFixed(1)} ${p.y.toFixed(1)} `;
+    if (nst.curve) { const cx = (p.x + q.x) / 2 - (q.y - p.y) * 0.18, cy = (p.y + q.y) / 2 + (q.x - p.x) * 0.18;
+      d += `Q${cx.toFixed(1)} ${cy.toFixed(1)} `; } else d += 'L';
+    e.el.setAttribute('d', d + `${q.x.toFixed(1)} ${q.y.toFixed(1)}`);
   });
   NET.nodes.forEach(p => {
     if (p.kind === 't') { p.el.setAttribute('x', (p.x - p.r).toFixed(1)); p.el.setAttribute('y', (p.y - p.r).toFixed(1)); }
@@ -1942,6 +1961,7 @@ function netInit(){
   $('nlad').onclick = () => toolLabelAdjust();
   $('nrot').onclick = () => toolRotate(+$('nrotA').value);
   $('nsvg').onclick = () => exportSVG();
+  $('ncurve').onchange = e => { nst.curve = e.target.value === 'curve'; draw(); };
   $('npdf').onclick = () => exportPDF();
   layControls();
   netEvents();
