@@ -3,16 +3,16 @@
 """
 00_extend_metadata.py
 =====================
-``metadata/corpus_metadata_v2.csv`` を，実際に取得できたすべての作品に広げる。
+``metadata/corpus_metadata_v2.csv`` を，実際に取得できた作品ぜんぶに広げる。
 
-なぜ必要か
+なぜ要るのか
 ------------
 ``00_build_metadata_v2.py`` が作る表は **v1 の 64 点**を対象にしている。
-増補した作品（v1 に無いもの）にはメタデータの行がない。
+増補後のコーパスは 108 点あるので，差分の 45 点にはメタデータの行がない。
 行が無いと ``06_build_datasets.py`` の突合が外れ，チャンク索引の
 ``period`` も ``genre`` も空になる。その状態で先へ進むと，
-時代別 keyness も doc2vec のカテゴリー効果もトピックの通時変化も，
-**いずれも空のまま，エラーも出ずに最後まで進んでしまう。**
+時代別 keyness も doc2vec のカテゴリ効果もトピックの通時変化も，
+**すべて空振りしたまま最後まで通ってしまう。**
 
 何を典拠にするか
 ----------------
@@ -39,7 +39,7 @@
 v3 を直接手で直してはいけない**。このスクリプトは v3 を毎回 v2 と
 ``fetch_log.csv`` から作り直すので，v3 への手入れは次の実行で消える。
 判断表は person_id と work_id で行を指定し，統制語彙（``VOCAB``）から
-外れた値は読み込む側で弾く。どの行にも該当しなかった判断は警告として表示する。
+外れた値は読み込む側で弾く。どの行にも当たらなかった判断は警告に出る。
 
 使い方
 ------
@@ -49,13 +49,11 @@ v3 を直接手で直してはいけない**。このスクリプトは v3 を�
         --candidates metadata/expansion_candidates.csv \\
         --tokens data/tokens/tokens_surface --remeasure-all \\
         --out metadata/corpus_metadata_v3.csv
-    # → 実際には metadata/corpus_metadata_v3_local.csv に書く（配布版は
-    #   上書きしない）。配布版を更新するのは教員が --publish を付けたときだけ
 
 ``--editorial`` と ``--persons`` は省いてよい。``--meta`` の隣の
 ``editorial_expansion.csv`` と ``--fetch-log`` の隣の
 ``list_person_all_extended_utf8.csv`` を自動で使う。
-**オプションを1つ省いただけで編者の判断が全部消えた v3 が
+**オプションを1つ落としただけで編者の判断が全部消えた v3 が
 黙って出来上がる**ので，既定で拾うようにしてある。
 
 ``--tokens`` を省くと実測列は空になる（あとから埋められる）。
@@ -81,27 +79,19 @@ try:                                    # 00_ で始まるので import でき�
     _s.loader.exec_module(_m)
     period_of, NDC_LABEL, measure, style_class = (
         _m.period_of, _m.NDC_LABEL, _m.measure, _m.style_class)
+    period5_of = _m.period5_of
     NotTokenised = _m.NotTokenised
 except Exception as e:                                          # noqa: BLE001
     sys.exit(f'00_build_metadata_v2.py を読み込めない: {e}')
 
 TBD = 'TBD'
 
-#: 分析に使わない行の completeness。ノートブックの load_meta() が除外するものと
-#: 同じにしておく。これらの行は書誌として残すだけで本文を持たない（または
-#: 1チャンクに満たない）ので，TBD が残っていても分析には入らない。
-NOT_ANALYSED = ('superseded', 'merged', 'too_short')
-
-
-def not_analysed(row: dict) -> bool:
-    return str(row.get('completeness') or '').strip() in NOT_ANALYSED
-
 
 def is_tbd(v) -> bool:
     """セルが TBD か。**値が文字列とは限らない**ので str() を通す。
 
     実測列には int / float が入る。``(v or '').strip()`` と書くと
-    ``--tokens`` を付けたときだけ AttributeError で止まる。
+    ``--tokens`` を付けたときだけ AttributeError で落ちる。
     """
     return isinstance(v, str) and v.strip() == TBD
 
@@ -121,7 +111,7 @@ EDITORIAL_COLS = (
     'note',
 )
 
-#: 統制語彙。既存 64 点で使われている値に，増補で新たに必要になったものを足す。
+#: 統制語彙。既存 64 点で使われている値に，増補で新たに要ったものを足す。
 #: 綴りが一文字違うだけで集計が割れるので，書いた側ではなく読み込む側で止める。
 VOCAB = {
     'narration': {'first', 'third', 'mixed', 'none', 'dialogue'},
@@ -156,9 +146,9 @@ def load_persons(path: str) -> dict:
 
     典拠は ``02_fetch_aozora.py`` が展開する
     ``data/aozora/list_person_all_extended_utf8.csv``。
-    増補した作品は作品側の索引だけで組み立てているので，このまま放っておくと
+    増補 45 点は作品側の索引だけで組み立てているので，このまま放っておくと
     ``author_birth`` ``author_death`` が空のままになる。**作家の世代で
-    層別した分析がそこだけ黙って除外される**ので，同じ索引から埋めておく。
+    層別した分析がそこだけ黙って落ちる**ので，同じ索引から埋めておく。
 
     生没年は ``1867-03-10`` や ``1867`` のように書かれている。年だけ採る。
     """
@@ -227,7 +217,7 @@ def load_editorial(path: str) -> tuple[dict, list[str]]:
     戻り値は ``{(person_id, work_id): {列: 値}}`` と，統制語彙から外れた
     値の一覧。判断表は生成物ではなく**典拠**なので，v3 を作り直しても
     残るように別ファイルにしてある。v3 を直接手で直すと，次に
-    このスクリプトを実行した時点で消える。
+    このスクリプトを走らせた時点で消える。
     """
     table, bad = {}, []
     for r in read_csv(path):
@@ -252,7 +242,7 @@ def load_editorial(path: str) -> tuple[dict, list[str]]:
 
 
 def apply_editorial(row: dict, table: dict) -> bool:
-    """1 行に編者の判断を適用する。適用したら True。"""
+    """1 行に編者の判断を当てる。当たったら True。"""
     key = (row.get('aozora_person_id', '').strip().zfill(6),
            row.get('aozora_work_id', '').strip().zfill(6))
     vals = table.get(key)
@@ -269,22 +259,6 @@ def apply_editorial(row: dict, table: dict) -> bool:
     return True
 
 
-def fix_period(row: dict, table: dict) -> None:
-    """判断表が初出年を直したら，時代区分もそれに合わせて付け直す。
-
-    時代区分は判断表を適用する**前**に（候補表などの年から）付けてある。
-    付け直さないと，初出年だけが直って区分は古いまま残る（『四十余日』は
-    候補表の 1913 なら大正，判断表の 1910 なら明治）。初出年を直したなら
-    区分も必ず直す。
-    """
-    key = (row.get('aozora_person_id', '').strip().zfill(6),
-           row.get('aozora_work_id', '').strip().zfill(6))
-    y = str(row.get('year_first') or '')[:4]
-    if y.isdigit() and ('year_first' in table.get(key, {})
-                        or row.get('period') in ('', TBD)):
-        row['period'] = period_of(int(y))
-
-
 def stem_of(person_id: str, work_id: str) -> str:
     return f'{person_id.strip().zfill(6)}_{work_id.strip().zfill(6)}'
 
@@ -297,16 +271,16 @@ def read_csv(path: str) -> list[dict]:
 
 
 def norm(s: str) -> str:
-    """作者名・作品名の突合用に記号と空白を除く。"""
+    """作者名・作品名の突合用に記号と空白を落とす。"""
     return re.sub(r'[\s　・･「」『』（）\(\)　]', '', (s or ''))
 
 
 def base_title(s: str) -> str:
-    """副題・分冊表示を除いた作品名を返す。
+    """副題・分冊表示を落とした作品名を返す。
 
     v1 のメタデータは分冊をまとめて『夜明け前（第一部上〜第二部下）』と
     書いているが，青空文庫の索引では分冊ごとに『夜明け前』である。
-    括弧以降を除かないと同じ作品だと分からない。
+    括弧以降を落とさないと同じ作品だと分からない。
     """
     t = re.split(r'[（(]', s or '', 1)[0]
     t = re.sub(r'[上中下前後]?巻?$', '', t.strip())
@@ -319,7 +293,7 @@ def clean_ndc(raw: str) -> tuple[str, str]:
     索引は ``NDC 913`` や ``NDC 121 210``（複数分類）のように書く。
     既存メタデータは ``913`` ``K913`` の形なので，**そのまま入れると
     書式が混在し，NDC での絞り込みも genre 判定も効かなくなる**。
-    先頭の ``NDC`` を除き，最初の分類を主として返す。
+    先頭の ``NDC`` を落とし，最初の分類を主として返す。
     戻り値は ``(主分類, 全分類を空白区切りにしたもの)``。
     """
     t = re.sub(r'^\s*NDC\s*', '', (raw or '').strip(), flags=re.I)
@@ -419,13 +393,13 @@ def main() -> int:
                          '**data/plain/full を渡してはいけない**'
                          '（分かち書きされていないので語数を数え損なう）')
     ap.add_argument('--no-editorial', action='store_true',
-                    help='編者の判断表を適用せずに，TBD のままの v3 を作る。'
+                    help='編者の判断表を当てずに，TBD のままの v3 を作る。'
                          '判断そのものを見直すときだけ使う')
     ap.add_argument('--persons', default=None,
                     help='data/aozora/list_person_all_extended_utf8.csv。'
                          '増補行の author_reading / author_birth / author_death を'
                          '埋める。省くと空のままになり，作家の世代で'
-                         '層別した分析から増補分だけが除外される')
+                         '層別した分析から増補分だけが落ちる')
     ap.add_argument('--editorial', default=None,
                     help='metadata/editorial_expansion.csv。'
                          'narration / register_level / audience / form など，'
@@ -436,9 +410,6 @@ def main() -> int:
                     help='既存 64 点も同じ方法で測り直す。v1 のテクストは'
                          '外字欠落・奥付混入があるので，本来はこちらが正しい')
     ap.add_argument('--out', required=True)
-    ap.add_argument('--publish', action='store_true',
-                    help='（教員用）配布版 metadata/corpus_metadata_v3.csv を'
-                         'そのまま上書きする。付けなければ *_local.csv に書く')
     args = ap.parse_args()
 
     base = read_csv(args.meta)
@@ -455,11 +426,11 @@ def main() -> int:
                   '（tokenise_provenance.json）。'
                   '\n       古い 05 で作った列である。'
                   '**どの辞書で測ったか表に残らない。**'
-                  '\n       05_tokenise_unidic.py を今の版で実行し直すこと。')
+                  '\n       05_tokenise_unidic.py を今の版で回し直すこと。')
 
     # 判断表と人物データは，**指定を忘れても勝手に見つける**。
-    # v3 は毎回作り直す生成物なので，オプションを1つ省いただけで
-    # 編者の判断が全部消え，TBD だらけの v3 が黙って出来る。
+    # v3 は毎回作り直す生成物なので，オプションを1つ落としただけで
+    # 編者の判断が全部消え，TBD が 160 セル復活した v3 が黙って出来る。
     # 既定の場所にあるなら使うのが正しく，使わないときは明示させる。
     if not args.editorial and not args.no_editorial:
         guess = os.path.join(os.path.dirname(args.meta) or '.',
@@ -467,10 +438,10 @@ def main() -> int:
         if os.path.exists(guess):
             args.editorial = guess
             print(f'[auto] 編者の判断表を自動で使う: {guess}')
-            print('       適用しないときは --no-editorial を付ける')
+            print('       当てたくないときは --no-editorial を付ける')
     if args.no_editorial:
         args.editorial = None
-        print('[warn] --no-editorial: 編者の判断を適用しない。'
+        print('[warn] --no-editorial: 編者の判断を当てない。'
               'TBD の残った v3 で分析に進まないこと')
     if not args.persons:
         guess = os.path.join(os.path.dirname(args.fetch_log) or '.',
@@ -508,7 +479,7 @@ def main() -> int:
     person_filled = person_missing = 0
     cols = list(base[0].keys())
     for extra in ('set', 'source_meta', 'measure_source', 'bungo_ratio',
-                  'ndc_all', 'shoshutsu', 'needs_review'):
+                  'ndc_all', 'shoshutsu', 'needs_review', 'period5'):
         if extra not in cols:
             cols.append(extra)
 
@@ -539,10 +510,6 @@ def main() -> int:
     log = read_csv(args.fetch_log)
     if not log:
         sys.exit(f'fetch_log が読めない: {args.fetch_log}')
-    # 既存行（v2）には初出の**文字列**が無い。索引から引けるので埋めておく
-    # （下の既存行のループで使う）。
-    log_by_stem = {stem_of(r.get('person_id', ''), r.get('work_id', '')): r
-                   for r in log if r.get('person_id') and r.get('work_id')}
 
     added, review, no_year = [], [], []
     next_id = max((int(r['id'][4:]) for r in base
@@ -608,13 +575,6 @@ def main() -> int:
             'aozora_work_id': wid.zfill(6),
             'aozora_card_url': r.get('card_url', ''),
             'year_first': str(year) if year else '',
-            # 連載の終了年。別冊があれば空けておき，下で作品全体の値を
-            # 引き継ぐ（分冊の索引は**その巻**の年しか持たない）。索引の
-            # 「初出」欄から取れたときは索引の値，それ以外は開始年と同じにする。
-            'year_first_end': ('' if sib else
-                               (r.get('year_first_end') or str(year))
-                               if ysrc == 'aozora_index' and year
-                               else (str(year) if year else '')),
             'year_source': ysrc or TBD,
             'period': period_of(year) if year else TBD,
             'ndc': ndc,
@@ -623,7 +583,7 @@ def main() -> int:
             'genre_main': gmain,
             'genre_sub': gsub or TBD,
             # 初出の**文字列**ではなく**媒体の種別**を入れる。生の
-            # 文字列は shoshutsu 列に残す（典拠として必要）。
+            # 文字列は shoshutsu 列に残す（典拠として要る）。
             'first_medium': first_medium_of(r.get('shoshutsu', '')),
             'shoshutsu': (r.get('shoshutsu', '') or '').replace('<br>', ' '),
             'kana_orthography': r.get('kana_orth', ''),
@@ -635,7 +595,7 @@ def main() -> int:
         for k in JUDGEMENT_COLS:
             if k in row:
                 row[k] = TBD
-        # 別冊があるなら，判断を要する列もそこから引き継ぐ
+        # 別冊があるなら，判断の要る列もそこから引き継ぐ
         if sib:
             for k in JUDGEMENT_COLS + ('genre_sub', 'author_sex', 'register_level',
                                        'completeness',
@@ -659,12 +619,13 @@ def main() -> int:
         else:
             person_missing += 1
 
-        # 編者の判断は継承より後に適用する。別冊から引き継いだ値も，
-        # 判断表に書いてあればそちらが優先される。
+        # 編者の判断は継承より後に当てる。別冊から引き継いだ値も，
+        # 判断表に書いてあればそちらが勝つ。
         if editorial and apply_editorial(row, editorial):
             ed_used.add((row.get('aozora_person_id', '').zfill(6),
                          row.get('aozora_work_id', '').zfill(6)))
-            fix_period(row, editorial)
+            if row.get('year_first') and row.get('period') in ('', TBD):
+                row['period'] = period_of(row['year_first'])
 
         if args.tokens:
             if remeasure(row, stem, args.tokens):
@@ -677,8 +638,7 @@ def main() -> int:
             need.append('実測列（--tokens を付けて測り直すこと）')
         row['needs_review'] = ' '.join(need)
         added.append(row)
-        # 分析に使わない行（分冊など）は人の点検に回さない
-        if need and not not_analysed(row):
+        if need:
             review.append((row['id'], row['author_ja'], row['title_aozora'], need))
 
     remeasured = 0
@@ -688,22 +648,11 @@ def main() -> int:
         r.setdefault('needs_review', '')
         if not r.get('measure_source'):
             r['measure_source'] = 'v1_wakachi'
-        # 既存 64 点にも判断表を適用できるようにしておく。completeness の
+        # 既存 64 点にも判断表を当てられるようにしておく。completeness の
         # DUPLICATE / PARTIAL のように，増補で事情が変わった行を直すため。
-        # 初出の文字列・索引の NDC を索引から埋める（既に値があれば触らない）
-        lg = log_by_stem.get(stem_of(r.get('aozora_person_id', ''),
-                                     r.get('aozora_work_id', '')))
-        if lg:
-            if not r.get('shoshutsu') and lg.get('shoshutsu'):
-                r['shoshutsu'] = lg['shoshutsu'].replace('<br>', ' ')
-            if not r.get('ndc_all'):
-                _, nall = clean_ndc(lg.get('ndc'))
-                if ' ' in nall:
-                    r['ndc_all'] = nall
         if editorial and apply_editorial(r, editorial):
             ed_used.add((r.get('aozora_person_id', '').zfill(6),
                          r.get('aozora_work_id', '').zfill(6)))
-            fix_period(r, editorial)
         if args.remeasure_all and args.tokens:
             pid, wid = r.get('aozora_person_id', ''), r.get('aozora_work_id', '')
             if pid and wid and remeasure(r, stem_of(pid, wid), args.tokens):
@@ -711,11 +660,12 @@ def main() -> int:
 
     out_rows = base + added
 
-    # ---- ID の綴りを揃える（**突合の失敗を根本から防ぐ**）--------------------
+    # ---- ID の綴りを揃える（**事故の根を断つ**）----------------------------
     # v1 由来の行は作品 ID が 0 埋めされていない（1743）のに，増補した行は
-    # 0 埋めされている（001504）という混在が起こりうる。両者が1つの表に
-    # 並ぶと，`f'{pid}_{wid}'` と素朴にキーを作った工程だけが**静かに**
-    # 突合に失敗し，たとえば PCA の図で大半の作品が「初出年不明」になる。
+    # 0 埋めされている（001504）という混在状態にあった。両者が1つの表に
+    # 並ぶと，`f'{pid}_{wid}'` と素朴に鍵を作った工程だけが**静かに**
+    # 突合に失敗する。2026-09-22 に 07_descriptive_stats.py がこれで
+    # 62/101 点を落とし，PCA の図に「初出年不明 62 件」と出た。
     #
     # 読む側で 0 埋めして照合するのが基本だが，**書く側でも揃えておく**。
     # ファイル名は6桁 0 埋めなので，表もそれに合わせる。
@@ -730,17 +680,12 @@ def main() -> int:
         print(f'[fix ] 作品・人物 ID を6桁に揃えた（{padded} セル）。'
               'ファイル名の綴りと一致させるため。')
 
-    # **配布版（git 管理）を上書きしない。** 上書きすると，受講生が
-    # git pull するたびに衝突する。既定では *_local.csv（.gitignore 済み）に
-    # 書き，以後の工程はそちらを優先して読む。配布版を更新するのは教員が
-    # --publish を付けたときだけ。
-    tracked = os.path.join('metadata', 'corpus_metadata_v3.csv')
-    if (not args.publish
-            and os.path.normpath(os.path.abspath(args.out)).endswith(tracked)):
-        local = os.path.splitext(args.out)[0] + '_local.csv'
-        print(f'[note] 配布版 {args.out} は上書きしない → {local} に書く'
-              '（配布版を更新するときは --publish）')
-        args.out = local
+    # 学習に使う5区分。**period から必ず引き直す**（手で書いた値は信用しない）。
+    # 6区分と5区分が食い違った表を配ると，Step 4 の図と Step 6 のモデルが
+    # 別の母集団を指すことになる。導出の規則は 00_build_metadata_v2.BAND5。
+    for r in out_rows:
+        r['period5'] = period5_of(str(r.get('period') or ''))
+
     os.makedirs(os.path.dirname(args.out) or '.', exist_ok=True)
     with open(args.out, 'w', newline='', encoding='utf-8-sig') as fh:
         w = csv.DictWriter(fh, fieldnames=cols, extrasaction='ignore')
@@ -771,7 +716,7 @@ def main() -> int:
                   'style_class は辞書に依存する。')
             print('       同じ表に別の辞書で測った行を並べると，作品の違いと'
                   '辞書の違いが見分けられない。')
-            print('       05 を本番の辞書で実行し直し，--remeasure-all で'
+            print('       05 を本番の辞書で回し直し，--remeasure-all で'
                   '全行を測り直すこと。')
         if not args.remeasure_all:
             print('       --remeasure-all を付けて全行を同じ方法で測り直すこと。')
@@ -787,8 +732,8 @@ def main() -> int:
             if len(stale) > 6:
                 print(f'         …ほか {len(stale) - 6} 行')
             print('       これらは集計から外れる行なので，実測値は参考値である。')
-    # 統合したはずの分冊に本文があるなら，03b を実行する前に 04/05 を
-    # 実行している。メタデータ上は merged でも，トークン列は巻ごとに
+    # 統合したはずの分冊に本文があるなら，03b を走らせる前に 04/05 を
+    # 走らせている。メタデータ上は merged でも，トークン列は巻ごとに
     # 残っているので，**実測値が作品のものではなく巻のもの**になる。
     if args.tokens:
         odd = [r for r in out_rows
@@ -800,10 +745,10 @@ def main() -> int:
                 print(f'         {r.get("id", "?")} {r.get("author_ja", "")}'
                       f'『{r.get("title_aozora", "")}』'
                       f'（completeness={r.get("completeness")}）')
-            print('       03b_merge_volumes.py を実行する前に 04/05 を'
-                  '実行した可能性が高い。')
+            print('       03b_merge_volumes.py を走らせる前に 04/05 を'
+                  '走らせた可能性が高い。')
             print('       その場合トークン列は巻ごとのままなので，'
-                  '**03b → 04 → 05 の順で実行し直すこと。**')
+                  '**03b → 04 → 05 の順で走らせ直すこと。**')
             print('       これらの行は集計から外れるので結果は狂わないが，'
                   '実測列は作品のものではない。')
 
@@ -816,10 +761,10 @@ def main() -> int:
 
     if args.editorial:
         print(f'[ok  ] 編者の判断表 {len(editorial)} 行のうち '
-              f'{len(ed_used)} 行を適用した（{args.editorial}）')
+              f'{len(ed_used)} 行を当てた（{args.editorial}）')
         stale = sorted(set(editorial) - ed_used)
         if stale:
-            print(f'[warn] **どの行にも該当しなかった判断が {len(stale)} 件ある**')
+            print(f'[warn] **どの行にも当たらなかった判断が {len(stale)} 件ある**')
             print('       person_id / work_id の綴りが違うか，その作品が'
                   'コーパスに入っていない。黙って無視すると，')
             print('       判断したつもりの列が TBD のまま残る。')
@@ -836,30 +781,13 @@ def main() -> int:
 
     # **値が文字列とは限らない。** remeasure() は tokens や ttr_x1000 に
     # int / float をそのまま入れるので，``(v or '').strip()`` は
-    # AttributeError で止まる（--tokens を付けたときだけ止まるので，
+    # AttributeError で落ちる（--tokens を付けたときだけ落ちるので，
     # 付けずに試していると気づかない）。str() を通してから比べる。
-    # 分析に使わない行（merged・superseded・too_short）の TBD は数えない。
-    # 分冊の行は本文が統合先に移っていて測りようがないので，style_class などが
-    # TBD のまま残るのは正常である。ここで [FATAL] を出すと受講生が止まってしまう。
-    idle = [r for r in out_rows
-            if not_analysed(r) and any(is_tbd(v) for v in r.values())]
-    if idle:
-        print(f'[note] 分析に使わない行 {len(idle)} 件に TBD が残っている'
-              '（分析に使わない行なので TBD のままでよい）:')
-        for r in idle[:6]:
-            cols_tbd = [k for k, v in r.items() if is_tbd(v)]
-            print(f'         {r.get("id", "?")} {r.get("author_ja", "")}'
-                  f'『{r.get("title_aozora", "")}』'
-                  f'（completeness={r.get("completeness")}，'
-                  f'TBD: {" ".join(cols_tbd)}）')
-        if len(idle) > 6:
-            print(f'         …ほか {len(idle) - 6} 件')
-    used = [r for r in out_rows if not not_analysed(r)]
-    left = sum(1 for r in used
+    left = sum(1 for r in out_rows
                for v in r.values() if is_tbd(v))
     if left:
         from collections import Counter as _C
-        where = _C(k for r in used for k, v in r.items() if is_tbd(v))
+        where = _C(k for r in out_rows for k, v in r.items() if is_tbd(v))
         judged = sum(c for k, c in where.items()
                      if k in EDITORIAL_COLS or k in JUDGEMENT_COLS)
         measured = left - judged
@@ -867,7 +795,7 @@ def main() -> int:
               + '，'.join(f'{k}×{c}' for k, c in where.most_common()))
         if judged:
             print(f'        うち {judged} セルは**編者の判断**の列である。'
-                  '判断表に行が無いか，キーが合っていない。')
+                  '判断表に行が無いか，鍵が合っていない。')
             print('        metadata/editorial_expansion.csv に'
                   ' person_id / work_id で行を足すこと。')
         if measured:
@@ -876,9 +804,9 @@ def main() -> int:
             print('        --tokens data/tokens/tokens_surface を付けて'
                   '測り直せば埋まる。')
         print('        TBD のまま keyness や doc2vec に進むと，'
-              'そのカテゴリーの比較が無意味になる。')
+              'そのカテゴリの比較が無意味になる。')
     else:
-        print('[ok  ] 分析に使う行に TBD は残っていない')
+        print('[ok  ] TBD は残っていない')
     print(f'[ok  ] → {args.out}')
 
     if review:
@@ -888,7 +816,7 @@ def main() -> int:
             w.writerow(['id', 'author_ja', 'title_aozora', 'needs_review'])
             for i, a, t, n in review:
                 w.writerow([i, a, t, ' '.join(n)])
-        print(f'\n[note] 編者の判断が必要な行が {len(review)} 件ある → {dest}')
+        print(f'\n[note] 編者の判断が要る行が {len(review)} 件ある → {dest}')
         print('       機械では決められない列なので，必ず人が埋めること:')
         from collections import Counter
         cnt = Counter(k for _, _, _, n in review for k in n)
@@ -897,7 +825,7 @@ def main() -> int:
         print('\n       narration（語りの視点）は本文を読まないと決まらない。')
         print('       register_level（正典/中間/大衆/記録）も同様である。')
         print('       TBD のまま doc2vec や keyness に進むと，'
-              'そのカテゴリーの比較が無意味になる。')
+              'そのカテゴリの比較が無意味になる。')
 
     if no_year:
         dest = os.path.splitext(args.out)[0] + '_no_year.csv'
