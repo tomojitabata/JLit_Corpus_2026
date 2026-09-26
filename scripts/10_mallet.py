@@ -9,6 +9,10 @@ MALLET 本体は Java 製の外部ツールである。本スクリプトは
 ``import-dir`` → ``train-topics`` を呼び出し，出力（doc-topics, topic-keys,
 diagnostics.xml）を読んで **メタデータと結合した集計**を作る。
 
+``train`` は学習の条件（トピック数・反復回数・optimize-interval・seed・threads・
+ストップリストの指紋）を ``train_params.json`` に残す。トピックビューア（19）が読み，
+ネットワークの図を書き出すときに条件として添える。
+
 なぜメタデータ結合が必要か
 --------------------------
 ``doc-topics.txt`` はチャンク ID と 50 本の確率が並ぶだけの表である。
@@ -36,6 +40,9 @@ from __future__ import annotations
 
 import argparse
 import csv
+import datetime
+import hashlib
+import json
 import os
 import shutil
 import subprocess
@@ -92,6 +99,39 @@ def cmd_train(args, inp: str | None = None) -> None:
          '--word-topic-counts-file', os.path.join(o, 'word-topic-counts.txt'),
          '--diagnostics-file', os.path.join(o, 'diagnostics.xml'),
          '--num-top-words', '25'])
+    write_train_params(args, inp, o)
+
+
+def write_train_params(args, inp: str, o: str) -> None:
+    """学習の条件を ``train_params.json`` に書く（再現のための記録）。
+
+    MALLET の出力には，反復回数・seed・ストップリストなどの学習条件が残らない
+    （α と β は topic-state.gz の先頭にある）。トピックビューアは，この記録を読んで
+    図の書き出しに条件として添える。
+    """
+    sl = getattr(args, 'stoplist', None)
+    stop = None
+    if sl and os.path.exists(sl):
+        raw = open(sl, 'rb').read()
+        stop = {'path': sl, 'sha1': hashlib.sha1(raw).hexdigest()[:10],
+                'n_words': sum(1 for x in raw.decode('utf-8', 'replace').splitlines()
+                               if x.strip() and not x.startswith('#'))}
+    rec = {
+        'tool': 'MALLET train-topics（10_mallet.py）',
+        'trained_at': datetime.datetime.now().isoformat(timespec='seconds'),
+        'input': inp,
+        'datasets': getattr(args, 'datasets', None),
+        'num_topics': args.topics,
+        'num_iterations': args.iterations,
+        'optimize_interval': args.optimize_interval,
+        'optimize_burn_in': 200,
+        'random_seed': args.seed,
+        'num_threads': args.threads,
+        'stoplist': stop,
+        'token_regex': r'[^\s]+',
+    }
+    with open(os.path.join(o, 'train_params.json'), 'w', encoding='utf-8') as fh:
+        json.dump(rec, fh, ensure_ascii=False, indent=1)
 
 
 def read_doc_topics(path: str) -> tuple[list[str], np.ndarray]:

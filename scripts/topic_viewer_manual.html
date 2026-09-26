@@ -384,6 +384,24 @@ Gephi の Scaling に当たる操作は，画面に合わせて自動で拡大�
   <tr><td><span class="ui">PDF（印刷）</span></td><td>図だけを A4 横 1 ページに収めた印刷の画面を開く。印刷先（送信先）に<b>「PDF に保存」</b>を選ぶ。
       これもベクトルのまま保存される</td></tr>
 </table>
+<h3 id="netnote">条件を添える（再現のための注記）</h3>
+<p><span class="ui">条件を添える</span>（初期値でオン）にしておくと，書き出した図の下縁（凡例の下）に，図を作った条件を小さな字で添える。
+論文やスライドに図を載せたあとでも，同じ図を作り直せるようにするためである。</p>
+<table>
+  <tr><th>行</th><th>中身</th></tr>
+  <tr><td>モデル</td><td>モデル名と置き場所（末尾2階層）・指紋，K，α（合計とトピックごとの幅），β，反復回数，optimize-interval と burn-in，
+      random-seed，threads，ストップリスト（語数と sha1），学習日時，チャンク数・作品数・トークン数・語彙数</td></tr>
+  <tr><td>グラフ</td><td>近さの指標（Delta はその語数，doc2vec は次元と置き場所），k，残す割合（2 部グラフでは k と割合の下限），ノード数・辺数（内側・境界）</td></tr>
+  <tr><td>表示</td><td>色分けの基準，トピックの色，線の色と形，線の太さの意味，ノードの大きさの基準と倍率，濃さ，ラベルの字の大きさ</td></tr>
+  <tr><td>配置</td><td>レイアウトとその設定（LinLog・Gravity・Scaling），補助の操作をした順（例：Label Adjust → Rotate 30°），
+      手で動かしたノードの数，強調しているノード</td></tr>
+  <tr><td>作成</td><td>ビューアを作った日時と設定（上位語の数・最小度数），書き出した日時</td></tr>
+</table>
+<p>α と β は MALLET の <code>topic-state.gz</code> の先頭から読む（無ければ <code>topic-keys.txt</code> の α）。
+反復回数・seed・ストップリストは MALLET の出力に残らないので，<code>10_mallet.py train</code> が学習のたびに
+<code>train_params.json</code> に書く。これより前に学習したモデルでは「記録なし」と出る（学習し直すと入る）。</p>
+<div class="box warn"><b>⚠</b>MALLET は threads が 2 以上だと，同じ seed でも結果がわずかに揺れる。完全に同じモデルを作り直すには threads 1 で学習する。
+手で動かしたノードがある図は，注記だけからは同じ配置にならない。</div>
 <div class="box tip"><b>文字の書体</b>SVG の文字は，開いたコンピュータにある書体で表示される（ヒラギノ角ゴ・游ゴシック・Noto Sans CJK JP の順に探す）。
 別のコンピュータで字形が変わって困るときは，PDF で書き出すか，Inkscape などで文字をアウトライン化する。</div>
 <div class="box warn"><b>⚠</b>力学モデル（Fruchterman–Reingold・ForceAtlas2・Yifan Hu）の配置では，

@@ -320,6 +320,45 @@ def load_d2v(d2v_dir: str, meta: dict) -> dict | None:
             'sim': [[round(float(x), 4) for x in row] for row in S]}
 
 
+def train_info(mdir: str, keys_alpha: list[float]) -> dict:
+    """学習の条件（図の書き出しに添える）。
+
+    * ``train_params.json``（10_mallet.py train が書く）：反復回数・seed・ストップリストなど
+    * ``topic-state.gz`` の先頭：α（トピックごと）と β
+    * ``topic-keys.txt`` の 2 列目：α（topic-state が無いとき）
+    """
+    info = {}
+    p = os.path.join(mdir, 'train_params.json')
+    if os.path.exists(p):
+        try:
+            info['params'] = json.load(open(p, encoding='utf-8'))
+        except (OSError, ValueError):
+            pass
+    alpha, beta = None, None
+    sp = os.path.join(mdir, 'topic-state.gz')
+    if os.path.exists(sp):
+        import gzip
+        try:
+            with gzip.open(sp, 'rt', encoding='utf-8', errors='replace') as fh:
+                for _ in range(4):
+                    line = fh.readline()
+                    if line.startswith('#alpha'):
+                        alpha = [float(x) for x in line.split(':', 1)[1].split()]
+                    elif line.startswith('#beta'):
+                        beta = float(line.split(':', 1)[1])
+        except (OSError, ValueError, EOFError):
+            pass
+    if not alpha and keys_alpha:
+        alpha = keys_alpha
+    if alpha:
+        info['alpha_sum'] = round(sum(alpha), 4)
+        info['alpha_min'] = round(min(alpha), 4)
+        info['alpha_max'] = round(max(alpha), 4)
+    if beta is not None:
+        info['beta'] = beta
+    return info
+
+
 def build_model(label: str, mdir: str, meta: dict, lex: dict, top: int, min_count: int,
                 rel_mfw: int = 500) -> dict:
     k, wt = read_word_topic(mdir)
@@ -388,13 +427,17 @@ def build_model(label: str, mdir: str, meta: dict, lex: dict, top: int, min_coun
     pmean = [[round(x / max(1, pn[p]), 4) for x in psum[p]] for p in periods]
     prev = [round(sum(r[t] for r in rows) / len(rows), 5) for t in range(k)]
 
-    keys = {}
+    keys, kalpha = {}, {}
     kp = os.path.join(mdir, 'topic-keys.txt')
     if os.path.exists(kp):
         for line in open(kp, encoding='utf-8-sig'):
             f = line.rstrip('\n').split('\t')
             if len(f) >= 3:
                 keys[int(f[0])] = f[2]
+                try:
+                    kalpha[int(f[0])] = float(f[1])
+                except ValueError:
+                    pass
 
     print(f'[mdl ] {label}: {k} トピック・{len(ids):,} チャンク・{len(works)} 作品・'
           f'語 {len(tot_w):,}（うち表示用 {len(vocab):,}）')
@@ -404,6 +447,8 @@ def build_model(label: str, mdir: str, meta: dict, lex: dict, top: int, min_coun
             'periodN': [pn[p] for p in periods], 'periodTopic': pmean,
             'keys': [keys.get(t, '') for t in range(k)],
             'fp': model_fingerprint(mdir),
+            'nChunks': len(ids), 'nVocab': len(tot_w),
+            'train': train_info(mdir, [kalpha[t] for t in sorted(kalpha)]),
             'rel': relatedness(k, wt, rows, rel_mfw, min_count),
             'workJsd': work_jsd(wmean)}
 
@@ -610,7 +655,8 @@ a.help-q:hover{border-color:var(--acc);color:var(--acc)}
         <input type="number" id="nrotA" value="15" step="1" min="-360" max="360" style="width:58px" title="回す角度（度）"> °</span>
       <span class="ntools">書き出し：
         <button id="nsvg" type="button" title="いまの図を SVG ファイルに保存する（凡例つき）">SVG</button>
-        <button id="npdf" type="button" title="印刷の画面を開く。印刷先に「PDF に保存」を選ぶ（A4 横に収める）">PDF（印刷）</button></span>
+        <button id="npdf" type="button" title="印刷の画面を開く。印刷先に「PDF に保存」を選ぶ（A4 横に収める）">PDF（印刷）</button>
+        <label title="モデルの学習条件・グラフの作り方・表示と配置の設定を，図の下縁に小さな字で添える（再現のため）"><input type="checkbox" id="nnote" checked> 条件を添える</label></span>
     </div>
     <p class="hint" id="nhint"></p>
     <p class="hint" id="necnt"></p>
@@ -877,7 +923,7 @@ const PAL = ['#0072B2', '#E69F00', '#009E73', '#CC79A7', '#56B4E9', '#D55E00', '
 const GRAY = '#9a9a93';
 const NET = {view: 'list', kind: 'topic', nodes: [], edges: [], raf: 0, alpha: 0,
              scale: 1, tx: 0, ty: 0, focus: null, W: 900, H: 620};
-const nst = {lay: 'fr', lin: false, grav: 1, curve: false, meas: 'jsd', src: 'd2v', k: 2, top: 100, col: 'period', lab: true, fs: 11, nop: 100, eop: 100, ecol: 'cat', minsh: 5, nsz: 100, tsz: 60, tcol: 'gray'};
+const nst = {lay: 'fr', lin: false, grav: 1, curve: false, note: true, meas: 'jsd', src: 'd2v', k: 2, top: 100, col: 'period', lab: true, fs: 11, nop: 100, eop: 100, ecol: 'cat', minsh: 5, nsz: 100, tsz: 60, tcol: 'gray'};
 const TGRAY = '#5f5f5a';   // 作品とトピックのネットワークでのトピック（四角）の色
 // 文字の大きさと濃さは SVG の変数で持つ（配置を計算し直さずに変えられる）
 function netStyle(){
@@ -1298,6 +1344,7 @@ function stopSim(){ cancelAnimationFrame(NET.raf); NET.alpha = 0; }
 function startLayout(){
   stopSim();
   initCircle();
+  NET.ops = []; NET.moved = new Set();
   $('nlayst').textContent = '';
   if (nst.lay === 'fr' || NET.nodes.length < 2) { NET.alpha = 1; tick(); return; }
   const f = {fa2: () => byComponents(layFA2), yh: () => byComponents(layYH), mds: layMDS, circ: layCirc}[nst.lay];
@@ -1583,6 +1630,7 @@ function toolScale(k){
   const N = NET.nodes; if (!N.length) return;
   const cx = N.reduce((s, p) => s + p.x, 0) / N.length, cy = N.reduce((s, p) => s + p.y, 0) / N.length;
   N.forEach(p => { p.x = cx + (p.x - cx) * k; p.y = cy + (p.y - cy) * k; });
+  (NET.ops = NET.ops || []).push(k > 1 ? `Expansion ×${k.toFixed(2)}` : `Contraction ×${k.toFixed(3)}`);
   afterTool();
 }
 const nodeRad = p => p.kind === 't' ? p.r * 1.42 : p.r;
@@ -1603,6 +1651,7 @@ function toolNoverlap(){
     }
     if (!moved) break;
   }
+  (NET.ops = NET.ops || []).push('Noverlap');
   afterTool();
 }
 // ラベルとノードを合わせた矩形どうしの重なりを，重なりの浅い向きに押し分ける
@@ -1630,6 +1679,7 @@ function toolLabelAdjust(){
     }
     if (!moved) break;
   }
+  (NET.ops = NET.ops || []).push('Label Adjust');
   afterTool();
 }
 
@@ -1640,8 +1690,66 @@ function toolRotate(deg){
   const a = deg * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
   const cx = N.reduce((t, p) => t + p.x, 0) / N.length, cy = N.reduce((t, p) => t + p.y, 0) / N.length;
   N.forEach(p => { const dx = p.x - cx, dy = p.y - cy; p.x = cx + dx * c - dy * s; p.y = cy + dx * s + dy * c; });
+  (NET.ops = NET.ops || []).push(`Rotate ${deg}°`);
   afterTool();
 }
+
+// ---- 図に添える条件（再現のための記録）----------------------------------
+// モデルの学習条件・グラフの作り方・見た目の設定・配置と補助の操作を，書き出す図の下縁に小さな字で添える
+const optText = id => { const s = $(id); return s && s.selectedOptions[0] ? s.selectedOptions[0].textContent.trim() : ''; };
+const lastDirs = p => String(p || '').split(/[\\/]/).filter(Boolean).slice(-2).join('/');
+function noteLines(){
+  const T = M.train || {}, P = T.params || {}, G = D.gen || {};
+  const fmt = n => Number(n).toLocaleString('en-GB');
+  const L = [];
+  // 1. モデル
+  let m = `モデル「${M.label}」（${lastDirs(M.dir)}・指紋 ${M.fp}）：MALLET LDA，K = ${M.K}`;
+  if (T.alpha_sum != null) m += `，α 合計 ${T.alpha_sum}（` + (T.alpha_min === T.alpha_max ? `全トピック ${T.alpha_min}）` : `トピックごとに ${T.alpha_min}〜${T.alpha_max}）`);
+  if (T.beta != null) m += `，β = ${T.beta}`;
+  if (P.num_iterations != null) {
+    m += `，反復 ${P.num_iterations}，optimize-interval ${P.optimize_interval}（burn-in ${P.optimize_burn_in}），random-seed ${P.random_seed}，threads ${P.num_threads}`;
+    if (P.num_threads > 1) m += '（2 以上では同じ seed でも結果が揺れる）';
+    if (P.stoplist) m += `，ストップリスト ${lastDirs(P.stoplist.path)}（${P.stoplist.n_words} 語・sha1 ${P.stoplist.sha1}）`;
+    if (P.trained_at) m += `，学習 ${P.trained_at.replace('T', ' ')}`;
+  } else m += '，反復回数・seed・ストップリストの記録なし（10_mallet.py train で学習し直すと train_params.json に残る）';
+  m += `。チャンク ${fmt(M.nChunks || 0)}・作品 ${M.works.length}・トークン ${fmt(M.N)}・語彙 ${fmt(M.nVocab || 0)}。`;
+  L.push(m);
+  // 2. グラフの作り方
+  const nE = NET.edges.length, nN = NET.nodes.length;
+  let g;
+  if (NET.kind === 'bip') {
+    g = `グラフ：作品とトピックの 2 部グラフ（作品のトピック構成＝チャンクの θ の作品平均）。各作品から割合の高い順に ${nst.k} 個・割合 ${nst.minsh}% 以上。ノード ${nN}・辺 ${nE}。`;
+  } else {
+    const how = NET.kind === 'topic'
+      ? `トピック間の近さ：${optText('nmeas')}` + (/delta/.test(nst.meas) ? `（度数上位 ${G.rel_mfw} 語）` : '')
+      : (nst.src === 'd2v' && D.d2v ? `作品間の近さ：doc2vec の作品ベクトル（${D.d2v.dim} 次元，${lastDirs(D.d2v.dir)}）のコサイン類似度`
+                                    : '作品間の近さ：トピック構成（θ の作品平均）の Jensen–Shannon divergence');
+    g = `グラフ：${how}。各ノードから近い順に k = ${nst.k} 本，全組の近さの上位 ${nst.top}% まで。ノード ${nN}・辺 ${nE}`
+      + (NET.nin != null ? `（内側 ${NET.nin}・境界 ${NET.nb}）` : '') + '。';
+  }
+  if (nst.col === 'community') g += ' コミュニティは Louvain 法（いま張られている辺による）。';
+  L.push(g);
+  // 3. 見た目
+  let v = `表示：色＝${optText('ncol')}（8 分類まで色，残りは灰色）`;
+  if (NET.kind === 'bip') v += `，トピックの色＝${optText('ntcol')}`;
+  v += `，線の色＝${optText('necol')}，線の形＝${optText('ncurve')}，線の太さと濃さ＝${NET.kind === 'bip' ? '作品内の割合' : '近さの順位'}（表示中の辺の中で 0.7〜5.5）`;
+  v += `，ノードの大きさ＝${NET.kind === 'topic' ? 'トピックの割合' : 'チャンク数'}の平方根 ×${nst.nsz}%` + (NET.kind === 'bip' ? `（トピック ×${nst.tsz}%）` : '');
+  v += `，濃さ：ノード ${nst.nop}%・線 ${nst.eop}%，ラベル ${nst.lab ? nst.fs + 'px' : 'なし'}。`;
+  L.push(v);
+  // 4. 配置
+  let a = `配置：${optText('nlay').split('（')[0]}`;
+  if (nst.lay === 'fa2') a += `（LinLog ${nst.lin ? 'あり' : 'なし'}，Gravity ${nst.grav.toFixed(1)}，Scaling ${nNodesScale()}，連結成分ごと，乱数の種は固定）`;
+  else if (nst.lay === 'yh') a += '（連結成分ごと，乱数の種は固定）';
+  else if (nst.lay === 'fr') a += '（動きながら落ち着く。初期配置は円周上）';
+  a += `，補助の操作：${NET.ops && NET.ops.length ? NET.ops.join(' → ') : 'なし'}`;
+  if (NET.moved && NET.moved.size) a += `，手で動かしたノード ${NET.moved.size}`;
+  if (NET.focus != null) a += `，強調：${NET.nodes[NET.focus] ? NET.nodes[NET.focus].label : ''} の近傍`;
+  a += '。';
+  L.push(a);
+  L.push(`作成：JLit トピックビューア（ビューア生成 ${String(G.generated || '').replace('T', ' ')}，上位語 ${G.top}・最小度数 ${G.min_count}）。書き出し ${new Date().toLocaleString('sv-SE').slice(0, 16)}。`);
+  return L;
+}
+function nNodesScale(){ return NET.nodes.length > 100 ? 2 : 10; }
 
 // ---- 書き出し（SVG・PDF）-------------------------------------------------
 // いま画面にある図を，拡大縮小・移動に関係なく全体が入るように切り出し，
@@ -1691,7 +1799,16 @@ function exportSvgText(){
   let lx = 0, ly = 0; const pos = [];
   items.forEach(it => { const iw = 14 + charW(it.txt) + 14; if (lx > 0 && lx + iw > w - 2 * pad) { lx = 0; ly += lh; } pos.push([lx, ly]); lx += iw; });
   const legH = items.length ? ly + lh + 8 : 0;
-  const h = bb.height + 2 * pad + legH;
+  // 条件の注記（小さな字。幅に合わせて折り返す）
+  const nfs = 8, nlh = 11, nW = w - 2 * pad, cw = ch => ch.charCodeAt(0) > 0x2e7f ? nfs : nfs * 0.56;
+  const noteRows = [];
+  if (nst.note) noteLines().forEach(line => {
+    let cur = '', cwid = 0;
+    [...line].forEach(ch => { const d = cw(ch); if (cwid + d > nW && cur) { noteRows.push(cur); cur = '　'; cwid = nfs; } cur += ch; cwid += d; });
+    if (cur) noteRows.push(cur);
+  });
+  const noteH = noteRows.length ? noteRows.length * nlh + 10 : 0;
+  const h = bb.height + 2 * pad + legH + noteH;
   const esc2 = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const ff = getComputedStyle(document.body).fontFamily.replace(/"/g, "'");
   let leg = '';
@@ -1704,7 +1821,10 @@ function exportSvgText(){
     + `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${x0.toFixed(1)} ${y0.toFixed(1)} ${w.toFixed(1)} ${h.toFixed(1)}" width="${w.toFixed(0)}" height="${h.toFixed(0)}" font-family="${ff}">\n`
     + `<rect x="${x0.toFixed(1)}" y="${y0.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" fill="#ffffff"/>\n`
     + new XMLSerializer().serializeToString(clone).replace(/ xmlns="http:\/\/www\.w3\.org\/2000\/svg"/g, '') + '\n'
-    + (leg ? `<g>${leg}</g>\n` : '') + '</svg>\n';
+    + (leg ? `<g>${leg}</g>\n` : '')
+    + (noteRows.length ? `<g font-size="${nfs}" fill="#555" font-family="${ff}">` + noteRows.map((r, k) =>
+        `<text x="${(x0 + pad).toFixed(1)}" y="${(y0 + bb.height + 2 * pad + legH + 4 + (k + 1) * nlh - 2).toFixed(1)}" xml:space="preserve">${esc2(r)}</text>`).join('') + '</g>\n' : '')
+    + '</svg>\n';
   return s;
 }
 function exportName(ext){
@@ -1879,7 +1999,7 @@ function netEvents(){
     const pt = svgPoint(ev);
     if (DRAG) {
       if (Math.abs(pt.x - DRAG.sx) + Math.abs(pt.y - DRAG.sy) > 3) DRAG.moved = true;
-      if (DRAG.kind === 'node' && DRAG.moved) { NET.userView = true; DRAG.nd.x = pt.gx; DRAG.nd.y = pt.gy; if (nst.lay === 'fr') reheat(0.15); draw(); }
+      if (DRAG.kind === 'node' && DRAG.moved) { NET.userView = true; (NET.moved = NET.moved || new Set()).add(DRAG.nd.id); DRAG.nd.x = pt.gx; DRAG.nd.y = pt.gy; if (nst.lay === 'fr') reheat(0.15); draw(); }
       if (DRAG.kind === 'pan' && DRAG.moved) { NET.userView = true; NET.tx = DRAG.tx + pt.x - DRAG.sx; NET.ty = DRAG.ty + pt.y - DRAG.sy; applyView(); }
       $('ntip').hidden = true;
       return;
@@ -1961,6 +2081,7 @@ function netInit(){
   $('nlad').onclick = () => toolLabelAdjust();
   $('nrot').onclick = () => toolRotate(+$('nrotA').value);
   $('nsvg').onclick = () => exportSVG();
+  $('nnote').onchange = e => { nst.note = e.target.checked; };
   $('ncurve').onchange = e => { nst.curve = e.target.value === 'curve'; draw(); };
   $('npdf').onclick = () => exportPDF();
   layControls();
@@ -2337,7 +2458,10 @@ def main() -> int:
     lab_path = args.labels or os.path.join(os.path.dirname(os.path.abspath(args.out)),
                                            'topic_labels.json')
     labels = load_labels(lab_path)
-    data = json.dumps({'models': models, 'd2v': d2v, 'labels': labels},
+    import datetime
+    gen = {'generated': datetime.datetime.now().isoformat(timespec='minutes'),
+           'top': args.top, 'min_count': args.min_count, 'rel_mfw': args.rel_mfw}
+    data = json.dumps({'models': models, 'd2v': d2v, 'labels': labels, 'gen': gen},
                       ensure_ascii=False, separators=(',', ':'))
     data = data.replace('</', '<\\/')
     os.makedirs(os.path.dirname(os.path.abspath(args.out)) or '.', exist_ok=True)
