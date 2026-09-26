@@ -107,6 +107,10 @@ def main() -> int:
     ap.add_argument('--add', default=','.join(DEFAULT_ADD),
                     help='口語標識に足す語形（カンマ区切り）')
     ap.add_argument('--show', type=int, default=12, help='並べる作品数')
+    ap.add_argument('--rule', default=None, metavar='文語密度,比',
+                    help='二変数のルールを試す。例 --rule 90,0.06 なら'
+                         '「文語密度 ≧ 90 は A／比 ≦ 0.06 は C／残りは B」。'
+                         '現行の分類との混同表と，動く作品の一覧を出す')
     args = ap.parse_args()
 
     m = load_meta_v2()
@@ -192,6 +196,62 @@ def main() -> int:
         print(f'   {x["bungo"]:6.1f} {x["r0"]:6.3f} {x["r1"]:6.3f}'
               f'  {x["cls"]:<10} {x["who"]}')
     print()
+
+    # ---- 4.5 もう一本の軸 — 文語密度 -------------------------------------
+    # 比だけで A と B が切れないとき，切っているのは**文語の濃さ**である。
+    # 雅俗折衷体（地の文が文語・会話が口語）は口語標識を足すと比が沈むが，
+    # 文語密度は沈まない。樋口一葉『たけくらべ』がその典型。
+    print('■ 文語密度（／万語）を現行の分類別に')
+    for c in ('A_文語体', 'B_過渡的文体', 'C_口語体'):
+        g = sorted(x['bungo'] for x in out if x['cls'] == c)
+        if not g:
+            continue
+        print(f'   {c:<10} n={len(g):>3}  最小 {g[0]:6.1f}／中央 '
+              f'{statistics.median(g):6.1f}／最大 {g[-1]:6.1f}')
+    ga = sorted(x['bungo'] for x in out if x['cls'] == 'A_文語体')
+    gb = sorted(x['bungo'] for x in out if x['cls'] == 'B_過渡的文体')
+    if ga and gb:
+        print(f'   A の最小 {ga[0]:.1f} ／ B の最大 {gb[-1]:.1f}'
+              + ('  → **重ならない。この軸なら切れる**'
+                 if ga[0] > gb[-1] else '  → 重なる'))
+    print()
+
+    print(f'■ 現行の A_文語体 {len([x for x in out if x["cls"] == "A_文語体"])} 点'
+          '（少ないので全部並べる）')
+    print(f'   {"文語":>6} {"比現":>6} {"比案":>6}  作品')
+    for x in sorted((x for x in out if x['cls'] == 'A_文語体'),
+                    key=lambda x: -x['bungo']):
+        print(f'   {x["bungo"]:6.1f} {x["r0"]:6.3f} {x["r1"]:6.3f}  {x["who"]}')
+    print()
+
+    # ---- 4.6 二変数のルールを試す ----------------------------------------
+    if args.rule:
+        try:
+            ta, tc = (float(v) for v in args.rule.split(','))
+        except ValueError:
+            sys.exit('--rule は「文語密度,比」の形で渡すこと（例 90,0.06）')
+
+        def new_cls(x):
+            if x['bungo'] >= ta:
+                return 'A_文語体'
+            if x['r1'] <= tc:
+                return 'C_口語体'
+            return 'B_過渡的文体'
+
+        print(f'■ 試すルール: 文語密度 ≧ {ta:g} は A ／ 比 ≦ {tc:g} は C ／ 残りは B')
+        order = ('A_文語体', 'B_過渡的文体', 'C_口語体')
+        tab = {(a, b): 0 for a in order for b in order}
+        for x in out:
+            tab[(x['cls'], new_cls(x))] += 1
+        print(f'   {"現行＼案":<12}' + ''.join(f'{c:>12}' for c in order))
+        for a in order:
+            print(f'   {a:<12}' + ''.join(f'{tab[(a, b)]:>12}' for b in order))
+        moved = [x for x in out if new_cls(x) != x['cls']]
+        print(f'\n   分類が変わる作品 {len(moved)} 点')
+        for x in sorted(moved, key=lambda x: -x['bungo']):
+            print(f'   {x["bungo"]:6.1f} 比案 {x["r1"]:6.3f}  '
+                  f'{x["cls"]:<10} → {new_cls(x):<10} {x["who"]}')
+        print()
 
     # ---- 5. 境界の候補 ---------------------------------------------------
     A = [x['r1'] for x in out if x['cls'] == 'A_文語体']
