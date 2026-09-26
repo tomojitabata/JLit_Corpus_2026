@@ -2303,7 +2303,7 @@ function tblCols(){
   return c;
 }
 function provenance(){
-  return `JLit トピックビューア © Tomoji Tabata (DH UOsaka)｜モデル「${M.label}」指紋 ${M.fp}｜書き出し ${new Date().toLocaleString('sv-SE').slice(0, 16)}`;
+  return `JLit トピックビューア｜モデル「${M.label}」指紋 ${M.fp}｜書き出し ${new Date().toLocaleString('sv-SE').slice(0, 16)}`;
 }
 
 // ---- 形式ごとの書き出し ------------------------------------------------------
