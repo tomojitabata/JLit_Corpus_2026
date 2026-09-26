@@ -557,14 +557,16 @@ a.help-q:hover{border-color:var(--acc);color:var(--acc)}
   <p class="hint" id="modelinfo"></p>
 </aside>
 <main>
-  <div class="tabs" id="tabs"><button data-v="list" class="on">トピック一覧</button><button data-v="topicnet">トピックのネットワーク</button><button data-v="worknet">作品のネットワーク</button><button data-v="label">ラベルづけ</button><a class="help-q" href="topic_viewer_manual.html#network" target="jlit-topic-manual" title="この欄の使い方（マニュアルを別のウィンドウで開く）">？</a></div>
+  <div class="tabs" id="tabs"><button data-v="list" class="on">トピック一覧</button><button data-v="topicnet">トピックのネットワーク</button><button data-v="worknet">作品のネットワーク</button><button data-v="bipnet">作品とトピックのネットワーク</button><button data-v="label">ラベルづけ</button><a class="help-q" href="topic_viewer_manual.html#network" target="jlit-topic-manual" title="この欄の使い方（マニュアルを別のウィンドウで開く）">？</a></div>
   <section id="netview" hidden>
     <div class="netbar">
       <label id="nmeasw">指標 <select id="nmeas"></select></label>
       <label id="nsrcw" hidden>作品の表し方 <select id="nsrc"></select></label>
-      <label>近い順に <input type="range" id="nk" min="1" max="5" step="1" value="2"> <output id="nkO"></output> 本</label>
-      <label>辺として残す：全組の近さの上位 <input type="range" id="ntop" min="1" max="100" step="1" value="100"> <output id="ntopO"></output></label>
+      <label><span id="nkL">近い順に</span> <input type="range" id="nk" min="1" max="5" step="1" value="2"> <output id="nkO"></output> <span id="nkU">本</span></label>
+      <label id="ntopw">辺として残す：全組の近さの上位 <input type="range" id="ntop" min="1" max="100" step="1" value="100"> <output id="ntopO"></output></label>
+      <label id="nminw" hidden>作品内の割合が <input type="range" id="nmin" min="0" max="30" step="1" value="5"> <output id="nminO"></output> 以上</label>
       <label>色 <select id="ncol"></select></label>
+      <label>線の色 <select id="necol"><option value="cat" selected>ノードの分類の色（境界は灰色の破線）</option><option value="gray">すべて灰色</option></select></label>
       <label><input type="checkbox" id="nlab" checked> ラベル</label>
       <label>文字の大きさ <input type="range" id="nfs" min="7" max="22" step="1" value="11"> <output id="nfsO"></output></label>
       <label>ノードの濃さ <input type="range" id="nno" min="15" max="100" step="5" value="100"> <output id="nnoO"></output></label>
@@ -572,6 +574,7 @@ a.help-q:hover{border-color:var(--acc);color:var(--acc)}
       <button id="nre" type="button">配置し直す</button>
     </div>
     <p class="hint" id="nhint"></p>
+    <p class="hint" id="necnt"></p>
     <div class="netwrap" id="netwrap"><svg id="netsvg" role="img" aria-label="ネットワーク"></svg><div id="ntip" class="tip" hidden></div></div>
     <div class="legend" id="nleg"></div>
     <p class="hint">ノードをドラッグして動かす（放した位置に留まる。ダブルクリックで解く）・ホイールで拡大縮小・背景のドラッグで移動。
@@ -670,7 +673,7 @@ function initModel(i){
   $('modelinfo').innerHTML = `${esc(M.label)}：${M.K} トピック・${M.works.length} 作品・トークン ${M.N.toLocaleString()}<br>${esc(M.dir)}`;
   sel = null; $('detail').hidden = true;
   render();
-  if (typeof NET !== 'undefined' && (NET.view === 'topicnet' || NET.view === 'worknet')) { netControls(); buildNet(); }
+  if (typeof NET !== 'undefined' && ['topicnet', 'worknet', 'bipnet'].includes(NET.view)) { netControls(); buildNet(); }
   if (typeof NET !== 'undefined' && NET.view === 'label') labelView();
 }
 
@@ -835,7 +838,8 @@ const PAL = ['#0072B2', '#E69F00', '#009E73', '#CC79A7', '#56B4E9', '#D55E00', '
 const GRAY = '#9a9a93';
 const NET = {view: 'list', kind: 'topic', nodes: [], edges: [], raf: 0, alpha: 0,
              scale: 1, tx: 0, ty: 0, focus: null, W: 900, H: 620};
-const nst = {meas: 'jsd', src: 'd2v', k: 2, top: 100, col: 'period', lab: true, fs: 11, nop: 100, eop: 100};
+const nst = {meas: 'jsd', src: 'd2v', k: 2, top: 100, col: 'period', lab: true, fs: 11, nop: 100, eop: 100, ecol: 'cat', minsh: 5};
+const TGRAY = '#5f5f5a';   // 作品とトピックのネットワークでのトピック（四角）の色
 // 文字の大きさと濃さは SVG の変数で持つ（配置を計算し直さずに変えられる）
 function netStyle(){
   const s = $('netsvg').style;
@@ -846,11 +850,11 @@ function netStyle(){
 function setView(v){
   NET.view = v;
   document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
-  const net = v === 'topicnet' || v === 'worknet';
+  const net = v === 'topicnet' || v === 'worknet' || v === 'bipnet';
   $('listview').hidden = v !== 'list';
   $('netview').hidden = !net;
   $('labelview').hidden = v !== 'label';
-  if (net) { NET.kind = v === 'topicnet' ? 'topic' : 'work'; netControls(); buildNet(); }
+  if (net) { NET.kind = {topicnet: 'topic', worknet: 'work', bipnet: 'bip'}[v]; netControls(); buildNet(); }
   else cancelAnimationFrame(NET.raf);
   if (v === 'label') labelView();
 }
@@ -864,7 +868,14 @@ function goTopic(t){
 // ---- 操作欄 -----------------------------------------------------------
 function netControls(){
   let opts;
-  if (NET.kind === 'topic') {
+  const bip = NET.kind === 'bip';
+  $('ntopw').hidden = bip; $('nminw').hidden = !bip;
+  $('nkL').textContent = bip ? '各作品から割合の高い順に' : '近い順に';
+  $('nkU').textContent = bip ? '個のトピック' : '本';
+  $('nmin').value = nst.minsh; $('nminO').textContent = nst.minsh + '%';
+  if (bip) {
+    $('nsrcw').hidden = true; $('nmeasw').hidden = true;
+  } else if (NET.kind === 'topic') {
     opts = RELS.map(r => [r[0], r[1]]);
     if (!RELS.some(r => r[0] === nst.meas)) nst.meas = 'jsd';
     $('nsrcw').hidden = true;
@@ -892,7 +903,24 @@ function netControls(){
 // ---- グラフを作る -----------------------------------------------------
 // 近さ s(i,j) を指標の向きで揃え（大きいほど近い），各ノードから近い順に k 本。
 // 重みは「全組の中での近さの順位」（0〜1）。指標ごとに値の尺度が違っても同じ扱いにできる。
+// 作品とトピックの2部グラフ。作品のトピック構成（チャンクの θ の作品平均）で結ぶ
+function bipData(){
+  const W = M.works, n = W.length;
+  const maxC = Math.max(1, ...W.map(w => w[5])), maxP = Math.max(...M.prev);
+  const nodes = W.map((w, i) => ({id: i, kind: 'w', w, label: shortTitle(w[2]), r: 4 + 8 * Math.sqrt(w[5] / maxC)}))
+    .concat(M.prev.map((p, t) => ({id: n + t, kind: 't', t,
+      label: 'T' + String(t).padStart(2, '0') + (labelOf(t) ? ' ' + shortLabel(labelOf(t).label, 8) : ''),
+      r: 6 + 11 * Math.sqrt(p / maxP)})));
+  const edges = [];
+  W.forEach((w, i) => {
+    M.workTopic[i].map((v, t) => ({t, v})).sort((a, b) => b.v - a.v).slice(0, nst.k)
+      .filter(x => x.v * 100 >= nst.minsh).forEach(x => edges.push({a: i, b: n + x.t, w: x.v, v: x.v}));
+  });
+  return {nodes, edges, dir: 1, mat: null};
+}
+
 function graphData(){
+  if (NET.kind === 'bip') return bipData();
   let n, mat, dir, nodes;
   if (NET.kind === 'topic') {
     const r = RELS.find(x => x[0] === nst.meas);
@@ -998,7 +1026,7 @@ function categorise(nodes, edges){
   let cat;
   if (nst.col === 'community') {
     const cm = louvain(nodes.length, edges);
-    cat = cm.map(c => 'コミュニティ ' + (c + 1));
+    cat = cm.map((c, i) => nodes[i].kind === 't' ? 'トピック' : 'コミュニティ ' + (c + 1));
   } else if (NET.kind === 'topic') {
     cat = nodes.map(nd => {
       let best = -1, bi = -1;
@@ -1008,6 +1036,7 @@ function categorise(nodes, edges){
   } else {
     const idx = {period: 4, author: 1, genre: 6, style: 7}[nst.col];
     cat = nodes.map(nd => {
+      if (nd.kind === 't') return 'トピック';
       const v = String(nd.w[idx] || '');
       return (nst.col === 'period' ? v.replace(/^\d_/, '') : v) || '不明';
     });
@@ -1016,7 +1045,7 @@ function categorise(nodes, edges){
   const cnt = new Map(); cat.forEach(c => cnt.set(c, (cnt.get(c) || 0) + 1));
   let order = [...cnt.keys()];
   if (nst.col === 'period') {
-    const pos = new Map((NET.kind === 'topic' ? M.periods : [...new Set((nst.src === 'd2v' && D.d2v ? D.d2v.works : M.works).map(w => w[4]))].sort())
+    const pos = new Map((NET.kind === 'topic' ? M.periods : [...new Set((NET.kind === 'work' && nst.src === 'd2v' && D.d2v ? D.d2v.works : M.works).map(w => w[4]))].sort())
       .map((p, i) => [String(p).replace(/^\d_/, ''), i]));
     order.sort((a, b) => (pos.has(a) ? pos.get(a) : 99) - (pos.has(b) ? pos.get(b) : 99));
   } else {
@@ -1024,7 +1053,9 @@ function categorise(nodes, edges){
   }
   const color = new Map();
   let k = 0;
+  order = order.filter(c => c !== 'トピック');
   order.forEach(c => { color.set(c, (c === '不明' || k >= PAL.length) ? GRAY : PAL[k++]); });
+  if (cnt.has('トピック')) { color.set('トピック', TGRAY); order.push('トピック'); }
   return {cat, color, order, cnt};
 }
 
@@ -1038,7 +1069,7 @@ function buildNet(){
   NET.nodes = g.nodes; NET.edges = g.edges; NET.dir = g.dir; NET.mat = g.mat; NET.focus = null;
   NET.userView = false; NET.scale = 1; NET.tx = NET.ty = 0;
   const {cat, color, order, cnt} = categorise(g.nodes, g.edges);
-  NET.cat = cat;
+  NET.cat = cat; NET.color = color;
   // 初期配置は円周上（再現できるように乱数を使わない）
   const n = g.nodes.length, R = Math.min(NET.W, NET.H) * 0.38;
   g.nodes.forEach((nd, i) => {
@@ -1057,18 +1088,26 @@ function buildNet(){
   // **線の太さと濃さ＝近さ。** 近さの順位 w（全組の中で 0〜1）を，いま表示している辺の中で
   // 0〜1 に引き伸ばして太さにする（k 近傍の辺はどれも上位にあるので，そのままでは差が見えない）
   const ws = g.edges.map(e => e.w), wmin = Math.min(...ws), wmax = Math.max(...ws);
-  const lab = i => NET.kind === 'topic' ? g.nodes[i].label : `${g.nodes[i].w[1]}『${g.nodes[i].w[2]}』`;
+  const lab = i => (NET.kind === 'topic' || g.nodes[i].kind === 't') ? g.nodes[i].label : `${g.nodes[i].w[1]}『${g.nodes[i].w[2]}』`;
   g.edges.forEach(e => {
     e.rel = wmax > wmin ? (e.w - wmin) / (wmax - wmin) : 1;
     e.el = svgEl('line', {class: 'edge', 'stroke-width': (0.7 + 4.8 * e.rel).toFixed(2),
       'stroke-opacity': (0.28 + 0.6 * e.rel).toFixed(2)});
+    // 両端が同じ分類なら内側の辺，違えば境界の辺（作家・時代などを橋渡しする辺）
+    e.inside = cat[e.a] === cat[e.b];
     const tt = svgEl('title', {});
-    tt.textContent = `${lab(e.a)} — ${lab(e.b)}：${e.v.toFixed(3)}（全組の中で近いほうから ${(100 * (1 - e.w)).toFixed(1)}% の位置）`;
+    tt.textContent = NET.kind === 'bip'
+      ? `${lab(e.a)} — ${g.nodes[e.b].label}：作品内の割合 ${(100 * e.v).toFixed(1)}%`
+      : `${lab(e.a)} — ${lab(e.b)}：${e.v.toFixed(3)}（全組の中で近いほうから ${(100 * (1 - e.w)).toFixed(1)}% の位置）`
+        + (e.inside ? `・内側（${cat[e.a]}）` : `・境界（${cat[e.a]} — ${cat[e.b]}）`);
     e.el.appendChild(tt);
     eg.appendChild(e.el);
   });
   g.nodes.forEach((nd, i) => {
-    nd.el = svgEl('circle', {r: nd.r.toFixed(1), fill: nd.color, class: 'node'});
+    // トピック（作品とトピックのネットワーク）は四角で，作品の丸と形で分ける
+    nd.el = nd.kind === 't'
+      ? svgEl('rect', {width: (2 * nd.r).toFixed(1), height: (2 * nd.r).toFixed(1), rx: 2.5, fill: nd.color, class: 'node tnode'})
+      : svgEl('circle', {r: nd.r.toFixed(1), fill: nd.color, class: 'node'});
     nd.el.dataset.i = i;
     ng.appendChild(nd.el);
     // ラベルの字はノードと同じ色（灰色のノードは灰色）。縁取りで背景から浮かせる
@@ -1079,6 +1118,7 @@ function buildNet(){
     lg.appendChild(nd.tx);
   });
   lg.style.display = nst.lab ? '' : 'none';
+  edgeColors();
   applyView();
   // 凡例
   const shown = order.filter(c => color.get(c) !== GRAY || c === '不明');
@@ -1088,12 +1128,16 @@ function buildNet(){
   // 説明
   const iso = g.nodes.filter((_, i) => !g.edges.some(e => e.a === i || e.b === i)).length;
   let src;
-  if (NET.kind === 'topic') src = `指標：${RELS.find(x => x[0] === nst.meas)[1]}（${NET.dir > 0 ? '大きいほど近い' : '小さいほど近い'}）。円の大きさはトピックの割合。`;
+  if (NET.kind === 'bip') src = `作品（丸）とトピック（四角）を，作品のトピック構成（チャンクの θ の平均。モデル「${esc(M.label)}」）で結ぶ。`
+    + `各作品から割合の高い順に ${nst.k} 個・割合 ${nst.minsh}% 以上。線の太さは作品内の割合。`;
+  else if (NET.kind === 'topic') src = `指標：${RELS.find(x => x[0] === nst.meas)[1]}（${NET.dir > 0 ? '大きいほど近い' : '小さいほど近い'}）。円の大きさはトピックの割合。`;
   else if (nst.src === 'd2v' && D.d2v) src = `指標：doc2vec の作品ベクトル（チャンクの document vector の平均，${D.d2v.dim} 次元）のコサイン類似度。${esc(D.d2v.dir)}`;
   else src = `指標：作品のトピック構成（チャンクの θ の平均）どうしの Jensen–Shannon divergence（モデル「${esc(M.label)}」）。`
     + (D.d2v ? '' : ' doc2vec の結果はビューアに入っていない（Step 7 のあと，--d2v を付けて作り直すと選べる）。');
-  $('nhint').innerHTML = `線が太く濃いほど近い（線にポインタを載せると値が出る）。${g.nodes.length} ノード・${g.edges.length} 辺（各ノードから近い順に ${nst.k} 本，全組の近さの上位 ${nst.top}% まで）`
-    + (iso ? `・辺の無いノード ${iso}` : '') + '。' + src;
+  $('nhint').innerHTML = NET.kind === 'bip'
+    ? src + (iso ? `線の無いノード ${iso}（割合が低いトピックや作品）。` : '')
+    : `線が太く濃いほど近い（線にポインタを載せると値が出る）。${g.nodes.length} ノード・${g.edges.length} 辺（各ノードから近い順に ${nst.k} 本，全組の近さの上位 ${nst.top}% まで）`
+      + (iso ? `・辺の無いノード ${iso}` : '') + '。' + src;
   $('ninfo').innerHTML = '';
   NET.alpha = 1;
   tick();
@@ -1108,6 +1152,33 @@ function fitView(){
   const s = Math.min(1.6, Math.max(0.3, Math.min((NET.W - 2 * pad) / w, (NET.H - 2 * pad) / h)));
   NET.scale = s; NET.tx = (NET.W - s * (x0 + x1)) / 2; NET.ty = (NET.H - s * (y0 + y1)) / 2;
   applyView();
+}
+// 辺の色：内側の辺はその分類の色，境界の辺は灰色の破線（「すべて灰色」なら従来どおり）。
+// 灰色の分類（その他・不明）どうしの辺は，色を付けずに実線の灰色にする
+function edgeColors(){
+  if (NET.kind === 'bip') {
+    // 作品とトピックの線は作品の色（灰色の作品は灰色）
+    NET.edges.forEach(e => {
+      const c = NET.nodes[e.a].color;
+      e.el.style.stroke = (nst.ecol === 'gray' || c === GRAY) ? '' : c;
+      e.el.removeAttribute('stroke-dasharray');
+    });
+    const nw = NET.nodes.filter(x => x.kind === 'w').length, nt = NET.nodes.length - nw;
+    const used = new Set(NET.edges.map(e => e.b)).size;
+    $('necnt').textContent = `作品 ${nw}・トピック ${nt}（うち線でつながる ${used}）・線 ${NET.edges.length} 本（1作品あたり平均 ${(NET.edges.length / Math.max(1, nw)).toFixed(1)} 本）`;
+    return;
+  }
+  let nin = 0, nb = 0;
+  NET.edges.forEach(e => {
+    const c = NET.nodes[e.a].color;
+    if (e.inside) nin++; else nb++;
+    if (nst.ecol === 'gray' || (e.inside && c === GRAY)) { e.el.style.stroke = ''; e.el.removeAttribute('stroke-dasharray'); }
+    else if (e.inside) { e.el.style.stroke = c; e.el.removeAttribute('stroke-dasharray'); }
+    else { e.el.style.stroke = ''; e.el.setAttribute('stroke-dasharray', '5 4'); }
+  });
+  NET.nin = nin; NET.nb = nb;
+  const s = $('necnt');
+  if (s) s.textContent = NET.edges.length ? `内側の辺 ${nin} 本・境界の辺 ${nb} 本（境界 ${(100 * nb / NET.edges.length).toFixed(0)}%）` : '';
 }
 function applyView(){
   const vp = document.getElementById('netvp');
@@ -1155,7 +1226,8 @@ function draw(){
     e.el.setAttribute('x2', q.x.toFixed(1)); e.el.setAttribute('y2', q.y.toFixed(1));
   });
   NET.nodes.forEach(p => {
-    p.el.setAttribute('cx', p.x.toFixed(1)); p.el.setAttribute('cy', p.y.toFixed(1));
+    if (p.kind === 't') { p.el.setAttribute('x', (p.x - p.r).toFixed(1)); p.el.setAttribute('y', (p.y - p.r).toFixed(1)); }
+    else { p.el.setAttribute('cx', p.x.toFixed(1)); p.el.setAttribute('cy', p.y.toFixed(1)); }
     p.tx.setAttribute('x', p.x.toFixed(1)); p.tx.setAttribute('y', (p.y - p.r - 3).toFixed(1));
   });
 }
@@ -1170,6 +1242,7 @@ function focusNode(i){
   NET.nodes.forEach((p, j) => { p.el.classList.toggle('dim', i !== null && !nb.has(j)); p.tx.classList.toggle('dim', i !== null && !nb.has(j)); p.el.classList.toggle('foc', j === i); });
   NET.edges.forEach(e => e.el.classList.toggle('dim', i !== null && e.a !== i && e.b !== i));
   if (i === null) { $('ninfo').innerHTML = ''; return; }
+  if (NET.kind === 'bip') { focusBip(i); return; }
   // 近い順の一覧（辺の有無にかかわらず上位10）
   const row = NET.mat[i];
   const lst = row.map((v, j) => ({j, v})).filter(x => x.j !== i).sort((a, b) => NET.dir * (b.v - a.v)).slice(0, 10);
@@ -1199,12 +1272,40 @@ function focusNode(i){
 }
 
 // ---- 操作（ドラッグ・拡大縮小・ポインタ）-------------------------------
+function focusBip(i){
+  const nd = NET.nodes[i], nW = M.works.length;
+  const pct = x => (100 * x).toFixed(1) + '%';
+  let html;
+  if (nd.kind === 't') {
+    const t = nd.t;
+    const ws = M.works.map((w, j) => ({j, v: M.workTopic[j][t]})).sort((a, b) => b.v - a.v).slice(0, 10);
+    html = `<h3>${esc(nd.label)}　全体の ${pct(M.prev[t])}　<a href="#" data-go="${t}">このトピックの詳細へ</a></h3>
+      <table><tr><th>このトピックの割合が高い作品</th><th class="num">作品内の割合</th></tr>` +
+      ws.map(x => `<tr class="go" data-f="${x.j}"><td>${esc(M.works[x.j][1])}『${esc(M.works[x.j][2])}』</td><td class="num">${pct(x.v)}</td></tr>`).join('') + '</table>';
+  } else {
+    const w = nd.w;
+    const ts = M.workTopic[nd.id].map((v, t) => ({t, v})).sort((a, b) => b.v - a.v).slice(0, 10);
+    html = `<h3>${esc(w[1])}『${esc(w[2])}』${w[3] ? '（' + esc(w[3]) + '）' : ''}　${esc(String(w[4]).replace(/^\d_/, ''))}</h3>
+      <table><tr><th>この作品で割合の高いトピック</th><th class="num">作品内の割合</th></tr>` +
+      ts.map(x => `<tr class="go" data-f="${nW + x.t}"><td>T${String(x.t).padStart(2, '0')} ${esc(labelOf(x.t) ? labelOf(x.t).label : autoLabel(x.t))}</td><td class="num">${pct(x.v)}</td></tr>`).join('') + '</table>';
+  }
+  $('ninfo').innerHTML = html + '<p class="hint">行を押すとその作品・トピックに移る。背景を押すと強調を解く。</p>';
+  $('ninfo').querySelectorAll('[data-go]').forEach(a => a.onclick = ev => { ev.preventDefault(); goTopic(+a.dataset.go); });
+  $('ninfo').querySelectorAll('tr[data-f]').forEach(tr => tr.onclick = () => focusNode(+tr.dataset.f));
+}
+
 function svgPoint(ev){
   const svg = $('netsvg'), r = svg.getBoundingClientRect();
   const x = (ev.clientX - r.left) * NET.W / r.width, y = (ev.clientY - r.top) * NET.H / r.height;
   return {x, y, gx: (x - NET.tx) / NET.scale, gy: (y - NET.ty) / NET.scale};
 }
-let DRAG = null;
+let DRAG = null, LASTCLICK = {i: -1, t: 0};
+// ダブルクリック：トピックは詳細へ，作品は固定を解いて力学に戻す
+function nodeDouble(nd){
+  if (NET.kind === 'topic') goTopic(nd.id);
+  else if (nd.kind === 't') goTopic(nd.t);
+  else { nd.fixed = false; reheat(0.2); }
+}
 function netEvents(){
   const svg = $('netsvg');
   svg.addEventListener('pointerdown', ev => {
@@ -1212,7 +1313,7 @@ function netEvents(){
     const pt = svgPoint(ev);
     if (t.classList && t.classList.contains('node')) {
       const nd = NET.nodes[+t.dataset.i];
-      DRAG = {kind: 'node', nd, moved: false, sx: pt.x, sy: pt.y};
+      DRAG = {kind: 'node', nd, moved: false, sx: pt.x, sy: pt.y, was: nd.fixed};
       nd.fixed = true;
     } else {
       DRAG = {kind: 'pan', sx: pt.x, sy: pt.y, tx: NET.tx, ty: NET.ty, moved: false};
@@ -1235,17 +1336,18 @@ function netEvents(){
     if (!DRAG) return;
     const d = DRAG; DRAG = null;
     if (d.kind === 'node') {
-      if (!d.moved) { d.nd.fixed = false; focusNode(NET.nodes.indexOf(d.nd)); }
+      if (!d.moved) {
+        d.nd.fixed = d.was;           // 押しただけなら固定の状態を変えない
+        // ダブルクリックはここで見分ける（ポインタを捕まえているので dblclick の宛先がノードにならない）
+        const now = Date.now(), idx = NET.nodes.indexOf(d.nd);
+        if (LASTCLICK.i === idx && now - LASTCLICK.t < 400) { LASTCLICK = {i: -1, t: 0}; nodeDouble(d.nd); return; }
+        LASTCLICK = {i: idx, t: now};
+        focusNode(idx);
+      }
     } else if (!d.moved) focusNode(null);
   });
   svg.addEventListener('pointerleave', () => { $('ntip').hidden = true; });
-  svg.addEventListener('dblclick', ev => {
-    const t = ev.target;
-    if (t.classList && t.classList.contains('node')) {
-      const nd = NET.nodes[+t.dataset.i];
-      if (NET.kind === 'topic') goTopic(nd.id); else { nd.fixed = false; reheat(0.2); }
-    }
-  });
+
   svg.addEventListener('wheel', ev => {
     ev.preventDefault();
     const pt = svgPoint(ev);
@@ -1259,11 +1361,12 @@ function netEvents(){
 function showTip(i, ev){
   const nd = NET.nodes[i], tip = $('ntip');
   let h;
-  if (NET.kind === 'topic') {
-    const lb = labelOf(nd.id);
-    h = `<b>${esc(nd.label)}</b>　${(100 * M.prev[nd.id]).toFixed(1)}%・${esc(nd.cat)}<br>` +
-      (lb ? `ラベル：${esc(lb.label)}（${esc(lb.type)}・確信度 ${esc(lb.confidence)}）<br>` : `仮ラベル：${esc(autoLabel(nd.id))}<br>`) +
-      ranked(nd.id).list.slice(0, 8).map(x => esc(disp(M.vocab[x.j][0]))).join(' ');
+  if (NET.kind === 'topic' || nd.kind === 't') {
+    const tid = nd.kind === 't' ? nd.t : nd.id;
+    const lb = labelOf(tid);
+    h = `<b>${esc(nd.label)}</b>　${(100 * M.prev[tid]).toFixed(1)}%${NET.kind === 'topic' ? '・' + esc(nd.cat) : ''}<br>` +
+      (lb ? `ラベル：${esc(lb.label)}（${esc(lb.type)}・確信度 ${esc(lb.confidence)}）<br>` : `仮ラベル：${esc(autoLabel(tid))}<br>`) +
+      ranked(tid).list.slice(0, 8).map(x => esc(disp(M.vocab[x.j][0]))).join(' ');
   } else {
     const w = nd.w;
     h = `<b>${esc(w[1])}『${esc(w[2])}』</b>${w[3] ? '　' + esc(w[3]) : ''}<br>${esc(String(w[4]).replace(/^\d_/, ''))}` +
@@ -1283,6 +1386,8 @@ function netInit(){
   $('ncol').onchange = e => { nst.col = e.target.value; buildNet(); };
   $('nk').oninput = e => { nst.k = +e.target.value; $('nkO').textContent = nst.k; buildNet(); };
   $('ntop').oninput = e => { nst.top = +e.target.value; $('ntopO').textContent = nst.top + '%'; buildNet(); };
+  $('nmin').oninput = e => { nst.minsh = +e.target.value; $('nminO').textContent = nst.minsh + '%'; buildNet(); };
+  $('necol').onchange = e => { nst.ecol = e.target.value; edgeColors(); };
   $('nfs').oninput = e => { nst.fs = +e.target.value; netStyle(); };
   $('nno').oninput = e => { nst.nop = +e.target.value; netStyle(); };
   $('neo').oninput = e => { nst.eop = +e.target.value; netStyle(); };
@@ -1478,7 +1583,7 @@ function importAnswer(){
     + '' + (ng.length ? `。読めなかった項目：${ng.join('，')}（番号の誤り・ラベルが空）` : '。')
     + ' ラベルは AI の仮説である。根拠の語と作品を，詳細と KWIC で確かめること。';
   render(); labelView();
-  if (NET.view === 'topicnet') buildNet();
+  if (NET.view === 'topicnet' || NET.view === 'bipnet') buildNet();
 }
 
 // ---- 書き出し・読み込み ---------------------------------------------------
