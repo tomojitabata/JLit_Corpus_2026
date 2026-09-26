@@ -1747,7 +1747,7 @@ function noteLines(){
   if (NET.focus != null) a += `，強調：${NET.nodes[NET.focus] ? NET.nodes[NET.focus].label : ''} の近傍`;
   a += '。';
   L.push(a);
-  L.push(`作成：JLit トピックビューア（ビューア生成 ${String(G.generated || '').replace('T', ' ')}，上位語 ${G.top}・最小度数 ${G.min_count}）。書き出し ${new Date().toLocaleString('sv-SE').slice(0, 16)}。`);
+  L.push(`作成：JLit トピックビューア © Tomoji Tabata (DH UOsaka)（ビューア生成 ${String(G.generated || '').replace('T', ' ')}，上位語 ${G.top}・最小度数 ${G.min_count}）。書き出し ${new Date().toLocaleString('sv-SE').slice(0, 16)}。`);
   return L;
 }
 function nNodesScale(){ return NET.nodes.length > 100 ? 2 : 10; }
