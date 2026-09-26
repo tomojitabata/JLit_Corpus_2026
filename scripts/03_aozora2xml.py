@@ -102,6 +102,7 @@ class Stats:
         self.gaiji_unresolved = 0
         self.gaiji_supplement = 0    # 補助対照表から**編者の判断で**当てた数
         self.gaiji_glyph = 0         # 符号点が無く <g ref="#id"/> で記録した数
+        self.gaiji_not = 0           # ※ を引用した編者注。**外字ではない**
         self.glyphs: set = set()     # この作品で使った字形の id
         self.ruby = 0
         self.notes = 0
@@ -271,6 +272,16 @@ def walk(el, st: Stats, out: list) -> None:
         # kind=='gaiji' を条件にしていると，この形式で ※ が本文に残り，
         # 文字が失われたまま記号 1 字として形態素解析に入ってしまう。
         loc = find_last_marker(out)
+        # ⚠ **注記が ※ を引用していることがある。**
+        #     ［＃罫内の「※」は「」］                   小林多喜二『不在地主』
+        #     ［＃「貳朱は」は底本では「※［＃「弋＋頁」…］  福沢諭吉『福翁自伝』
+        #   いずれも**底本についての編者注**であって字形の説明ではない。
+        #   字形の説明に ※ が現れることはないので，これを目印に弾く。
+        #   弾かないと直前の ※ が <g ref="unresolved"/> に化け，本文から
+        #   ※ が消えたうえ，未解決外字として FATAL に数えられる。
+        if loc is not None and '※' in inner:
+            st.gaiji_not += 1
+            loc = None
         if loc is not None:
             g = gaiji_from_note(inner, st) or \
                 f'<g ref="unresolved" n={quoteattr(inner)}/>'
@@ -897,16 +908,29 @@ def convert(path: str, meta: dict, st: Stats,
     # 派生物（04 の平文）は，ここの mapping を読んで置換する。
     chardecl = ''
     if st.glyphs:
-        rev = {v['glyph_id']: (k, v) for k, v in SUPPLEMENT.items()
-               if v['kind'] == 'glyph' and v['glyph_id']}
+        # 同じ字形を指す注記が複数あることがある（「まいらせそろ」と
+        # 「『参らせ候』のくずし字」）。**先に書かれた行を代表名にする**
+        # ——後の行で上書きすると，作品によって glyphName が変わる。
+        rev: dict = {}
+        for k, v in SUPPLEMENT.items():
+            if v['kind'] == 'glyph' and v['glyph_id']:
+                rev.setdefault(v['glyph_id'], (k, v))
         gl = []
         for gid in sorted(st.glyphs):
             name, ent = rev.get(gid, (gid, {'char': '', 'evidence': ''}))
-            pua = (f'<mapping type="PUA">U+{ord(ent["char"]):04X}</mapping>'
-                   if ent.get('char') else '')
+            name = ent.get('glyph_name') or name
+            # **標準の字が先，私用領域は控え。** 04 は standard を優先して
+            # 読む。字形としての身許は <g ref="#id"/> と glyphName に残る
+            # ので，㋤ を当てても「屋号記号だった」ことは失われない。
+            maps = ''
+            if ent.get('mapping'):
+                maps += ('<mapping type="standard">'
+                         f'{escape(ent["mapping"])}</mapping>')
+            if ent.get('char'):
+                maps += f'<mapping type="PUA">U+{ord(ent["char"]):04X}</mapping>'
             gl.append(f'      <glyph xml:id={quoteattr(gid)}>'
                       f'<glyphName>{escape(name)}</glyphName>'
-                      f'{pua}'
+                      f'{maps}'
                       f'<desc>{escape(ent.get("evidence", ""))}</desc></glyph>')
         chardecl = ('\n      <charDecl>\n' + '\n'.join(gl)
                     + '\n      </charDecl>')
@@ -1035,6 +1059,7 @@ def main() -> int:
                'gaiji_resolved': st.gaiji_resolved,
                'gaiji_supplement': st.gaiji_supplement,
                'gaiji_glyph': st.gaiji_glyph,
+               'gaiji_not': st.gaiji_not,
                'gaiji_unresolved': st.gaiji_unresolved}
         report.append(row)
         flags = []
@@ -1044,6 +1069,8 @@ def main() -> int:
             flags.append(f'編者が当てた外字{st.gaiji_supplement}')
         if st.gaiji_glyph:
             flags.append(f'符号点の無い字{st.gaiji_glyph}')
+        if st.gaiji_not:
+            flags.append(f'外字でない注記{st.gaiji_not}')
         if st.said_unclosed:
             flags.append(f'未閉の開き括弧{st.said_unclosed}')
         if st.quote_embedded:
@@ -1071,6 +1098,7 @@ def main() -> int:
         tot_s = sum(r['gaiji_supplement'] for r in report)
         tot_g = sum(r['gaiji_glyph'] for r in report)
         tot_u = sum(r['gaiji_unresolved'] for r in report)
+        tot_n = sum(r['gaiji_not'] for r in report)
         tot_c = sum(r['said_unclosed'] for r in report)
         tot_e = sum(r['quote_embedded'] for r in report)
         tot_k = sum(r['said_cont'] for r in report)
@@ -1085,6 +1113,9 @@ def main() -> int:
                   '（config/gaiji_supplement.tsv，XML では resp="editor"），'
                   '\n       符号点の無い字は <g ref="#id"/> として字形を指す'
                   '（teiHeader/charDecl に定義）。')
+        if tot_n:
+            print(f'[note] ※ を引用した編者注 {tot_n} 件は外字として数えて'
+                  'いない（底本についての注であって字形の説明ではない）。')
         print(f'[note] 継続引用符での接続 {tot_k} 箇所，'
               f'埋め込みテクスト <quote type="embedded"> {tot_e} 件')
         if futae:

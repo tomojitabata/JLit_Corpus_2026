@@ -64,21 +64,37 @@ def glyph_map(root: ET.Element) -> dict[str, str]:
 
     **Unicode に符号点の無い字**（「まいらせそろ」の合略仮名など）は，
     XML では ``<g ref="#mairasesoro"/>`` として記録され，文字を持たない。
-    平文に落とすときに当てる文字を，XML 自身が ``<mapping type="PUA">``
-    で持っている。**定義を本文と一緒に持ち運ぶ**ので，あとから元の
-    字形に戻せる。
+    平文に落とすときに当てる文字を，XML 自身が ``<mapping>`` で持っている。
+    **定義を本文と一緒に持ち運ぶ**ので，あとから元の字形に戻せる。
+
+    ``<mapping type="standard">`` があればそれを優先し，無ければ
+    ``<mapping type="PUA">`` の私用領域の符号を使う。前者は「屋号記号
+    『丸にナ』を平文では ㋤ で表す」というような場合に立つ。
     """
     out: dict[str, str] = {}
     for g in root.iter('glyph'):
         gid = (g.get('{http://www.w3.org/XML/1998/namespace}id')
                or g.get('xml:id') or g.get('id') or '')
-        m = g.find('mapping')
-        if not gid or m is None or not (m.text or '').startswith('U+'):
+        if not gid:
             continue
-        try:
-            out[gid] = chr(int(m.text[2:], 16))
-        except ValueError:
-            continue
+        std = pua = ''
+        for m in g.findall('mapping'):
+            kind = (m.get('type') or '').strip().lower()
+            txt = (m.text or '').strip()
+            if not txt:
+                continue
+            if kind == 'standard':
+                std = txt
+            elif kind == 'pua' and txt.startswith('U+'):
+                try:
+                    pua = chr(int(txt[2:], 16))
+                except ValueError:
+                    pass
+        # **標準の字があればそれを使う。** 私用領域の文字は解析器から見れば
+        # 未知の記号でしかないので，代わりが立つなら立てる。字形としての
+        # 身許は XML 側の <g ref="#id"/> に残っているので，失われない。
+        if std or pua:
+            out[gid] = std or pua
     return out
 
 

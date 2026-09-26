@@ -95,6 +95,16 @@ def load_gaiji_supplement(path: str) -> dict[str, dict]:
     （「まいらせそろ」の合略仮名など）。文字を当てるのではなく，
     TEI の ``<g ref="#id"/>`` として記録し，字形の定義を
     ``teiHeader/charDecl`` に置く。平文の派生物では私用領域の文字で表す。
+
+    ``mapping`` 列（``kind=glyph`` のときだけ）は，**その字形にいちばん
+    近い標準の字**。字形としての身許は ``<g ref="#id"/>`` と charDecl に残した
+    まま，平文ではこの字を使う。TEI の ``<mapping type="standard">`` に対応
+    する。屋号記号「丸にナ」を ㋤ で表しつつ，屋号記号であることを失わない，
+    というような場合に使う。空なら平文は私用領域の文字になる。
+
+    ``glyph_name`` 列は ``charDecl`` の ``<glyphName>`` に入る字の名。
+    引き当ての鍵（``note``）は注記の断片でよいが，名は**あとから見て何の
+    字か分かる**ものでなければならない。空なら鍵をそのまま使う。
     """
     out: dict[str, dict] = {}
     if not path or not os.path.exists(path):
@@ -112,9 +122,24 @@ def load_gaiji_supplement(path: str) -> dict[str, dict]:
                 raise ValueError(
                     f'{path}: 「{note}」の char と codepoint が食い違う'
                     f'（{ch} は U+{ord(ch):04X}，表には {want}）')
-            out[note] = {'char': ch,
-                         'kind': (r.get('kind') or 'unicode').strip(),
-                         'glyph_id': (r.get('glyph_id') or '').strip(),
+            kind = (r.get('kind') or 'unicode').strip()
+            gid = (r.get('glyph_id') or '').strip()
+            mapping = (r.get('mapping') or '').strip()
+            if kind == 'glyph':
+                # 字形として記録する行は，平文で使う私用領域の符号と
+                # xml:id の両方が要る。
+                if not gid:
+                    raise ValueError(f'{path}: 「{note}」は kind=glyph だが'
+                                     ' glyph_id が無い')
+                if not (0xE000 <= ord(ch) <= 0xF8FF):
+                    raise ValueError(f'{path}: 「{note}」は kind=glyph だが'
+                                     f' char が私用領域外（{ch} U+{ord(ch):04X}）')
+            elif mapping:
+                raise ValueError(f'{path}: 「{note}」は kind={kind} なので'
+                                 ' mapping 列は使えない')
+            out[note] = {'char': ch, 'kind': kind, 'glyph_id': gid,
+                         'mapping': mapping,
+                         'glyph_name': (r.get('glyph_name') or '').strip(),
                          'evidence': (r.get('evidence') or '').strip()}
     return out
 
