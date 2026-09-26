@@ -5,7 +5,7 @@
 ====================
 **Burrows's Delta を Excel で手計算するためのブック**を作る（Step 4 §2）。
 
-Delta の計算は三つの手順だけからなる。
+Delta は三つの手順しかない。
 
 1. 最頻語 N 語の相対頻度を求める（ここでは 1 万語あたり）
 2. 語ごとに z スコアにする（平均と標準偏差は**既知の作品だけ**から求める）
@@ -34,12 +34,12 @@ Delta の計算は三つの手順だけからなる。
 ------
     python3 scripts/17_delta_workbook.py \\
         --tokens data/tokens/tokens_lemma \\
-        --out my_work/results/Step4_delta_manual.xlsx
+        --out results/student/Step4_delta_manual.xlsx
 
     # 作品を変える（「作家:題」をカンマで区切る。題は title_aozora）
     python3 scripts/17_delta_workbook.py --mfw 30 \\
         --questioned 夏目漱石:三四郎 \\
-        --known 夏目漱石:こころ,夏目漱石:坊っちゃん,森鴎外:青年,森鴎外:ヰタ・セクスアリス,島崎藤村:破戒,島崎藤村:家
+        --known 夏目漱石:門,夏目漱石:坊っちゃん,森鴎外:青年,森鴎外:ヰタ・セクスアリス,島崎藤村:破戒,島崎藤村:家
     # （既定は 漱石・鴎外・乱歩『少年探偵団』『宇宙怪人』・藤村『千曲川のスケッチ』『新生』の 4 作家）
 
 ブックと同じ場所に ``*_expected.json`` も書く。Python で計算した
@@ -63,7 +63,16 @@ DEFAULT_QUESTIONED = '夏目漱石:三四郎'
 # 藤村は同時期だが小説『新生』と写生文『千曲川のスケッチ』，乱歩は時代も
 # 読者層（少年もの）も離れた対照。乱歩の『灰色の巨人』は v1 で本文が
 # 『魔法博士』と取り違えられていた作品なので，教材には使わない。
-DEFAULT_KNOWN = ('夏目漱石:こころ,夏目漱石:坊っちゃん,'
+#
+# ⚠ **漱石の1点に『こころ』を使わない（2026-09-27 変更）。** 作品X の
+#   『三四郎』(1908) は三人称だが，『こころ』(1914) は一人称であるうえ，
+#   **本文の 51% が先生の遺書**という埋め込みテクストである。これを
+#   「漱石の既知の作品」に入れると，作家プロファイルに語りの人称と書簡体が
+#   混ざり，**演習で見えるはずのものが見えなくなる**——学生は z 差の大きい
+#   語を見て「これは作家の癖か，語りの人称か」を判じるのだから，物差しの
+#   側にその交絡を入れてはいけない。代わりに『門』(1910) を使う。作品X と
+#   同時期・同じ三人称で，作家の効果だけが残る。
+DEFAULT_KNOWN = ('夏目漱石:門,夏目漱石:坊っちゃん,'
                  '森鴎外:青年,森鴎外:ヰタ・セクスアリス,'
                  '江戸川乱歩:少年探偵団,江戸川乱歩:宇宙怪人,'
                  '島崎藤村:千曲川のスケッチ,島崎藤村:新生')
@@ -125,7 +134,7 @@ def main() -> int:
                     help='既知の作品（作家:題 をカンマ区切り。各作家2点を推奨）')
     ap.add_argument('--mfw', type=int, default=50, help='最頻語の数')
     ap.add_argument('--label', default='作品X', help='問題のテクストの表示名')
-    ap.add_argument('--out', default=os.path.join(ROOT, 'my_work', 'results',
+    ap.add_argument('--out', default=os.path.join(ROOT, 'results', 'student',
                                                   'Step4_delta_manual.xlsx'))
     args = ap.parse_args()
 
@@ -136,7 +145,7 @@ def main() -> int:
         from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
         from openpyxl.utils import get_column_letter as L
     except ImportError:
-        sys.exit('openpyxl が必要である: uv pip install openpyxl')
+        sys.exit('openpyxl が要る: uv pip install openpyxl')
 
     meta = args.meta or default_meta()
     rows = list(csv.DictReader(open(meta, encoding='utf-8-sig')))
@@ -415,7 +424,7 @@ def main() -> int:
         ws6.column_dimensions[col].width = wdt
     ws6.cell(last_a + 2, 1,
              '問い：作品X にいちばん近い作品と，いちばん近い作家プロファイルは一致するか。'
-             '一致しないなら，それはなぜか（5_z差 で色の濃い語を見てみよう）。').font = f_no
+             '一致しないなら，それはなぜか（5_z差 で色の濃い語を見よ）。').font = f_no
 
     # ---- 7_語数Nを変える -----------------------------------------------------
     ws7 = wb.create_sheet('7_語数Nを変える')
