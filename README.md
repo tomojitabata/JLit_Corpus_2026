@@ -181,7 +181,18 @@ JDK・MALLET・UniDic・取得済みテクストを `/Users/Shared/jlit` に置�
 |---|---|---|
 | マスター | `~/Dropbox/Corpus/DH_text_analytics_2025/JLit_Corpus_2026` | 編集・コミット・`git push` だけに使う。**ここでは実行しない**（`.venv` を置かない） |
 | GitHub | <https://github.com/tomojitabata/JLit_Corpus_2026> | 配布元。受講生はここから clone／pull する |
-| 動作確認 | `~/Documents/dh_project/JLit_Corpus_2026` | 受講生と同じ置き方の clone。マスターを push したら `git pull` して確かめる |
+| 動作確認 | `~/Documents/dh_project/JLit_Corpus_2026` | 受講生と同じ置き方の clone。マスターを push したら `git pull` して確かめる。**push は封じてある**（`remote.origin.pushurl=DISABLED`） |
+
+**測るのはクローン，決めて配るのはマスター。** `data/` と `.venv` はクローン
+側にしかないので，02〜10 の実行はすべてクローンで行う。一方，スクリプト・
+ノートブック・文書・設定の編集はマスターで行い，`git push` もマスターから
+出す。クローンからは押し出せない（上表のとおり封じてある）。
+
+⚠ **メタデータ v3 だけは向きが逆になる。** 実測値（語数・TTR・文語率）は
+トークン列から測るので，クローンで生成するしかない。生成した
+`corpus_metadata_v3.csv` と `corpus_metadata_v3_needs_review.csv` は
+**マスターへ複写してからコミット**すること（クローンでコミットしても
+押し出せない）。
 
 受講生が Step 3 で作るメタデータは `metadata/corpus_metadata_v3_local.csv`
 （`.gitignore` 済み）に書かれ，配布版の `corpus_metadata_v3.csv` は書き換わらない。

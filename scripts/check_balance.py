@@ -39,6 +39,7 @@ from __future__ import annotations
 import argparse
 import csv
 import os
+import re
 from collections import Counter, defaultdict
 from pathlib import Path
 
@@ -192,6 +193,34 @@ def main() -> int:
         if not ok:
             miss.append(f'区分の語数比が {ratio:.1f} 倍（上限 {lim_ratio:.1f}）')
     say()
+
+    # ---- 2b. 時代区分と初出年の整合 ---------------------------------------
+    # period は year_first の関数である。**食い違っていても例外は出ない。**
+    # 2026-09-26 に，編者が初出年を直したのに区分が古いままだった行が
+    # 2 件見つかった（有島武郎『或る女』・水野仙子『四十余日』）。
+    # 00_extend_metadata.py が毎回引き直すが，表を手で直したときのために
+    # ここでも見る。
+    def _band(y: str) -> str:
+        m = re.match(r'\s*(\d{4})', str(y or ''))
+        if not m:
+            return ''
+        n = int(m.group(1))
+        for lim, name in ((1887, '1_明治前期(〜1886)'), (1900, '2_明治中期(1887-1899)'),
+                          (1912, '3_明治後期(1900-1911)'), (1926, '4_大正(1912-1925)'),
+                          (1945, '5_昭和戦前(1926-1944)')):
+            if n < lim:
+                return name
+        return '6_昭和戦後(1945-)'
+    odd = [r for r in rows
+           if _band(r.get('year_first')) and r.get('period') != _band(r.get('year_first'))]
+    if odd:
+        say('■ 時代区分と初出年の食い違い')
+        for r in odd[:10]:
+            say(f"   {r.get('author_ja','')}『{r.get('title_aozora','')}』"
+                f"{r.get('year_first','')}年  表の区分 {r.get('period','')}"
+                f"  → 年から引くと {_band(r.get('year_first'))}")
+            miss.append(f"{r.get('title_aozora','')} の period が初出年と食い違う")
+        say()
 
     # ---- 3. 作者の性別 ----------------------------------------------------
     sex = T.get('sex', {})

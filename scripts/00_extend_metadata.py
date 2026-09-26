@@ -84,6 +84,19 @@ try:                                    # 00_ で始まるので import でき�
 except Exception as e:                                          # noqa: BLE001
     sys.exit(f'00_build_metadata_v2.py を読み込めない: {e}')
 
+
+def period_from_year(year) -> str:
+    """初出年から時代区分を引く。**文字列でも通す。**
+
+    ``year_first`` は CSV 由来なので ``'1919'`` のような文字列であり，
+    ``period_of`` は整数を取る。素朴に渡すと Python 3 では
+    ``'1919' < 1887`` で例外になる。空・``TBD``・``1919-1920`` のような
+    書き方にも耐えるよう，先頭の4桁だけを見る。引けなければ空を返す
+    （呼び手が「年が無い行」を区別できるように）。
+    """
+    m = re.match(r'\s*(\d{4})', str(year or ''))
+    return period_of(int(m.group(1))) if m else ''
+
 TBD = 'TBD'
 
 
@@ -624,8 +637,7 @@ def main() -> int:
         if editorial and apply_editorial(row, editorial):
             ed_used.add((row.get('aozora_person_id', '').zfill(6),
                          row.get('aozora_work_id', '').zfill(6)))
-            if row.get('year_first') and row.get('period') in ('', TBD):
-                row['period'] = period_of(row['year_first'])
+            # period は下の一括処理で初出年から引き直す（ここでは触らない）
 
         if args.tokens:
             if remeasure(row, stem, args.tokens):
@@ -680,11 +692,28 @@ def main() -> int:
         print(f'[fix ] 作品・人物 ID を6桁に揃えた（{padded} セル）。'
               'ファイル名の綴りと一致させるため。')
 
-    # 学習に使う5区分。**period から必ず引き直す**（手で書いた値は信用しない）。
-    # 6区分と5区分が食い違った表を配ると，Step 4 の図と Step 6 のモデルが
-    # 別の母集団を指すことになる。導出の規則は 00_build_metadata_v2.BAND5。
+    # ---- 時代区分は初出年から毎回引き直す -------------------------------
+    # **period は year_first の関数である。** 保存された値を信用してはいけない。
+    #
+    # 2026-09-26 に実際に起きた食い違い：有島武郎『或る女』は，索引が拾った
+    # 1911 年（『或る女のグリンプス』の連載開始）で明治後期に入ったあと，
+    # 編者判断で初出年を 1919 に直した。しかし period は明治後期のままで，
+    # **大正の作品が明治後期の集計に混じっていた**。水野仙子『四十余日』は
+    # 逆に，1910 年なのに大正に残っていた。どちらも例外は出ない。
+    #
+    # 年が直れば区分も直る，を毎回保証する。5区分も同じ場所で引き直す。
+    moved = []
     for r in out_rows:
+        p = period_from_year(r.get('year_first'))
+        if p and r.get('period') != p:
+            moved.append((r.get('author_ja', ''), r.get('title_aozora', ''),
+                          r.get('year_first', ''), r.get('period', '') or '空', p))
+            r['period'] = p
         r['period5'] = period5_of(str(r.get('period') or ''))
+    if moved:
+        print(f'[fix ] 初出年と食い違っていた時代区分を直した（{len(moved)} 件）')
+        for a, t, y, old, new in moved:
+            print(f'       {a}『{t}』{y}年  {old} → {new}')
 
     os.makedirs(os.path.dirname(args.out) or '.', exist_ok=True)
     with open(args.out, 'w', newline='', encoding='utf-8-sig') as fh:

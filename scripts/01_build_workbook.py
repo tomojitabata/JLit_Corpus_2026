@@ -95,7 +95,7 @@ CODEBOOK = [
  ("form","テクストの形態","novel / novella / short-story / collection / cycle / essay / treatise / biography / autobiography / diary / diary-novel"),
  ("audience","想定読者","general / juvenile"),
  ("register_level","文化的位置づけ。v1 の brow を置き換える","canonical / middlebrow / popular / documentary"),
- ("narration","語りの視点","first（一人称）/ third（三人称）/ mixed（作品内で交替・枠物語）/ dialogue（対話体）/ none（非物語）"),
+ ("narration","語りの視点。**地の文（matrix）の人称で決める**。長文の書簡・手記・日記が挿入されていても，地の文の人称が変わらなければ mixed にしない（埋め込みは embedded ストリームに分離されるので，そちらで扱う）。『こころ』『行人』『人間失格』はいずれも first。2026-09-26 決定","first（一人称）/ third（三人称）/ mixed（地の文が交替・枠物語・作品集）/ dialogue（対話体）/ none（非物語）"),
  ("first_medium","初出媒体","newspaper / magazine / book"),
  ("kana_orthography","青空文庫の文字遣い種別","新字新仮名 / 新字旧仮名 / 旧字旧仮名"),
  ("completeness","テクストの完全性","complete / incomplete（原作が未完）/ part（分冊の一冊）/ PARTIAL（一部のみ収録）/ revised（改稿版）/ superseded（v1 の合本。分冊で取り直したので集計から外す）/ DUPLICATE（本文の取り違え）"),

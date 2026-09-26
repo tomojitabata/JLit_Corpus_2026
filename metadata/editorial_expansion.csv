@@ -54,3 +54,12 @@
 000118,001745,長塚節,土,third,canonical,general,novel,Fiction,Naturalist,M,complete,newspaper,1910,editor,1910,「東京朝日新聞」1910年6〜11月連載。常陸方言を多く含む,2026-09 リバランスで追加。農民の方言を写した写実。語彙の層が他と大きく違う。長塚節は未収録
 000023,000199,徳田秋声,あらくれ,third,canonical,general,novel,Fiction,Naturalist,M,complete,newspaper,1915,editor,1915,「読売新聞」1915年連載,2026-09 リバランスで追加。大正の長篇が薄い。秋声は未収録。女性主人公の長篇
 000025,000201,有島武郎,或る女,third,canonical,general,novel,Fiction,Modern,M,complete,book,1919,editor,1919,叢文閣、1919年。初出は「白樺」1911〜13『或る女のグリンプス』,2026-09 リバランスで追加。白樺派。大正の長篇を補う。有島は未収録。女性主人公の長篇
+000148,000789,夏目漱石,吾輩は猫である,first,canonical,general,novel,Fiction,Satire,M,complete,magazine,1905,card,,「ホトトギス」1905年1月〜1906年8月に断続連載,語り手は猫。**一人称だが人間ではない**。写生文の系譜で，現行の漱石4点に無い語彙層を持つ
+000148,056143,夏目漱石,それから,third,canonical,general,novel,Fiction,Modern,M,complete,newspaper,1909,card,,「東京朝日新聞」「大阪朝日新聞」1909年6月27日〜10月4日,前期三部作の第二作。『三四郎』は収録済
+000148,000785,夏目漱石,門,third,canonical,general,novel,Fiction,Modern,M,complete,newspaper,1910,card,,「朝日新聞」1910年3月1日〜6月12日,前期三部作の完結
+000148,000775,夏目漱石,行人,first,canonical,general,novel,Fiction,Modern,M,complete,newspaper,1912,card,,「朝日新聞」1912年12月〜1913年11月,語り手は二郎の一人称。末尾「塵労」は H の長文書簡だが，**地の文の人称は替わらない**ので first とした（2026-09-26 に決めた基準。『こころ』『人間失格』と同じ扱い。埋め込みは embedded ストリームで扱う）
+000148,000783,夏目漱石,道草,third,canonical,general,novel,Fiction,Modern,M,complete,newspaper,1915,card,,「朝日新聞」1915年6月3日〜9月14日,自伝的だが三人称（健三に寄る限定視点）。genre_sub は Autobiography ではなく Modern とした
+000802,046650,三宅花圃,藪の鶯,third,canonical,general,novella,Fiction,Modern,F,complete,book,1888,card,,金港堂，1888年6月,近代日本で女性が書いた最初期の小説。前期〜中期の女性作家を2人にする
+000040,000737,織田作之助,世相,first,canonical,general,short-story,Fiction,Modern,M,complete,magazine,1946,card,,「人間」1946年4月号,語り手は作家の「私」。戦後の男性作家として宮本百合子の偏重を薄める
+000040,000337,織田作之助,土曜夫人,third,middlebrow,general,novel,Fiction,Melodrama,M,incomplete,newspaper,1946,editor,,「読売新聞」1946年8月〜1947年1月。連載中に作者が没し未完,**初出年は要典拠**（青空文庫のカードに初出の記載が無く，編者の記入）。新聞連載の風俗小説なので register は middlebrow とした
+000168,002149,横光利一,微笑,first,canonical,general,short-story,Fiction,Modern,M,complete,magazine,1948,editor,,「人間」1948年,**初出年は要典拠**（カードに記載が無く，編者の記入。作者は1947年12月没）。語り手は要確認
