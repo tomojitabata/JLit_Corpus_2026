@@ -107,9 +107,11 @@ def main() -> int:
     ap.add_argument('--add', default=','.join(DEFAULT_ADD),
                     help='口語標識に足す語形（カンマ区切り）')
     ap.add_argument('--show', type=int, default=12, help='並べる作品数')
-    ap.add_argument('--rule', default=None, metavar='文語密度,比',
-                    help='二変数のルールを試す。例 --rule 90,0.06 なら'
-                         '「文語密度 ≧ 90 は A／比 ≦ 0.06 は C／残りは B」。'
+    ap.add_argument('--rule', default=None, metavar='文語密度,C比[,A比]',
+                    help='ルールを試す。--rule 80,0.10 なら「文語密度 ≧ 80 は A'
+                         '／比 ≦ 0.10 は C／残りは B」。3つめを足すと A に'
+                         '比の下限も課す（--rule 80,0.10,0.20 なら A は'
+                         '文語密度 ≧ 80 **かつ** 比 ≧ 0.20）。'
                          '現行の分類との混同表と，動く作品の一覧を出す')
     args = ap.parse_args()
 
@@ -227,18 +229,23 @@ def main() -> int:
     # ---- 4.6 二変数のルールを試す ----------------------------------------
     if args.rule:
         try:
-            ta, tc = (float(v) for v in args.rule.split(','))
-        except ValueError:
-            sys.exit('--rule は「文語密度,比」の形で渡すこと（例 90,0.06）')
+            vals = [float(v) for v in args.rule.split(',')]
+            ta, tc = vals[0], vals[1]
+            ta_r = vals[2] if len(vals) > 2 else None
+        except (ValueError, IndexError):
+            sys.exit('--rule は「文語密度,C比[,A比]」の形で渡すこと'
+                     '（例 80,0.10 または 80,0.10,0.20）')
 
         def new_cls(x):
-            if x['bungo'] >= ta:
+            if x['bungo'] >= ta and (ta_r is None or x['r1'] >= ta_r):
                 return 'A_文語体'
             if x['r1'] <= tc:
                 return 'C_口語体'
             return 'B_過渡的文体'
 
-        print(f'■ 試すルール: 文語密度 ≧ {ta:g} は A ／ 比 ≦ {tc:g} は C ／ 残りは B')
+        cond_a = (f'文語密度 ≧ {ta:g}' if ta_r is None
+                  else f'文語密度 ≧ {ta:g} かつ 比 ≧ {ta_r:g}')
+        print(f'■ 試すルール: {cond_a} は A ／ 比 ≦ {tc:g} は C ／ 残りは B')
         order = ('A_文語体', 'B_過渡的文体', 'C_口語体')
         tab = {(a, b): 0 for a in order for b in order}
         for x in out:
@@ -251,6 +258,19 @@ def main() -> int:
         for x in sorted(moved, key=lambda x: -x['bungo']):
             print(f'   {x["bungo"]:6.1f} 比案 {x["r1"]:6.3f}  '
                   f'{x["cls"]:<10} → {new_cls(x):<10} {x["who"]}')
+
+        # **B は残りものである。** 定義が「A でも C でもない」なので，
+        # 何が入ったかを見ないと，このカテゴリーが何を指しているのか
+        # 誰にも分からない。少数なら全部並べる。
+        nb = [x for x in out if new_cls(x) == 'B_過渡的文体']
+        print(f'\n   案での B_過渡的文体 {len(nb)} 点（**残りものなので全部並べる**）')
+        print(f'   {"文語":>6} {"比案":>6}  {"年":>4}  {"現行":<10} 作品')
+        for x in sorted(nb, key=lambda x: -x['bungo']):
+            print(f'   {x["bungo"]:6.1f} {x["r1"]:6.3f}  {x["year"]:>4}  '
+                  f'{x["cls"]:<10} {x["who"]}')
+        na = [x for x in out if new_cls(x) == 'A_文語体']
+        print(f'\n   案での A_文語体 {len(na)} 点 ／ C_口語体 '
+              f'{len(out) - len(na) - len(nb)} 点')
         print()
 
     # ---- 5. 境界の候補 ---------------------------------------------------
