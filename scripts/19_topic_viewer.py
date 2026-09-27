@@ -434,7 +434,7 @@ def train_info(mdir: str, keys_alpha: list[float]) -> dict:
         info['alpha_min'] = round(min(alpha), 4)
         info['alpha_max'] = round(max(alpha), 4)
     if beta is not None:
-        info['beta'] = beta
+        info['beta'] = float(f'{beta:.4g}')   # 最適化された β は桁が長いので有効4桁
     return info
 
 
@@ -2380,8 +2380,8 @@ function tblCols(){
   if ((M.train || {}).alpha) c.push([W.alpha, r => fnum(r.alpha, 4), 'r']);
   c.push([W.mean, r => fnum(r.mean, 4), 'r'], [W.tokens, r => fint(r.tokens), 'r']);
   if (M.diag && M.diag.coherence) c.push([W.coh, r => fnum(r.coh, 2), 'r'], [W.exc, r => fnum(r.exc, 3), 'r']);
-  c.push([W.peak, r => r.peak, 'l'],
-         [W.ltype, r => r.prov ? (en ? 'provisional' : '仮ラベル') : (en ? (LTYPE_EN[r.type] || r.type) : r.type), 'l'],
+  c.push([W.peak, r => r.peak, 'X'],
+         [W.ltype, r => r.prov ? (en ? 'provisional' : '仮ラベル') : (en ? (LTYPE_EN[r.type] || r.type) : r.type), 'X'],
          [W.conf, r => r.prov ? '' : (en ? (LCONF_EN[r.conf] || r.conf) : r.conf), 'l']);
   return c;
 }
@@ -2427,9 +2427,23 @@ function lx(s){
     .replace(/λ/g, '$\\lambda$').replace(/≥/g, '$\\geq$').replace(/≤/g, '$\\leq$').replace(/×/g, '$\\times$')
     .replace(/\*$/, '\\textsuperscript{*}').replace(/\$\$/g, '');
 }
+// 文字列の見かけの幅（全角 1・半角 0.55 em の目安）
+const emWidth = t => [...String(t)].reduce((s, ch) => s + (ch.charCodeAt(0) > 0x2e7f ? 1 : 0.55), 0);
 function toTeX(rows){
   const cols = tblCols(), W = TW[tst.lang], nc = cols.length;
-  const spec = cols.map(c => c[2] === 'r' ? 'r' : c[2] === 'X' ? '>{\\raggedright\\arraybackslash}X'
+  // 折り返せる列（X）が複数あるときは，中身の長さに比例して幅を配る（xltabular の \hsize）。
+  // 数値の列は自然な幅のまま。表全体は必ず \linewidth に収まる
+  const xs = cols.map((c, i) => c[2] === 'X' ? i : -1).filter(i => i >= 0);
+  const need = {};
+  xs.forEach(i => {
+    const c = cols[i];
+    const vals = c[1] ? rows.map(r => emWidth(c[1](r))) : [30];
+    need[i] = Math.max(3, emWidth(c[0]) * 0.8, ...vals);
+  });
+  const tot = xs.reduce((s, i) => s + need[i], 0) || 1;
+  const hs = i => (need[i] * xs.length / tot).toFixed(3);
+  const spec = cols.map((c, i) => c[2] === 'r' ? 'r' : c[2] === 'X'
+    ? (xs.length > 1 ? `>{\\raggedright\\arraybackslash\\hsize=${hs(i)}\\hsize}X` : '>{\\raggedright\\arraybackslash}X')
     : c[2] === 'L' ? '>{\\raggedright\\arraybackslash}p{' + (tst.type === 'main' ? '6.5em' : '7em') + '}' : 'l').join(' ');
   const head = cols.map(c => lx(c[0])).join(' & ') + ' \\\\';
   const key = tst.type === 'main' ? 'tab:topics' : 'tab:topic-diagnostics';
@@ -2438,7 +2452,7 @@ function toTeX(rows){
     `% ${provenance()}`,
     '% 必要なパッケージ：booktabs, xltabular, array。日本語を含むので LuaLaTeX + luatexja（または upLaTeX）で組む。',
     '\\providecommand{\\wt}[1]{\\,{\\footnotesize(#1)}}',
-    '\\begingroup', tst.type === 'main' ? '\\small' : '\\footnotesize', '\\setlength{\\tabcolsep}{4pt}', '\\setlength{\\LTcapwidth}{\\linewidth}',
+    '\\begingroup', tst.type === 'main' ? '\\small' : '\\footnotesize', `\\setlength{\\tabcolsep}{${tst.type === 'main' ? 4 : 3}pt}`, '\\setlength{\\LTcapwidth}{\\linewidth}',
     `\\begin{xltabular}{\\linewidth}{@{}${spec}@{}}`,
     `\\caption[${lx(tblShort())}]{${lx(tblCaption(rows))}}\\label{${key}}\\\\`,
     '\\toprule', head, '\\midrule', '\\endfirsthead',
