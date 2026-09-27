@@ -617,6 +617,32 @@ svg .mut{fill:var(--mut)}
 .netbar button{font:inherit;font-size:12px;padding:2px 8px;border:1px solid var(--line);border-radius:5px;background:var(--card);color:var(--fg);cursor:pointer}
 .netwrap{position:relative;background:var(--card);border:1px solid var(--line);border-radius:6px;overflow:hidden}
 #netsvg{display:block;width:100%;height:auto;aspect-ratio:900/620;touch-action:none;cursor:grab}
+/* ラップトップ向け：グラフの高さを画面に合わせ（JS の sizeNet），説明・凡例はグラフに重ねる */
+#netsvg.fit{aspect-ratio:auto}
+.novl{position:absolute;z-index:2;display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:11.5px;color:var(--mut);
+  background:color-mix(in srgb,var(--card) 88%,transparent);border:1px solid var(--line);border-radius:6px;padding:3px 7px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.novl button{font:inherit;font-size:11.5px;padding:1px 7px;border:1px solid var(--line);border-radius:5px;background:var(--card);color:var(--fg);cursor:pointer}
+.novl button.on{border-color:var(--acc);color:var(--acc)}
+#ntl{top:6px;left:6px;max-width:calc(100% - 200px)}
+#ntr{top:6px;right:6px}
+#nlegbox{left:6px;bottom:6px;max-width:calc(100% - 12px);align-items:flex-start;flex-wrap:nowrap}
+#nlegbox .legend{margin:0;max-height:5.2em;overflow:auto}
+#nlegbox.min .legend{display:none}
+.npop{position:absolute;z-index:3;top:36px;left:6px;width:min(480px,calc(100% - 12px));max-height:calc(100% - 48px);overflow:auto;
+  background:var(--card);border:1px solid var(--line);border-radius:6px;padding:8px 11px;font-size:12px;line-height:1.6;box-shadow:0 3px 12px rgba(0,0,0,.16)}
+.npop[hidden]{display:none}
+.npop p{margin:0 0 6px}
+#nbarT{font:inherit;font-size:12px;font-weight:600;margin-left:auto;padding:2px 9px;border:1px solid var(--line);border-radius:5px;background:var(--card);color:var(--fg);cursor:pointer}
+#nbars.min{display:flex;gap:6px 12px;flex-wrap:wrap;align-items:center;font-size:12px;margin-bottom:5px}
+#nbars.min .netbar{display:contents}
+#nbars.min .netbar > :not(.keep),#nbars.min .ntools.keep > label{display:none}
+#sideT{font:inherit;font-size:12px;padding:2px 7px;margin-right:6px;border:1px solid var(--line);border-radius:5px;background:var(--card);color:var(--mut);cursor:pointer}
+.wrap.noside{grid-template-columns:1fr}
+.wrap.noside > aside{display:none}
+#netstage:fullscreen{background:var(--bg);padding:10px;display:grid;grid-template-columns:1fr 330px;gap:10px}
+#netstage:fullscreen #ninfo{overflow:auto;font-size:12px;border-left:1px solid var(--line);padding-left:10px}
+#netstage:-webkit-full-screen{background:var(--bg);padding:10px;display:grid;grid-template-columns:1fr 330px;gap:10px}
+#netstage:-webkit-full-screen #ninfo{overflow:auto;font-size:12px;border-left:1px solid var(--line);padding-left:10px}
 #netsvg{--nop:1;--eop:1;--nfs:11px}
 #netsvg .edge{fill:none;stroke:var(--mut);stroke-linecap:round;opacity:var(--eop)}
 #netsvg .edge:hover{stroke:var(--acc)}
@@ -690,16 +716,17 @@ a.help-q:hover{border-color:var(--acc);color:var(--acc)}
   <p class="hint" id="modelinfo"></p>
 </aside>
 <main>
-  <div class="tabs" id="tabs"><button data-v="list" class="on">トピック一覧</button><button data-v="topicnet">トピックのネットワーク</button><button data-v="worknet">作品のネットワーク</button><button data-v="bipnet">作品とトピックのネットワーク</button><button data-v="label">ラベルづけ</button><button data-v="table">トピック表</button><a class="help-q" href="topic_viewer_manual.html#network" target="jlit-topic-manual" title="この欄の使い方（マニュアルを別のウィンドウで開く）">？</a></div>
+  <div class="tabs" id="tabs"><button type="button" id="sideT" hidden title="左の側欄（品詞・頻度帯など）を畳んで，グラフを広げる">◀ 側欄</button><button data-v="list" class="on">トピック一覧</button><button data-v="topicnet">トピックのネットワーク</button><button data-v="worknet">作品のネットワーク</button><button data-v="bipnet">作品とトピックのネットワーク</button><button data-v="label">ラベルづけ</button><button data-v="table">トピック表</button><a class="help-q" href="topic_viewer_manual.html#network" target="jlit-topic-manual" title="この欄の使い方（マニュアルを別のウィンドウで開く）">？</a><button type="button" id="nbarT" hidden title="設定の欄を畳む・広げる（畳むと，指標・色・レイアウト・書き出しだけを1行に残す）">設定 ▴</button></div>
   <section id="netview" hidden>
+    <div id="nbars">
     <div class="netbar">
-      <label id="nmeasw">指標 <select id="nmeas"></select></label>
-      <label id="nsrcw" hidden>作品の表し方 <select id="nsrc"></select></label>
-      <label id="nmfww" hidden title="Delta に使う最頻語の数（Step 4 の最頻語の相対頻度から）">最頻語 <select id="nmfw"></select> 語</label>
+      <label id="nmeasw" class="keep">指標 <select id="nmeas"></select></label>
+      <label id="nsrcw" class="keep" hidden>作品の表し方 <select id="nsrc"></select></label>
+      <label id="nmfww" class="keep" hidden title="Delta に使う最頻語の数（Step 4 の最頻語の相対頻度から）">最頻語 <select id="nmfw"></select> 語</label>
       <label><span id="nkL">近い順に</span> <input type="range" id="nk" min="1" max="5" step="1" value="2"> <output id="nkO"></output> <span id="nkU">本</span></label>
       <label id="ntopw" title="すべての組の近さを順位にし，上位 N% に入らない辺を消す">辺を残す：近さの上位 <input type="range" id="ntop" min="1" max="100" step="1" value="100"> <output id="ntopO"></output></label>
       <label id="nminw" hidden>作品内の割合が <input type="range" id="nmin" min="0" max="30" step="1" value="5"> <output id="nminO"></output> 以上</label>
-      <label>色 <select id="ncol"></select></label>
+      <label class="keep">色 <select id="ncol"></select></label>
       <label id="ntcolw" hidden>トピックの色 <select id="ntcol"><option value="gray" selected>灰色（作品と区別する）</option><option value="cat">作品の色分けに合わせる</option></select></label>
     </div>
     <div class="netbar">
@@ -712,7 +739,7 @@ a.help-q:hover{border-color:var(--acc);color:var(--acc)}
         <label id="ntszw" hidden title="トピック（四角）の大きさを作品（丸）に対して変える">トピック <input type="range" id="ntsz" min="20" max="150" step="5" value="60"> <output id="ntszO"></output></label></span>
     </div>
     <div class="netbar">
-      <label>レイアウト <select id="nlay">
+      <label class="keep">レイアウト <select id="nlay">
         <option value="fr" selected>Fruchterman–Reingold（従来の配置）</option>
         <option value="fa2">ForceAtlas2（Gephi 標準の力学モデル。次数の高いノードほど強く反発）</option>
         <option value="yh">Yifan Hu（粗い配置から多段階で詰める力学モデル）</option>
@@ -721,7 +748,7 @@ a.help-q:hover{border-color:var(--acc);color:var(--acc)}
       </select></label><a class="help-q" href="topic_viewer_manual.html#netlayout" target="jlit-topic-manual" title="レイアウトと補助の操作（マニュアルを別のウィンドウで開く）">？</a>
       <label id="nlinw" class="fa2opt"><input type="checkbox" id="nlin"> LinLog</label>
       <label id="ngrw" class="fa2opt">Gravity <input type="range" style="width:60px" id="ngr" min="0" max="5" step="0.1" value="1"> <output id="ngrO"></output></label>
-      <button id="nre" type="button">配置し直す</button>
+      <button id="nre" type="button" class="keep">配置し直す</button>
       <span class="hint" id="nlayst"></span>
       <span class="ntools">濃さ：
         <label>ノード <input type="range" id="nno" min="15" max="100" step="5" value="100"> <output id="nnoO"></output></label>
@@ -735,19 +762,31 @@ a.help-q:hover{border-color:var(--acc);color:var(--acc)}
         <button id="nlad" type="button" title="Label Adjust：ラベルの重なりを解消">Label Adjust</button>
         <button id="nrot" type="button" title="Rotate：形を保って全体を回す（正の角度は時計回り，負は反時計回り）">Rotate</button>
         <input type="number" id="nrotA" value="15" step="1" min="-360" max="360" style="width:58px" title="回す角度（度）"> °</span>
-      <span class="ntools">書き出し：
+      <span class="ntools keep">書き出し：
         <button id="nsvg" type="button" title="いまの図を SVG ファイルに保存する（凡例つき）">SVG</button>
         <button id="npdf" type="button" title="印刷の画面を開く。印刷先に「PDF に保存」を選ぶ（A4 横に収める）">PDF（印刷）</button>
         <label title="書き出す図の英数字の書体。和文はいつも和文の書体で書く">欧文 <select id="nlatin"><option value="gill" selected>Gill Sans</option><option value="same">和文と同じ書体</option></select></label>
         <label title="モデルの学習条件・グラフの作り方・表示と配置の設定を，図の下縁に小さな字で添える（再現のため）"><input type="checkbox" id="nnote" checked> 条件を添える</label></span>
     </div>
-    <p class="hint" id="nhint"></p>
-    <p class="hint" id="necnt"></p>
-    <div class="netwrap" id="netwrap"><svg id="netsvg" role="img" aria-label="ネットワーク"></svg><div id="ntip" class="tip" hidden></div></div>
-    <div class="legend" id="nleg"></div>
-    <p class="hint">ノードをドラッグして動かす（放した位置に留まる。ダブルクリックで解く）・ホイールで拡大縮小・背景のドラッグで移動。
-    ノードを押すと近い順の一覧が出て，つながる相手が強調される。トピックはダブルクリックで詳細へ移る。</p>
+    </div>
+    <div id="netstage">
+    <div class="netwrap" id="netwrap"><svg id="netsvg" class="fit" role="img" aria-label="ネットワーク"></svg><div id="ntip" class="tip" hidden></div>
+      <div class="novl" id="ntl"><span id="necnt"></span>
+        <button type="button" id="nhintB" title="このグラフの作り方（指標・線の選び方）">ⓘ 説明</button>
+        <button type="button" id="nhelpB" title="マウスでの操作">操作</button></div>
+      <div class="novl" id="ntr">
+        <button type="button" id="nfitB" title="拡大・移動を解いて，全体を枠に収める">⊡ 全体を表示</button>
+        <button type="button" id="nfsB" title="グラフを画面いっぱいに広げる（Esc で戻る）">⤢ 全画面</button></div>
+      <div class="novl" id="nlegbox"><button type="button" id="nlegT" title="凡例を畳む・広げる">凡例 ▾</button><div class="legend" id="nleg"></div></div>
+      <div class="npop" id="nhint" hidden></div>
+      <div class="npop" id="nhelp" hidden><p><b>操作</b></p>
+        <p>ノードをドラッグして動かす（放した位置に留まる。ダブルクリックで解く）・ホイールで拡大縮小・背景のドラッグで移動。</p>
+        <p>ノードを押すと近い順の一覧が出て，つながる相手が強調される（一覧はグラフの下，全画面では右）。トピックはダブルクリックで詳細へ移る。</p>
+        <p>「⊡ 全体を表示」で拡大・移動を解く。「⤢ 全画面」でグラフを画面いっぱいに広げる（Esc で戻る）。
+        上の「設定 ▴」で設定の欄を1行に畳み，「◀ 側欄」で左の側欄を畳むと，グラフが広くなる。</p></div>
+    </div>
     <div id="ninfo"></div>
+    </div>
   </section>
   <section id="labelview" hidden>
     <p class="hint" style="margin-top:0">トピックごとの<b>診断資料</b>（上位語・担う作品と作家・時代別の割合・偏りの警告）を依頼文にまとめる。
@@ -1069,6 +1108,9 @@ function setView(v){
   $('netview').hidden = !net;
   $('labelview').hidden = v !== 'label';
   $('tableview').hidden = v !== 'table';
+  $('sideT').hidden = !net; $('nbarT').hidden = !net;
+  document.querySelector('.wrap').classList.toggle('noside', net && UI.noside);
+  if (net) sizeNet();
   if (net) { NET.kind = {topicnet: 'topic', worknet: 'work', bipnet: 'bip'}[v]; netControls(); buildNet(); }
   else cancelAnimationFrame(NET.raf);
   if (v === 'label') labelView();
@@ -1409,9 +1451,11 @@ function fitView(){
   const N = NET.nodes; if (!N.length) return;
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   N.forEach(p => { x0 = Math.min(x0, p.x - p.r); y0 = Math.min(y0, p.y - p.r - (nst.lab ? nst.fs + 5 : 0)); x1 = Math.max(x1, p.x + p.r); y1 = Math.max(y1, p.y + p.r); });
-  const pad = 24, w = Math.max(1, x1 - x0), h = Math.max(1, y1 - y0);
-  const s = Math.min(1.6, Math.max(0.3, Math.min((NET.W - 2 * pad) / w, (NET.H - 2 * pad) / h)));
-  NET.scale = s; NET.tx = (NET.W - s * (x0 + x1)) / 2; NET.ty = (NET.H - s * (y0 + y1)) / 2;
+  // 上端の帯（線の数・説明）と下端の凡例に隠れないよう，上下を少し広く空ける
+  const pad = 24, pt = 40, pb = $('nlegbox') && !$('nlegbox').classList.contains('min') ? 44 : 30;
+  const w = Math.max(1, x1 - x0), h = Math.max(1, y1 - y0);
+  const s = Math.min(1.6, Math.max(0.3, Math.min((NET.W - 2 * pad) / w, (NET.H - pt - pb) / h)));
+  NET.scale = s; NET.tx = (NET.W - s * (x0 + x1)) / 2; NET.ty = pt + (NET.H - pt - pb - s * (y1 - y0)) / 2 - s * y0;
   applyView();
 }
 // 辺の色：内側の辺はその分類の色，境界の辺は灰色の破線（「すべて灰色」なら従来どおり）。
@@ -2224,8 +2268,69 @@ function showTip(i, ev){
   tip.style.left = x + 'px'; tip.style.top = y + 'px';
 }
 
+// ======================================================================
+// ラップトップ向けの表示。グラフの高さを画面の残りに合わせ，viewBox の横幅を枠の縦横比に
+// 合わせる（高さ NET.H は 620 のまま。座標の換算 svgPoint が枠と一致するように）。
+// 設定の欄と側欄を畳んだかどうかは，このブラウザに覚えておく
+// ======================================================================
+const UI = {noside: false, minbar: false, leg: true};
+try { Object.assign(UI, JSON.parse(localStorage.getItem('jlitTopicViewerUI') || '{}')); } catch (e) {}
+function saveUI(){ try { localStorage.setItem('jlitTopicViewerUI', JSON.stringify(UI)); } catch (e) {} }
+function isFull(){ return (document.fullscreenElement || document.webkitFullscreenElement) === $('netstage'); }
+function sizeNet(){
+  const svg = $('netsvg');
+  if (!svg || $('netview').hidden) return;
+  let h;
+  if (isFull()) h = window.innerHeight - 20;
+  else {
+    const top = $('netwrap').getBoundingClientRect().top + window.scrollY;
+    h = Math.max(360, window.innerHeight - top - 14);
+    h = Math.min(h, Math.round(svg.clientWidth * 0.9));
+  }
+  svg.style.height = h + 'px';
+  const W = Math.round(Math.min(1800, Math.max(560, NET.H * svg.clientWidth / Math.max(1, svg.clientHeight))));
+  if (W !== NET.W) {
+    const dx = (W - NET.W) / 2;
+    NET.W = W; svg.setAttribute('viewBox', `0 0 ${NET.W} ${NET.H}`);
+    if (NET.userView) { NET.tx += dx; applyView(); } else if (NET.nodes && NET.nodes.length) fitView();
+  }
+}
+function uiApply(){
+  $('nbars').classList.toggle('min', UI.minbar);
+  $('nbarT').textContent = UI.minbar ? '設定 ▾' : '設定 ▴';
+  $('nlegbox').classList.toggle('min', !UI.leg);
+  $('nlegT').textContent = UI.leg ? '凡例 ▾' : '凡例 ▸';
+  const net = !$('netview').hidden;
+  document.querySelector('.wrap').classList.toggle('noside', net && UI.noside);
+  $('sideT').textContent = UI.noside ? '▶ 側欄' : '◀ 側欄';
+  sizeNet();
+}
+function popToggle(id){
+  ['nhint', 'nhelp'].forEach(p => { const on = p === id && $(p).hidden; $(p).hidden = !on; $(p + 'B').classList.toggle('on', on); });
+}
+function uiInit(){
+  $('sideT').onclick = () => { UI.noside = !UI.noside; saveUI(); uiApply(); };
+  $('nbarT').onclick = () => { UI.minbar = !UI.minbar; saveUI(); uiApply(); };
+  $('nlegT').onclick = () => { UI.leg = !UI.leg; saveUI(); uiApply(); if (!NET.userView) fitView(); };
+  $('nhintB').onclick = ev => { ev.stopPropagation(); popToggle('nhint'); };
+  $('nhelpB').onclick = ev => { ev.stopPropagation(); popToggle('nhelp'); };
+  document.addEventListener('pointerdown', ev => { if (!ev.target.closest('.npop') && !ev.target.closest('#ntl')) popToggle(null); });
+  document.addEventListener('keydown', ev => { if (ev.key === 'Escape') popToggle(null); });
+  $('nfitB').onclick = () => { NET.userView = false; fitView(); };
+  $('nfsB').onclick = () => {
+    const st = $('netstage');
+    if (isFull()) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+    else (st.requestFullscreen || st.webkitRequestFullscreen).call(st);
+  };
+  const onFs = () => { $('nfsB').textContent = isFull() ? '⤡ 元に戻す' : '⤢ 全画面'; requestAnimationFrame(sizeNet); };
+  document.addEventListener('fullscreenchange', onFs); document.addEventListener('webkitfullscreenchange', onFs);
+  window.addEventListener('resize', () => requestAnimationFrame(sizeNet));
+  if (window.ResizeObserver) new ResizeObserver(() => requestAnimationFrame(sizeNet)).observe($('nbars'));
+  uiApply();
+}
+
 function netInit(){
-  document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => setView(b.dataset.v));
+  document.querySelectorAll('#tabs button[data-v]').forEach(b => b.onclick = () => setView(b.dataset.v));
   $('nmeas').onchange = e => { nst.meas = e.target.value; buildNet(); };
   $('nsrc').onchange = e => { nst.src = e.target.value; netControls(); buildNet(); };
   $('nmfw').onchange = e => { nst.mfw = e.target.value; buildNet(); };
@@ -2258,6 +2363,7 @@ function netInit(){
   $('npdf').onclick = () => exportPDF();
   layControls();
   netEvents();
+  uiInit();
 }
 
 // ======================================================================
