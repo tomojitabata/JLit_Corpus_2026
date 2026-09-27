@@ -199,6 +199,23 @@ def show(df, caption='', fmt=None, index=False, header=True, na='—', align=Non
     """
     if isinstance(df, pd.Series):
         df = df.to_frame()
+    # 書式は描画のとき（セルの実行が終わったあと）に当てられるので，
+    # 数値の書式（'{:.0f}' など）が文字列の値に当たると，ここの try では
+    # 捕まえられずにエラーの画面になる（初出年が '1914' という文字列のとき など）。
+    # 当てられない値はそのまま文字列で出す。
+    def _safe(f):
+        if not isinstance(f, str):
+            return f
+        def g(x):
+            try:
+                return f.format(x)
+            except (ValueError, TypeError):
+                return str(x)
+        return g
+    if isinstance(fmt, dict):
+        fmt = {k: _safe(v) for k, v in fmt.items()}
+    elif fmt is not None:
+        fmt = _safe(fmt)
     try:
         from IPython.display import display as _display
         st = df.style.format(fmt, na_rep=na) if fmt else df.style.format(na_rep=na)
@@ -2541,7 +2558,7 @@ if rows:
            .drop(columns=['work_stem']),
          caption='枠の内（embedded）と外（narration）の比較',
          fmt={'embedded字数':'{:,.0f}','narration字数':'{:,.0f}',
-              '埋込比':'{:.1%}','初出':'{:.0f}'})
+              '埋込比':'{:.1%}'})
     print('問い: 差が出た作品はどれか。その差は枠構造の効果と言えるか，')
     print('      それとも埋め込みテクストの**ジャンル**（書簡・手記）の効果か。')
 else:
