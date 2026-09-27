@@ -320,6 +320,62 @@ def load_d2v(d2v_dir: str, meta: dict) -> dict | None:
             'sim': [[round(float(x), 4) for x in row] for row in S]}
 
 
+DELTA_MFW = (100, 200, 300)   # ビューアで選べる最頻語の数（Step 4 の --mfw の範囲で）
+
+
+def load_delta(desc_dir: str, meta: dict) -> dict | None:
+    """Step 4（07_descriptive_stats.py）の最頻語の相対頻度行列から，作品間の
+    Burrows's Delta と Cosine Delta を作る。
+
+    ``freq_matrix_mfw.csv`` は列が最頻語の順（多い順）に並ぶので，先頭 n 列が
+    最頻語 n 語になる。各語の相対頻度を作品をまたいで z 得点にし（標準偏差は
+    ddof=0。07 と Excel の STDEVP に揃える），
+    Burrows's Delta は z 得点の差の絶対値の平均（Burrows 2002），
+    Cosine Delta は z 得点ベクトルの 1 − コサイン類似度（Smith & Aldridge 2011）。
+    """
+    import numpy as np
+    p = os.path.join(desc_dir, 'freq_matrix_mfw.csv')
+    if not os.path.exists(p):
+        print(f'[warn] 最頻語の相対頻度行列が無い: {p}（作品のネットワークに Delta は入らない。'
+              'Step 4 の 07_descriptive_stats.py を先に実行すること）')
+        return None
+    with open(p, encoding='utf-8-sig') as fh:
+        rd = csv.reader(fh)
+        head = next(rd)
+        rows = [r for r in rd if r and r[0]]
+    words = head[1:]
+    works, X = [], []
+    for r in rows:
+        stem = r[0]
+        m = meta.get(stem, {})
+        works.append([stem, m.get('author_ja', '（メタデータ無し）'), m.get('title_aozora', stem),
+                      m.get('year_first', ''), m.get('period', '') or '不明', 0,
+                      m.get('genre_main', '') or '', m.get('style_class', '') or ''])
+        X.append([float(x or 0) for x in r[1:]])
+    X = np.asarray(X, dtype=np.float64)
+    mats = {}
+    for n in DELTA_MFW:
+        if n > X.shape[1]:
+            continue
+        A = X[:, :n]
+        sd = A.std(axis=0)
+        keep = sd > 0
+        Z = (A[:, keep] - A[:, keep].mean(axis=0)) / sd[keep]
+        B = np.abs(Z[:, None, :] - Z[None, :, :]).mean(axis=2)
+        U = Z / np.maximum(np.linalg.norm(Z, axis=1, keepdims=True), 1e-12)
+        C = 1 - U @ U.T
+        np.fill_diagonal(C, 0)
+        mats[str(n)] = {'b': [[round(float(v), 4) for v in row] for row in B],
+                        'c': [[round(float(v), 4) for v in row] for row in C],
+                        'used': int(keep.sum())}
+    if not mats:
+        print(f'[warn] 最頻語が {X.shape[1]} 語しかない（{p}）。Delta は {DELTA_MFW[0]} 語以上で作る')
+        return None
+    print(f'[dlt ] {len(works)} 作品・最頻語 {X.shape[1]} 語（{os.path.abspath(desc_dir)}）→ '
+          f'MFW {"・".join(mats)} 語で Delta を作った')
+    return {'dir': os.path.abspath(desc_dir), 'nmfw': X.shape[1], 'works': works, 'mats': mats}
+
+
 def read_diag(mdir: str) -> dict:
     """MALLET の diagnostics.xml からトピックごとの coherence と exclusivity を読む（無ければ空）。"""
     p = os.path.join(mdir, 'diagnostics.xml')
@@ -639,6 +695,7 @@ a.help-q:hover{border-color:var(--acc);color:var(--acc)}
     <div class="netbar">
       <label id="nmeasw">指標 <select id="nmeas"></select></label>
       <label id="nsrcw" hidden>作品の表し方 <select id="nsrc"></select></label>
+      <label id="nmfww" hidden title="Delta に使う最頻語の数（Step 4 の最頻語の相対頻度から）">最頻語 <select id="nmfw"></select> 語</label>
       <label><span id="nkL">近い順に</span> <input type="range" id="nk" min="1" max="5" step="1" value="2"> <output id="nkO"></output> <span id="nkU">本</span></label>
       <label id="ntopw" title="すべての組の近さを順位にし，上位 N% に入らない辺を消す">辺を残す：近さの上位 <input type="range" id="ntop" min="1" max="100" step="1" value="100"> <output id="ntopO"></output></label>
       <label id="nminw" hidden>作品内の割合が <input type="range" id="nmin" min="0" max="30" step="1" value="5"> <output id="nminO"></output> 以上</label>
@@ -982,7 +1039,7 @@ const PAL = ['#0072B2', '#E69F00', '#009E73', '#CC79A7', '#56B4E9', '#D55E00', '
 const GRAY = '#9a9a93';
 const NET = {view: 'list', kind: 'topic', nodes: [], edges: [], raf: 0, alpha: 0,
              scale: 1, tx: 0, ty: 0, focus: null, W: 900, H: 620};
-const nst = {lay: 'fr', lin: false, grav: 1, curve: false, note: true, latin: 'gill', meas: 'jsd', src: 'd2v', k: 2, top: 100, col: 'period', lab: true, fs: 11, nop: 100, eop: 100, ecol: 'cat', minsh: 5, nsz: 100, tsz: 60, tcol: 'gray'};
+const nst = {mfw: '100', lay: 'fr', lin: false, grav: 1, curve: false, note: true, latin: 'gill', meas: 'jsd', src: 'd2v', k: 2, top: 100, col: 'period', lab: true, fs: 11, nop: 100, eop: 100, ecol: 'cat', minsh: 5, nsz: 100, tsz: 60, tcol: 'gray'};
 const TGRAY = '#5f5f5a';   // 作品とトピックのネットワークでのトピック（四角）の色
 // 文字の大きさと濃さは SVG の変数で持つ（配置を計算し直さずに変えられる）
 function netStyle(){
@@ -1025,6 +1082,13 @@ function goTopic(t){
 }
 
 // ---- 操作欄 -----------------------------------------------------------
+// 作品のネットワークの近さの出どころ（Delta は Step 4 の最頻語から）
+const isDelta = () => (nst.src === 'delta' || nst.src === 'cdelta') && !!D.delta;
+function srcWorks(){
+  if (nst.src === 'd2v' && D.d2v) return D.d2v.works;
+  if (isDelta()) return D.delta.works;
+  return M.works;
+}
 function netControls(){
   let opts;
   const bip = NET.kind === 'bip';
@@ -1032,6 +1096,7 @@ function netControls(){
   $('nkL').textContent = bip ? '各作品から割合の高い順に' : '近い順に';
   $('nkU').textContent = bip ? '個のトピック' : '本';
   $('nmin').value = nst.minsh; $('nminO').textContent = nst.minsh + '%';
+  $('nmfww').hidden = true;
   if (bip) {
     $('nsrcw').hidden = true; $('nmeasw').hidden = true;
   } else if (NET.kind === 'topic') {
@@ -1044,8 +1109,15 @@ function netControls(){
     $('nmeasw').hidden = true;
     const so = [['theta', 'トピック構成の近さ（Jensen–Shannon divergence）']];
     if (D.d2v) so.unshift(['d2v', 'doc2vec の作品ベクトル（コサイン類似度）']);
+    if (D.delta) so.push(['delta', "Burrows's Delta（最頻語の z 得点）"], ['cdelta', 'Cosine Delta（最頻語の z 得点）']);
     if (!so.some(x => x[0] === nst.src)) nst.src = so[0][0];
     $('nsrc').innerHTML = so.map(x => `<option value="${x[0]}"${x[0]===nst.src?' selected':''}>${esc(x[1])}</option>`).join('');
+    if (isDelta()) {
+      const ks = Object.keys(D.delta.mats);
+      if (!ks.includes(nst.mfw)) nst.mfw = ks[0];
+      $('nmfw').innerHTML = ks.map(k => `<option value="${k}"${k === nst.mfw ? ' selected' : ''}>${k}</option>`).join('');
+      $('nmfww').hidden = false;
+    }
   }
   if (opts) $('nmeas').innerHTML = opts.map(x => `<option value="${x[0]}"${x[0]===nst.meas?' selected':''}>${esc(x[1])}</option>`).join('');
   const cols = NET.kind === 'topic'
@@ -1089,9 +1161,10 @@ function graphData(){
     nodes = M.prev.map((p, t) => ({id: t, label: 'T' + String(t).padStart(2, '0') + (labelOf(t) ? ' ' + shortLabel(labelOf(t).label, 8) : ''),
       r: 5 + 13 * Math.sqrt(p / maxP)}));
   } else {
-    let works;
-    if (nst.src === 'd2v' && D.d2v) { works = D.d2v.works; mat = D.d2v.sim; dir = 1; }
-    else { works = M.works; mat = M.workJsd; dir = -1; }
+    let works = srcWorks();
+    if (nst.src === 'd2v' && D.d2v) { mat = D.d2v.sim; dir = 1; }
+    else if (isDelta()) { mat = D.delta.mats[nst.mfw][nst.src === 'delta' ? 'b' : 'c']; dir = -1; }
+    else { mat = M.workJsd; dir = -1; }
     n = works.length;
     const chunks = {}; M.works.forEach(w => { chunks[w[0]] = w[5]; });
     const maxC = Math.max(1, ...Object.values(chunks));
@@ -1205,7 +1278,7 @@ function categorise(nodes, edges){
   const cnt = new Map(); cat.forEach(c => cnt.set(c, (cnt.get(c) || 0) + 1));
   let order = [...cnt.keys()];
   if (nst.col === 'period') {
-    const pos = new Map((NET.kind === 'topic' ? M.periods : [...new Set((NET.kind === 'work' && nst.src === 'd2v' && D.d2v ? D.d2v.works : M.works).map(w => w[4]))].sort())
+    const pos = new Map((NET.kind === 'topic' ? M.periods : [...new Set((NET.kind === 'work' ? srcWorks() : M.works).map(w => w[4]))].sort())
       .map((p, i) => [String(p).replace(/^\d_/, ''), i]));
     order.sort((a, b) => (pos.has(a) ? pos.get(a) : 99) - (pos.has(b) ? pos.get(b) : 99));
   } else {
@@ -1318,8 +1391,11 @@ function buildNet(){
     + (nst.tcol === 'cat' ? (nst.col === 'community' ? '四角の色はトピックの属するコミュニティ（作品の無いコミュニティなら，つながる作品で重みの合計が最も大きい分類）。' : '四角の色は，線でつながる作品の分類のうち割合の合計が最も大きいもの。') : '');
   else if (NET.kind === 'topic') src = `指標：${RELS.find(x => x[0] === nst.meas)[1]}（${NET.dir > 0 ? '大きいほど近い' : '小さいほど近い'}）。円の大きさはトピックの割合。`;
   else if (nst.src === 'd2v' && D.d2v) src = `指標：doc2vec の作品ベクトル（チャンクの document vector の平均，${D.d2v.dim} 次元）のコサイン類似度。${esc(D.d2v.dir)}`;
+  else if (isDelta()) src = `指標：${nst.src === 'delta' ? "Burrows's Delta（z 得点の差の絶対値の平均）" : 'Cosine Delta（z 得点ベクトルの 1 − コサイン類似度）'}。`
+    + `最頻語 ${nst.mfw} 語（うち作品間で値のばらつく ${D.delta.mats[nst.mfw].used} 語）の相対頻度を，作品をまたいで z 得点にしたもの（Step 4 の ${esc(D.delta.dir)}）。小さいほど近い。`;
   else src = `指標：作品のトピック構成（チャンクの θ の平均）どうしの Jensen–Shannon divergence（モデル「${esc(M.label)}」）。`
-    + (D.d2v ? '' : ' doc2vec の結果はビューアに入っていない（Step 7 のあと，--d2v を付けて作り直すと選べる）。');
+    + (D.d2v ? '' : ' doc2vec の結果はビューアに入っていない（Step 7 のあと，--d2v を付けて作り直すと選べる）。')
+    + (D.delta ? '' : ' Delta はビューアに入っていない（Step 4 のあと，--delta を付けて作り直すと選べる）。');
   $('nhint').innerHTML = NET.kind === 'bip'
     ? src + (iso ? `線の無いノード ${iso}（割合が低いトピックや作品）。` : '')
     : `線が太く濃いほど近い（線にポインタを載せると値が出る）。${g.nodes.length} ノード・${g.edges.length} 辺（各ノードから近い順に ${nst.k} 本，全組の近さの上位 ${nst.top}% まで）`
@@ -1784,6 +1860,7 @@ function noteLines(){
     const how = NET.kind === 'topic'
       ? `トピック間の近さ：${optText('nmeas')}` + (/delta/.test(nst.meas) ? `（度数上位 ${G.rel_mfw} 語）` : '')
       : (nst.src === 'd2v' && D.d2v ? `作品間の近さ：doc2vec の作品ベクトル（${D.d2v.dim} 次元，${lastDirs(D.d2v.dir)}）のコサイン類似度`
+        : isDelta() ? `作品間の近さ：${nst.src === 'delta' ? "Burrows's Delta" : 'Cosine Delta'}（最頻語 ${nst.mfw} 語の相対頻度の z 得点，${lastDirs(D.delta.dir)}/freq_matrix_mfw.csv）`
                                     : '作品間の近さ：トピック構成（θ の作品平均）の Jensen–Shannon divergence');
     g = `グラフ：${how}。各ノードから近い順に k = ${nst.k} 本，全組の近さの上位 ${nst.top}% まで。ノード ${nN}・辺 ${nE}`
       + (NET.nin != null ? `（内側 ${NET.nin}・境界 ${NET.nb}）` : '') + '。';
@@ -2151,6 +2228,7 @@ function netInit(){
   document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => setView(b.dataset.v));
   $('nmeas').onchange = e => { nst.meas = e.target.value; buildNet(); };
   $('nsrc').onchange = e => { nst.src = e.target.value; netControls(); buildNet(); };
+  $('nmfw').onchange = e => { nst.mfw = e.target.value; buildNet(); };
   $('ncol').onchange = e => { nst.col = e.target.value; buildNet(); };
   $('nk').oninput = e => { nst.k = +e.target.value; $('nkO').textContent = nst.k; buildNet(); };
   $('ntop').oninput = e => { nst.top = +e.target.value; $('ntopO').textContent = nst.top + '%'; buildNet(); };
@@ -2787,6 +2865,9 @@ def main() -> int:
     ap.add_argument('--d2v', default=None, metavar='DIR',
                     help='Step 7 の doc2vec の出力（work_vectors.csv のあるディレクトリ）。'
                          '作品のネットワークに使う')
+    ap.add_argument('--delta', default=None, metavar='DIR',
+                    help='Step 4 の 07_descriptive_stats.py の出力（freq_matrix_mfw.csv のある'
+                         'ディレクトリ）。作品のネットワークに Burrows\'s Delta と Cosine Delta を加える')
     ap.add_argument('--labels', default=None, metavar='JSON',
                     help='ビューアで書き出したトピックのラベル（topic_labels.json）。'
                          '既定: --out と同じフォルダの topic_labels.json があれば読む')
@@ -2813,13 +2894,14 @@ def main() -> int:
         print(f'[warn] 品詞表に無い語が {unknown:,} ある（別の辞書や別の 05 の出力で学習した可能性がある）')
 
     d2v = load_d2v(args.d2v, meta) if args.d2v else None
+    delta = load_delta(args.delta, meta) if args.delta else None
     lab_path = args.labels or os.path.join(os.path.dirname(os.path.abspath(args.out)),
                                            'topic_labels.json')
     labels = load_labels(lab_path)
     import datetime
     gen = {'generated': datetime.datetime.now().isoformat(timespec='minutes'),
            'top': args.top, 'min_count': args.min_count, 'rel_mfw': args.rel_mfw}
-    data = json.dumps({'models': models, 'd2v': d2v, 'labels': labels, 'gen': gen},
+    data = json.dumps({'models': models, 'd2v': d2v, 'delta': delta, 'labels': labels, 'gen': gen},
                       ensure_ascii=False, separators=(',', ':'))
     data = data.replace('</', '<\\/')
     os.makedirs(os.path.dirname(os.path.abspath(args.out)) or '.', exist_ok=True)

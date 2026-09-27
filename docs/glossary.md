@@ -2432,7 +2432,9 @@ Expansion／Contraction・Noverlap・Label Adjust で重なりを整え，Rotate
 トピック診断表（α・平均割合・トークン数・coherence・exclusivity・最も濃い時代・ラベルの種類と確信度）を，
 LaTeX（booktabs・xltabular。LuaLaTeX で組む）・Markdown（pandoc）・CSV・JSON・HTML（Word 用）で書き出す。
 キャプションにはコーパス名・チャンク数・K・α・β・反復回数・seed・キーワードの選び方が入り，日本語と英語を選べる。トピックは上の5つの指標で，作品は **doc2vec の作品ベクトル**（Step 7。
-`--d2v` で渡す）のコサイン類似度か，**トピック構成**（θ の作品平均）の Jensen–Shannon divergence で結ぶ。
+`--d2v` で渡す）のコサイン類似度，**トピック構成**（θ の作品平均）の Jensen–Shannon divergence，
+または Step 4 の最頻語（100・200・300 語）の相対頻度から作る **Burrows's Delta** と **Cosine Delta**（`--delta` で渡す）で結ぶ。
+文体（Delta）・doc2vec・主題（トピック構成）の3つの表現を同じ作品で見比べられる。
 色は時代区分・作家・ジャンル・文体・コミュニティ（Louvain 法; Blondel et al. 2008）。
 「作品とトピックのネットワーク」は，作品（丸）とトピック（四角）を作品のトピック構成（θ の作品平均）で結ぶ
 2部グラフである。各作品から割合の高い順に k 個，割合 m% 以上の線を張り，線の太さは作品内の割合。

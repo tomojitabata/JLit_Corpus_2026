@@ -6193,7 +6193,12 @@ else:
     d2v = ['--d2v', D2V_DIR] if (D2V_DIR/'work_vectors.csv').exists() else []
     if not d2v:
         print('[info ] Step 7 の doc2vec の結果が無い。作品のネットワークはトピック構成だけで作る')
-    run_script('19_topic_viewer.py', *models, *d2v, '--meta', META,
+    # Step 4 の最頻語の相対頻度があれば，作品のネットワークに Burrows's Delta と Cosine Delta を入れる
+    DESC = OUT/'descriptive'
+    delta = ['--delta', DESC] if (DESC/'freq_matrix_mfw.csv').exists() else []
+    if not delta:
+        print('[info ] Step 4 の最頻語の相対頻度（descriptive/freq_matrix_mfw.csv）が無い。作品のネットワークに Delta は入らない')
+    run_script('19_topic_viewer.py', *models, *d2v, *delta, '--meta', META,
                '--lexicon', TOK/'lexicon.tsv', '--out', TV)
     print(f'ブラウザで開く: {TV}')
     if sys.platform == 'darwin':
