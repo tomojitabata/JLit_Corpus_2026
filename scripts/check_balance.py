@@ -33,6 +33,9 @@ check_balance.py
     python3 scripts/check_balance.py
     python3 scripts/check_balance.py --quiet       # 達していない項目だけ
     python3 scripts/check_balance.py --meta metadata/corpus_metadata_v3_local.csv
+
+    # **リバランスがどの程度効いたか**を棒グラフ（SVG）で出す
+    python3 scripts/check_balance.py --fig results/figures
 """
 from __future__ import annotations
 
@@ -90,6 +93,120 @@ def bar(x: float, limit: float, width: int = 18) -> str:
     return ('█' * n).ljust(width, '·')
 
 
+def draw_rebalance(rows: list[dict], targets: dict, out_dir: str,
+                   meta_path: str) -> str:
+    """**リバランスがどの程度効いたか**を棒グラフで示す。
+
+    比べるのは「増補前」＝ ``set=core``（v1 由来の行）と「増補後」＝全体。
+    **どちらも再構築後のトークン列で測った値**なので，見えるのは構成の
+    違いだけである。v1 のメタデータ（``corpus_metadata_v2.csv``）と
+    比べると，外字欠落・奥付混入による測定の違いが混ざって読めなくなる。
+
+    語数そのものではなく**シェア（％）**で描く。総語数が 4.9M と 8.1M で
+    違うのだから，絶対量を並べると「増えた」しか分からない。**問いは
+    「偏りが均んだか」**である。
+
+    時代区分は目標表の ``slice_column``（既定 ``period5``）に合わせる。
+    設計目標がその区分で書かれているので，図と文字の出力が食い違わない。
+    """
+    try:
+        import matplotlib
+        matplotlib.use('Agg')
+        import matplotlib.pyplot as plt
+    except ImportError:
+        print('[skip] matplotlib が無いので図は描かない')
+        return ''
+    # 図の作法（SVG・日本語フォント・パレット）は 11_visualise.py に一本化
+    # してある。数字を出す側で別の色を使い始めると，同じ授業の図が
+    # 揃わなくなる。
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        '_vis', os.path.join(str(ROOT), 'scripts', '11_visualise.py'))
+    vis = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(vis)
+    vis.setup_japanese_font()
+    vis.setup_svg()
+    C_BEFORE, C_AFTER = vis.PALETTE[0], vis.PALETTE[1]
+    INK, MUTED, GRID = '#0b0b0b', '#52514e', '#e6e6e3'
+
+    core = [r for r in rows if (r.get('set') or '').strip() == 'core']
+    if not core:
+        print('[skip] set 列に core が無いので増補前と比べられない')
+        return ''
+
+    def shares(g: list[dict], key) -> dict:
+        t = sum(tok(r) for r in g) or 1
+        d: dict = defaultdict(int)
+        for r in g:
+            d[key(r)] += tok(r)
+        return {k: 100 * v / t for k, v in d.items()}
+
+    band = lambda r: band_of(r, targets)                      # noqa: E731
+    s_b, s_a = shares(core, band), shares(rows, band)
+    bands = sorted(set(s_b) | set(s_a))
+    au_b = shares(core, lambda r: r.get('author_ja', ''))
+    au_a = shares(rows, lambda r: r.get('author_ja', ''))
+    tops = [k for k, _ in sorted(au_a.items(), key=lambda kv: -kv[1])[:8]]
+
+    fig, axes = plt.subplots(
+        2, 1, figsize=(9, 4 + 0.42 * (len(bands) + len(tops))),
+        gridspec_kw={'height_ratios': [len(bands), len(tops)]})
+    h = 0.36                       # 隣の棒とのあいだに地を残す
+
+    def panel(ax, labels, before, after, title, limit=None, limit_label=''):
+        y = range(len(labels))
+        # y 軸は反転させるので，**上に増補前・下に増補後**が来るよう
+        # オフセットの符号をこの向きにする。読む順（上→下）を
+        # 「前→後」に揃えるため。
+        b1 = ax.barh([v - h / 2 - 0.02 for v in y], [before.get(k, 0) for k in labels],
+                     height=h, color=C_BEFORE, label='増補前（v1 由来）', zorder=3)
+        b2 = ax.barh([v + h / 2 + 0.02 for v in y], [after.get(k, 0) for k in labels],
+                     height=h, color=C_AFTER, label='増補後', zorder=3)
+        # 橙は地に対する明度差が小さい。**値を直接書いて補う。**
+        for bars in (b1, b2):
+            ax.bar_label(bars, fmt='%.1f%%', padding=3, fontsize=8, color=MUTED)
+        if limit is not None:
+            ax.axvline(limit, color=MUTED, lw=1.0, ls=(0, (4, 3)), zorder=4)
+            ax.text(limit, len(labels) - 0.35, ' ' + limit_label,
+                    fontsize=8, color=MUTED, va='top')
+        ax.set_yticks(list(y))
+        ax.set_yticklabels(labels, fontsize=9)
+        ax.invert_yaxis()
+        ax.set_xlabel('語数シェア（％）', fontsize=9, color=MUTED)
+        ax.set_title(title, fontsize=11, color=INK, loc='left', pad=8)
+        ax.grid(axis='x', color=GRID, lw=0.6, zorder=0)
+        ax.set_axisbelow(True)
+        for sp in ('top', 'right', 'bottom'):
+            ax.spines[sp].set_visible(False)
+        ax.spines['left'].set_color(GRID)
+        ax.tick_params(length=0, colors=MUTED)
+        ax.set_xlim(0, max(max(before.values(), default=0),
+                           max(after.values(), default=0)) * 1.18)
+
+    lim_a = 100 * float(targets.get('concentration', {}).get('max_author_share', 1))
+    panel(axes[0], bands, s_b, s_a, '時代区分ごとの語数シェア')
+    panel(axes[1], tops, au_b, au_a, '作家ごとの語数シェア（増補後の上位8名）',
+          limit=lim_a, limit_label=f'目標 1作家 ≦ {lim_a:.0f}%')
+    n_b, n_a = len(core), len(rows)
+    t_b, t_a = sum(tok(r) for r in core), sum(tok(r) for r in rows)
+    fig.suptitle(f'リバランスの効き  増補前 {n_b} 点 {t_b / 1e6:.2f}M 語'
+                 f' → 増補後 {n_a} 点 {t_a / 1e6:.2f}M 語',
+                 fontsize=12, color=INK, x=0.01, ha='left')
+    # 凡例は図の見出しの行に置く。軸の中に置くと棒が伸びたとき重なり，
+    # 軸のすぐ上に置くと小見出しとぶつかる。
+    fig.legend(*axes[0].get_legend_handles_labels(), loc='upper right',
+               bbox_to_anchor=(0.99, 0.995), ncol=2, frameon=False,
+               fontsize=9, labelcolor=MUTED)
+    fig.text(0.01, 0.005,
+             f'どちらも再構築後のトークン列で測った値（{os.path.basename(meta_path)}）。'
+             '見えているのは構成の違いだけで，測定法の違いは入っていない。',
+             fontsize=8, color=MUTED, ha='left')
+    fig.tight_layout(rect=(0, 0.02, 1, 0.96))
+    path = vis.save_fig(fig, out_dir, 'Step1_rebalance')
+    print(f'[ok  ] リバランスの図 → {path}')
+    return path
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -97,6 +214,9 @@ def main() -> int:
                     help='既定: metadata/ の *_v3_local.csv > v3')
     ap.add_argument('--targets', default=str(ROOT / 'config' / 'design_targets.yaml'))
     ap.add_argument('--quiet', action='store_true', help='達していない項目だけ')
+    ap.add_argument('--fig', default=None, metavar='出力先',
+                    help='増補前と増補後の構成を並べた棒グラフを SVG で書く'
+                         '（例 --fig results/figures）')
     args = ap.parse_args()
 
     meta = args.meta
@@ -258,6 +378,10 @@ def main() -> int:
               '06 --balance --max-per-author ／ 08 --balance')
     else:
         print(f'{OK} 設計目標をすべて満たしている')
+
+    if args.fig:
+        say()
+        draw_rebalance(rows, T, args.fig, meta)
     # 目標未達は「誤り」ではないので 0 を返す。CI で止めたいときは --strict を足すこと
     return 0
 

@@ -87,6 +87,9 @@ JLit_Corpus_2026/
 │   ├── 00_setup_students.md     受講生の環境構築（macOS 27 / Windows 11）
 │   ├── syllabus_8_lectures.md   講義計画（教員用）
 │   ├── representativeness_report.md   代表性診断レポート
+│   ├── glossary.md              用語集（受講生用）。Step ごとの語と確認問題
+│   ├── corpus_design.md         コーパス設計。目標・埋まらない穴・再構築の連鎖
+│   ├── development_log.md       **教員用**。事故の経緯と，検査を足した理由
 │   └── encoding_guidelines.md   符号化と正規化の決定事項
 ├── metadata/
 │   ├── corpus_metadata_v2.csv   64作品 × 43列
