@@ -556,7 +556,9 @@ z 得点は，ビューアに入る作品の集合（Step 4 で数えた作品�
       <code>\caption[短い題]{キャプション}</code> と <code>\label{tab:topics}</code>（診断表は <code>tab:topic-diagnostics</code>）が入るので，
       本文から <code>\ref{tab:topics}</code> で参照できる。値は <code>\wt{…}</code>（小さい字の括弧書き）で書き，プリアンブルで定義し直せば見た目を変えられる。
       日本語を含むので <b>LuaLaTeX + luatexja</b>（または upLaTeX）で組む。<span class="ui">LaTeX を単独で組める文書にする</span> にすると，
-      プリアンブル付きの 1 ファイルになり，<code>lualatex</code> でそのまま PDF になる</td></tr>
+      プリアンブル付きの 1 ファイルになり，<code>lualatex</code> でそのまま PDF になる。
+      <b>長い表なので 2 回組む</b>（<code>lualatex</code> を 2 回，または <code>latexmk -lualatex</code>）。
+      1 回目は列の幅・ページの送り・<code>\ref</code> の番号が確定しないことがある</td></tr>
   <tr><td>Markdown</td><td>パイプの表と，pandoc の書き方のキャプション（<code>: … {#tab:topics}</code>）。pandoc で Word や LaTeX に変換できる</td></tr>
   <tr><td>CSV</td><td>1 行目が <code>#</code> で始まるキャプションと出典，2 行目が見出し。キーワードは 1 語 1 列（語と値が交互）。UTF-8（BOM 付き）なので Excel でそのまま開ける</td></tr>
   <tr><td>JSON</td><td>キャプション・モデルの情報（学習条件を含む）・トピックごとの値とキーワードをまとめたもの。R や Python で読み直すとき用</td></tr>

@@ -2429,6 +2429,9 @@ function lx(s){
 }
 // 文字列の見かけの幅（全角 1・半角 0.55 em の目安）
 const emWidth = t => [...String(t)].reduce((s, ch) => s + (ch.charCodeAt(0) > 0x2e7f ? 1 : 0.55), 0);
+// 数値と欧文の見かけの幅（Latin Modern の数字は 0.5 em，小文字は平均 0.46 em，大文字 0.7 em）
+const numWidth = t => [...String(t)].reduce((s, ch) => s + (/[0-9]/.test(ch) ? 0.5 : /[.,:]/.test(ch) ? 0.28
+  : /[-−]/.test(ch) ? 0.78 : ch === ' ' ? 0.33 : ch.charCodeAt(0) > 0x2e7f ? 1 : /[A-Z]/.test(ch) ? 0.7 : 0.46), 0);
 function toTeX(rows){
   const cols = tblCols(), W = TW[tst.lang], nc = cols.length;
   // 折り返せる列（X）が複数あるときは，中身の長さに比例して幅を配る（xltabular の \hsize）。
@@ -2439,10 +2442,19 @@ function toTeX(rows){
     const c = cols[i];
     const vals = c[1] ? rows.map(r => emWidth(c[1](r))) : [30];
     need[i] = Math.max(3, emWidth(c[0]) * 0.8, ...vals);
+    // ラベルは短いので折り返さずに済むよう多めに配る（時代や種類は2行になっても読める）
+    if (c[0] === W.label) need[i] *= 1.4;
   });
   const tot = xs.reduce((s, i) => s + need[i], 0) || 1;
   const hs = i => (need[i] * xs.length / tot).toFixed(3);
-  const spec = cols.map((c, i) => c[2] === 'r' ? 'r' : c[2] === 'X'
+  // 折り返さない列も幅を決め打ちにする（中身の最大幅から）。longtable は l・r の列の幅を
+  // .aux に書いて次の回で使うので，自然な幅に任せると 1 回目の組版で見出しと本文がずれる
+  // （2 回組めば揃うが，1 回で揃うほうが事故が無い）
+  // 見出しは折り返させたくないので，欧文の幅を広めに見積もる（小文字 0.52・大文字 0.75 em）
+  const headW = t => [...String(t)].reduce((s, ch) => s + (ch.charCodeAt(0) > 0x2e7f ? 1 : /[A-Z]/.test(ch) ? 0.75 : /[a-z]/.test(ch) ? 0.52 : numWidth(ch)), 0) + 0.4;
+  const fixW = c => Math.max(headW(lx(c[0]).replace(/\$[^$]*\$/g, 'x')), ...rows.map(r => numWidth(c[1](r)) + 0.15)).toFixed(2) + 'em';
+  const spec = cols.map((c, i) => c[2] === 'r' ? `>{\\raggedleft\\arraybackslash}p{${fixW(c)}}`
+    : c[2] === 'l' ? `>{\\raggedright\\arraybackslash}p{${fixW(c)}}` : c[2] === 'X'
     ? (xs.length > 1 ? `>{\\raggedright\\arraybackslash\\hsize=${hs(i)}\\hsize}X` : '>{\\raggedright\\arraybackslash}X')
     : c[2] === 'L' ? '>{\\raggedright\\arraybackslash}p{' + (tst.type === 'main' ? '6.5em' : '7em') + '}' : 'l').join(' ');
   const head = cols.map(c => lx(c[0])).join(' & ') + ' \\\\';
@@ -2451,6 +2463,7 @@ function toTeX(rows){
   const tbl = [
     `% ${provenance()}`,
     '% 必要なパッケージ：booktabs, xltabular, array。日本語を含むので LuaLaTeX + luatexja（または upLaTeX）で組む。',
+    '% 長い表（longtable）なので 2 回組むこと（latexmk なら自動）。1 回目は列幅・ページ送り・\\ref が確定しないことがある。',
     '\\providecommand{\\wt}[1]{\\,{\\footnotesize(#1)}}',
     '\\begingroup', tst.type === 'main' ? '\\small' : '\\footnotesize', `\\setlength{\\tabcolsep}{${tst.type === 'main' ? 4 : 3}pt}`, '\\setlength{\\LTcapwidth}{\\linewidth}',
     `\\begin{xltabular}{\\linewidth}{@{}${spec}@{}}`,
@@ -2460,7 +2473,7 @@ function toTeX(rows){
     '\\bottomrule', '\\endlastfoot',
     body, '\\end{xltabular}', '\\endgroup'].join('\n');
   if (!tst.stand) return tbl + '\n';
-  return ['% LuaLaTeX で組む：lualatex ' + exportTblName('tex'),
+  return ['% LuaLaTeX で 2 回組む：lualatex ' + exportTblName('tex') + '（2 回。または latexmk -lualatex）',
     '\\documentclass[a4paper,10pt]{article}', '\\usepackage[margin=18mm]{geometry}', '\\usepackage{luatexja}',
     '\\usepackage{booktabs,xltabular,array}', ...(tst.lang === 'ja' ? ['\\renewcommand{\\tablename}{表}'] : []), '\\begin{document}', tbl, '\\end{document}', ''].join('\n');
 }
