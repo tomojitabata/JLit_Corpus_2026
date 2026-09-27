@@ -23,7 +23,7 @@
 
 ## 診断の要点（v1 コーパス）
 
-テクスト本体と書誌の全数検査で，次が判明した。
+テクスト本体と書誌の全数検査で，次のことが判明した。
 
 ### 致命的な3点
 
@@ -47,7 +47,7 @@
 | 森鴎外『伊沢蘭軒』ほか | "Histrical novel" | Nonfiction / Historical-Biography | 誤綴の訂正と再分類 |
 
 `ndc` 列は NDC 番号ではなくラベル文字列（「小説、物語」）だった。
-`genre` は英語・日本語・別題・誤綴の混在。`brow` は high/low の二値で，
+`genre` は英語・日本語・別題・誤綴が混在していた。`brow` は high/low の二値で，
 児童書とノンフィクションが押し込まれていた。
 全変更は Excel の `changes_from_v1` シートに典拠つきで記録してある。
 
@@ -82,11 +82,12 @@ JLit_Corpus_2026/
 │   ├── corpus_manifest.tsv      取得する作品（現行64点＋増補候補59点）
 │   ├── design_targets.yaml      設計目標。「バランスが良い」を数値にした表
 │   ├── gaiji_supplement.tsv     JIS X 0213 に無い外字に編者が当てた字の対照表
-│   └── stopwords_ja.txt         292語。書誌由来の語（底本・入力・校正…）を含む
+│   ├── stopwords_ja.txt         292語。書誌由来の語（底本・入力・校正…）を含む
+│   └── zshrc_jlit               受講生用の ~/.zshrc（docs/00_setup_students.md §1.5）
 ├── docs/
 │   ├── 00_setup_students.md     受講生の環境構築（macOS 27 / Windows 11）
 │   ├── syllabus_8_lectures.md   講義計画（教員用）
-│   ├── representativeness_report.md   代表性診断レポート
+│   ├── representativeness_report.md   代表性診断リポート
 │   ├── glossary.md              用語集（受講生用）。Step ごとの語と確認問題
 │   ├── corpus_design.md         コーパス設計。目標・埋まらない穴・再構築の連鎖
 │   ├── development_log.md       **教員用**。事故の経緯と，検査を足した理由
@@ -96,7 +97,9 @@ JLit_Corpus_2026/
 │   ├── corpus_metadata_v2.xlsx  7シート（凡例／メタデータ／変更点／診断／代表性／増補候補／コードブック）
 │   ├── expansion_candidates.csv 増補候補41件（優先度つき）
 │   └── diagnostics_v1.csv       v1 全64ファイルの実測値
-├── notebooks/                   全8ステップの講義ノートブック
+├── notebooks/                   全8ステップの講義ノートブック（配布版。受講生は直接開かない）
+├── templates/                   課題のテンプレート（StepN_report.md・final_report.md。make_notebooks.py が生成）
+├── my_work/                     受講生の作業フォルダ（独立した git。受講生自身の GitHub にバックアップする）
 ├── scripts/
 │   ├── 00_bootstrap_mac.sh      macOS セットアップ（共用 iMac／自分の Mac）
 │   ├── 00_env_check.py          環境チェック
@@ -109,8 +112,8 @@ JLit_Corpus_2026/
 │   ├── 05_tokenise_unidic.py    UniDic 短単位解析
 │   ├── 06_build_datasets.py     チャンク分割・語彙統計
 │   ├── 07_descriptive_stats.py  MFW・Delta・PCA・特徴語
-│   ├── 08_word2vec_diachronic.py  通時埋め込み＋Procrustes 整列
-│   ├── 09_doc2vec.py            作品埋め込み・交絡の分離
+│   ├── 08_word2vec_diachronic.py  通時的 word embeddings＋Procrustes アラインメント
+│   ├── 09_doc2vec.py            作品の document vectors・交絡の分離
 │   ├── 10_mallet.py             MALLET LDA
 │   ├── 11_visualise.py          作図
 │   ├── 15_kwic_index.py         KWIC の索引づくり（TSV → data/kwic）
@@ -118,17 +121,22 @@ JLit_Corpus_2026/
 │   ├── 17_delta_workbook.py     Burrows's Delta を手計算する Excel ブック（Step 4）
 │   ├── 18_pos_select.py         品詞・集中度・dp_in で語を選び直す（Step 8）
 │   ├── 19_topic_viewer.py       トピックビューア（品詞・頻度帯で絞り込む HTML）
+│   ├── topic_viewer_manual.html トピックビューアの操作マニュアル（ビューアと同じフォルダに書き出す）
 │   ├── check_script_calls.py    ノートブックの呼び出しとスクリプトの引数を突き合わせる
 │   ├── check_units.py           列名（_prop は 0–1／_pct は 0–100）と中身の尺度の照合
 │   ├── check_balance.py         コーパスの構成を config/design_targets.yaml と突き合わせる
 │   ├── kwic_core.py             KWIC の中身（索引と検索。ノートブックからも使える）
 │   ├── kwic_app.html            KWIC の画面（外部資源を使わない1枚）
+│   ├── kwic_manual.html         KWIC の操作マニュアル（画面から別のウィンドウで開く）
 │   ├── 99_validate.py           健全性検査（重複・外字・奥付・踊り字・メタデータ）
 │   ├── make_notebooks.py        ノートブック生成
+│   ├── copy_notebooks.py        配布版を my_work/notebooks/ にコピー（教員が直した版は別名で置く）
+│   ├── setup_my_work.sh         my_work/ を git にし，受講生自身の GitHub にバックアップを作る
+│   ├── update.sh                受講生用の安全な git pull（手元の変更を退避・コースへの push を無効化）
 │   ├── find_unclosed_quotes.py  閉じ括弧のない「の検出
 │   └── lib/aozora.py            外字復元・踊り字展開の中核
 ├── data/                        生成物（git 管理外）
-├── results/                     分析結果（受講生ごとのサブフォルダ）
+├── results/                     使わない（出力先は my_work/results/）
 └── logs/                        実行記録
 ```
 
@@ -157,16 +165,16 @@ source ~/.jlit/env.sh && source ~/Documents/dh_project/.venv/bin/activate
 # Windows（PowerShell。作業フォルダ dh_project で）
 py -3.12 -m venv ..\.venv && ..\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-# 辞書は本番の unidic-novel-v202512 を取る（docs/00_setup_students.md §4.3）。
+# 辞書は本番の unidic-novel-v202512 を取得する（docs/00_setup_students.md §4.3）。
 # pip install unidic で入るのは cwj であって本番の辞書ではない。
 
 python scripts/00_env_check.py          # ALL OK を確認
 ```
 
 `00_bootstrap_mac.sh` は **sudo を一度も使わない**（uv・Temurin の tar.gz・
-MALLET の tar.gz を展開するだけ）。共用 iMac ではホームがマシンをまたがないため，
+MALLET の tar.gz を展開するだけ）。共用 iMac ではホームがマシンごとに別々（共有されない）ため，
 JDK・MALLET・UniDic・取得済みテクストを `/Users/Shared/jlit` に置き，
-同じ機体なら次回も別のユーザでも使い回せるようにしている。
+同じマシンなら次回も別のユーザーでも使い回せるようにしている。
 
 **解析辞書は `unidic-novel`（近現代口語小説UniDic v202512）に決めてある**
 （2026-09-22。4 辞書を 111 点で比較。未知語率 0.17%＝cwj の 3.9 分の 1）。
@@ -271,7 +279,7 @@ python scripts/06_build_datasets.py \
   --meta metadata/corpus_metadata_v3_local.csv \
   --out data/datasets --chunk 2000 --max-chunks 40
 
-# 再検証：FATAL 0 になるまで進まない
+# 再検証：FATAL が 0 件になるまで次に進まない
 # ⚠ **06 に渡したものと同じものを渡すこと。** completeness は「ある本文に
 #   ついての判断」であって作品の永久の属性ではない。v2 の completeness は
 #   file_v1 すなわち v1 のテクストについての記述なので，v2 を渡すと，もう
@@ -325,23 +333,24 @@ python scripts/11_visualise.py --meta metadata/corpus_metadata_v3_local.csv \
 **05 の解析結果（TSV）から索引を作り，ブラウザで読む。**
 
 ```bash
-# 索引（05 を走らせ直したら作り直す。辞書が変われば切り方が変わる）
+# 索引（05 を実行し直したら作り直す。辞書が変われば切り方が変わる）
 python scripts/15_kwic_index.py \
   --tsv data/tokens/tsv --out data/kwic
 # --meta を省くと metadata/ の自分の版（*_v3_local.csv）> 配布版 v3 > v2 の順に探す
 
-# 画面（127.0.0.1 にしか結び付けない。この機体からだけ見える）
+# 画面（127.0.0.1 でのみ待ち受ける。このマシンからしか見えない）
 python scripts/16_kwic_server.py --open
+# 操作マニュアルは画面右上の「操作マニュアル ↗」（http://127.0.0.1:8765/manual）
 
-# 結果をそのまま配れる HTML／CSV に落とす（サーバは要らない）
+# 結果をそのまま配れる HTML／CSV に書き出す（サーバは要らない）
 python scripts/16_kwic_server.py --query 汽車 --stream lemma \
-  --export results/student/kwic_汽車.html --csv results/student/kwic_汽車.csv
+  --export my_work/results/kwic_汽車.html --csv my_work/results/kwic_汽車.csv
 ```
 
 **語彙素と表層形を切り替えて**検索でき（`L:`／`S:` で項ごとに混ぜられる），
 品詞（`/動詞`）・連なり（`汽車 に 乗る`，文境界は越えない）・ワイルドカード・
-正規表現が使える。用例には**時代区分・著者・作品名**が付き，行を押すと
-前後の本文へ広がる。詳細は `docs/glossary.md` の「KWIC コンコーダンサ」。
+正規表現が使える。用例には**時代区分・著者・作品名**が付き，行をクリックすると
+前後の本文が表示される。詳細は `docs/glossary.md` の「KWIC コンコーダンサ」。
 
 ---
 
@@ -357,13 +366,13 @@ XML に写像し，解析用テクストはそこから決定的に生成する�
 
 メタデータの各行には `year_source` 列があり，`card`（青空文庫図書カードの記載どおり）と
 `editor`（カードに記載がなく編者が補った）を区別する。
-現在 19 件が `editor` で，Excel では黄色で塗ってある。**要確認**。
+v2 では 19 件が `editor` で，Excel では黄色で塗ってある。
 
 ### 3. 「変化を検出した」と言うには対照条件が要る。
 
 - 時代ラベルをシャッフルした対照実験（Step 6）
 - 作家をグループとする交差検証（Step 7）
-- 乱数種を変えた安定性検査（Step 5）
+- 乱数シードを変えた安定性検査（Step 5）
 - 児童書を除いても傾向が残るかの確認（Step 8）
 
 いずれもノートブックに実装済みである。
