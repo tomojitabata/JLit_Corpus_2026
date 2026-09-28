@@ -146,9 +146,9 @@ python3 scripts/16_kwic_server.py --open    # 画面（ブラウザが開く）�
   <rect x="1" y="1" width="718" height="398" rx="10" fill="#fff" stroke="#d8d7d0"/>
   <rect x="12" y="12" width="696" height="92" rx="7" fill="#eef4fb" stroke="#c9dbef"/>
   <text x="24" y="36" font-size="14" font-weight="700" fill="#0d366b">① 検索の欄</text>
-  <text x="24" y="58" font-size="12" fill="#3d3c37">語彙素／表層形・検索語・検索・CSV・HTML で保存・操作マニュアル</text>
-  <text x="24" y="76" font-size="12" fill="#3d3c37">文脈・並べ替え・表示・間引き・句読点・共起語・ウィンドウ</text>
-  <text x="24" y="94" font-size="12" fill="#3d3c37">絞り込み（時代区分・著者・文体・作品）・検索式の書き方</text>
+  <text x="24" y="58" font-size="12" fill="#3d3c37">語彙素／表層形・検索語・？（検索式の書き方）・検索・CSV・HTML で保存・操作マニュアル</text>
+  <text x="24" y="76" font-size="12" fill="#3d3c37">設定 ▴・絞り込み ▴・分布欄を畳む ▶｜文脈・並べ替え・表示・間引き・句読点・共起語・ウィンドウ</text>
+  <text x="24" y="94" font-size="12" fill="#3d3c37">絞り込み（時代区分・著者・文体・作品）</text>
   <rect x="12" y="116" width="470" height="84" rx="7" fill="#f7f7f4" stroke="#d8d7d0"/>
   <text x="24" y="140" font-size="14" font-weight="700" fill="#1f1e1b">② 用例</text>
   <text x="24" y="162" font-size="12" fill="#3d3c37">時代区分・著者・作品｜左文脈｜キーワード｜右文脈</text>
@@ -175,6 +175,21 @@ python3 scripts/16_kwic_server.py --open    # 画面（ブラウザが開く）�
 <figcaption>画面の構成（幅の広いとき）。幅が 1040px 未満では ⑥〜⑧ が下に回る。
 本文（⑧ の説明の「本文」）は用例の行を押すと画面の下から開く。</figcaption>
 </figure>
+<h3 id="laptop">画面を広く使う（ラップトップなど）</h3>
+<p>① の検索の欄は，下へ送っても画面の上に留まる。そのぶん用例を読む場所が狭くなるので，次の操作で広げる。</p>
+<table>
+  <tr><th>操作</th><th>働き</th></tr>
+  <tr><td><span class="ui">設定 ▴</span></td><td>文脈・並べ替え・表示・間引き・句読点・共起語・ウィンドウの行を畳む。
+      畳んだあいだは，横にいまの設定を1行で示す（例：文脈 7 語・本文の順・200 件・共起語 窓 4）。<span class="ui">設定 ▾</span> で広げる</td></tr>
+  <tr><td><span class="ui">絞り込み ▴</span></td><td>時代区分・著者・文体・作品の欄を畳む。
+      絞り込みを掛けているあいだは，横に「著者 2・文体 1 を選択中」のように<b>色を付けて</b>示す（畳んでいても掛かったままになるので，見落とさないように）</td></tr>
+  <tr><td><span class="ui">？</span>（検索語の欄の右）</td><td>検索式の書き方を小窓に出す。もう一度押すか，外を押すか，<kbd>Esc</kbd> で閉じる</td></tr>
+  <tr><td><span class="ui">分布欄を畳む ▶</span></td><td>右の ⑥〜⑧ を畳み，用例の表を全幅にする（右文脈と位置が切れなくなる）。<span class="ui">◀ 分布欄を出す</span> で戻す</td></tr>
+  <tr><td><span class="ui">⤢ 全画面</span>（② 用例の右上）</td><td>用例の表を画面いっぱいに広げる。行を押すと，前後の本文も全画面の中で下から開く。
+      <span class="ui">⤡ 元に戻す</span> か <kbd>Esc</kbd> で戻る</td></tr>
+</table>
+<p>用例の表の高さは，画面の残りの高さに合わせて自動で決まる（窓の大きさを変えたり，欄を畳んだりすると追従する）。
+畳んだかどうかは覚えておかない。画面を開き直すと，いつもすべて広げた状態から始まる。</p>
 
 <!-- ================================================================ -->
 <h2 id="search"><span class="n">5</span>検索する</h2>

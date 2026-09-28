@@ -118,6 +118,29 @@ td.pct{color:var(--ink3);font-size:11px}
 #vtab tr.go:hover{background:#fbfaf6}
 summary.h2{cursor:pointer;font-size:.86rem;color:var(--ink2);font-weight:650}
 .note{margin:4px 0 0}
+/* ラップトップ向け：設定・絞り込みを畳む，検索式の説明は小窓，分布欄を畳む，用例を全画面 */
+.uirow{margin-top:6px;gap:6px}
+.uirow button{padding:3px 10px;font-size:12px}
+.uirow .sum{font-size:12px;color:var(--ink2);margin-right:8px}
+.uirow .sum.act{color:var(--warn);background:var(--warnbg);border-radius:5px;padding:1px 7px}
+.uirow .sp{margin-left:auto}
+.bar.minopt #optrow,.bar.minflt #fltrow{display:none}
+#qhelpB{border:1px solid var(--line);background:#fff;color:var(--ink2);border-radius:50%;width:1.9em;height:1.9em;padding:0;font-size:13px;font-weight:600}
+#qhelpB.on{border-color:var(--accent);color:var(--accent)}
+#qhelp{position:absolute;z-index:25;right:16px;top:100%;margin-top:4px;width:min(620px,calc(100vw - 32px));max-height:70vh;overflow:auto;
+  background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:10px 14px;box-shadow:0 6px 18px rgba(0,0,0,.14)}
+#qhelp[hidden]{display:none}
+#qhelp table{font-size:12px}
+#qhelp code{background:#f3f2ec;padding:1px 5px;border-radius:4px}
+.bar{position:sticky}
+.bar .wrap{position:relative}
+.cols.noside{grid-template-columns:minmax(0,1fr)}
+.cols.noside > div:last-child{display:none}
+#hitcard:fullscreen{margin:0;border-radius:0;border:0;overflow:auto;padding:12px 18px}
+#hitcard:-webkit-full-screen{margin:0;border-radius:0;border:0;overflow:auto;padding:12px 18px}
+.cardbar{display:flex;align-items:center;gap:8px}
+.cardbar h2{margin:0 0 .5em}
+.cardbar button{margin-left:auto;padding:3px 10px;font-size:12px}
 </style>
 </head>
 <body>
@@ -132,13 +155,21 @@ summary.h2{cursor:pointer;font-size:.86rem;color:var(--ink2);font-weight:650}
       <button data-v="surface">表層形で検索</button>
     </div>
     <input id="q" type="text" placeholder="例: 汽車 ／ 汽車|電車 ／ 乗* ／ /動詞 ／ 言う/動詞 ／ L:言う S:云ふ ／ 汽車 に 乗る">
+    <button type="button" id="qhelpB" title="検索式の書き方（小窓を開く・閉じる）">？</button>
     <button id="go">検索</button>
     <button class="ghost" id="csv">CSV</button>
     <button class="ghost" id="save">HTML で保存</button>
     <a class="manual" href="/manual" target="jlit-kwic-manual" title="操作マニュアルを別のウィンドウで開く。横に並べて参照しながら使える">操作マニュアル ↗</a>
   </div>
 
-  <div class="row" style="margin-top:8px">
+  <div class="row uirow">
+    <button class="ghost" id="optT" title="文脈・並べ替え・表示件数・共起語の設定を畳む・広げる">設定 ▴</button><span class="sum" id="optsum"></span>
+    <button class="ghost" id="fltT" title="時代区分・著者・文体・作品の絞り込みを畳む・広げる">絞り込み ▴</button><span class="sum" id="fltsum"></span>
+    <span class="sp"></span>
+    <button class="ghost" id="sideT" title="右の分布欄（時代区分ごとの分布・一致した語形・作品ごとのヒット）を畳んで，用例の表を全幅にする">分布欄を畳む ▶</button>
+  </div>
+
+  <div class="row" id="optrow" style="margin-top:8px">
     <label class="f">文脈 <select id="context">
       <option>3</option><option>5</option><option selected>7</option>
       <option>10</option><option>15</option><option>20</option></select> 語</label>
@@ -164,7 +195,7 @@ summary.h2{cursor:pointer;font-size:.86rem;color:var(--ink2);font-weight:650}
       <option>5</option><option>8</option></select></label>
   </div>
 
-  <div class="row" style="margin-top:8px">
+  <div class="row" id="fltrow" style="margin-top:8px">
     <label class="f">時代区分<select id="bands" class="multi" multiple></select></label>
     <label class="f">著者<select id="authors" class="multi" multiple></select></label>
     <label class="f">文体<select id="styles" class="multi" multiple></select></label>
@@ -172,7 +203,7 @@ summary.h2{cursor:pointer;font-size:.86rem;color:var(--ink2);font-weight:650}
     <button class="ghost" id="clearf">絞り込みを解除</button>
   </div>
 
-  <details class="help"><summary>検索式の書き方（クリックで開く）</summary>
+  <div id="qhelp" hidden><p class="sub" style="margin-top:0"><b>検索式の書き方</b>（？ をもう一度押すか，外を押すか，Esc で閉じる）</p>
   <p class="sub"><a href="/manual#search" target="jlit-kwic-manual">マニュアルの「検索する」を別のウィンドウで開く ↗</a></p>
   <table>
     <tr><td><code>汽車</code></td><td>そのままの一致（上で選んだ列）</td></tr>
@@ -190,16 +221,17 @@ summary.h2{cursor:pointer;font-size:.86rem;color:var(--ink2);font-weight:650}
   <p class="sub">語形が語彙に無いときは「0件」ではなく<b>理由</b>が出る
   （列の選び違い・辞書の切り方・旧仮名の表記）。行をクリックすると
   <b>前後の本文へ広がる</b>。本文の語にカーソルを当てると語彙素と品詞が出る。</p>
-  </details>
+  </div>
 </div></div>
 
 <div id="err" class="err" style="display:none"></div>
 
 <div class="cols">
   <div>
-    <div class="card">
-      <h2><span id="hits-h">用例</span><a class="help-q" href="/manual#kwic" target="jlit-kwic-manual" title="この欄の使い方（マニュアルを別のウィンドウで開く）">？</a></h2>
-      <div class="scroll"><table id="kwic">
+    <div class="card" id="hitcard">
+      <div class="cardbar"><h2><span id="hits-h">用例</span><a class="help-q" href="/manual#kwic" target="jlit-kwic-manual" title="この欄の使い方（マニュアルを別のウィンドウで開く）">？</a></h2>
+      <button class="ghost" id="fsB" title="用例の表を画面いっぱいに広げる（Esc で戻る）">⤢ 全画面</button></div>
+      <div class="scroll" id="kwicscroll"><table id="kwic">
         <thead><tr>
           <th>時代区分</th><th>著者</th><th>作品</th>
           <th style="text-align:right">左文脈</th>
@@ -470,6 +502,7 @@ async function search(offset) {
     }
     LAST = res; OFFSET = res.offset;
     render(res);
+    sizeHits();
     // 古いサーバでも表示できるところは出すが，警告は消さない
     if (!META || META.api !== API_VERSION) showErr(STALE);
   } catch (e) {
@@ -970,8 +1003,83 @@ $('vlist').addEventListener('toggle', () => {
   $(id).addEventListener('change', () => { if (LAST) search(0); });
 });
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') $('pane').style.display = 'none';
+  if (e.key === 'Escape') { $('pane').style.display = 'none'; qhelp(false); }
 });
+
+// ---- ラップトップ向けの表示 ------------------------------------------------
+// 設定・絞り込み・分布欄は畳める（開くたびに，すべて広げた状態から始める）。
+// 用例の表の高さは，上部の固定欄の下に残る高さに合わせる。
+// 全画面では，行を押したときの前後の本文（#pane）も全画面の中に移して出す
+const FLT = [['bands', '時代区分'], ['authors', '著者'], ['styles', '文体'], ['works', '作品']];
+function uiSummary() {
+  const bar = document.querySelector('.bar');
+  const min = bar.classList.contains('minopt');
+  $('optsum').textContent = min
+    ? `文脈 ${$('context').value} 語・${$('sort').selectedOptions[0].textContent}・${$('limit').value} 件`
+      + ($('sample').value > 0 ? `・間引き ${$('sample').value} 件` : '')
+      + ($('nopunct').checked ? '・句読点を外す' : '')
+      + ($('coll').checked ? `・共起語 窓 ${$('collwin').value}` : '・共起語なし')
+    : '';
+  const on = FLT.map(([id, lab]) => [lab, $(id).selectedOptions.length]).filter(x => x[1]);
+  $('fltsum').textContent = on.length ? on.map(x => `${x[0]} ${x[1]}`).join('・') + ' を選択中'
+    : (bar.classList.contains('minflt') ? 'すべての作品' : '');
+  $('fltsum').classList.toggle('act', on.length > 0);
+}
+function sizeHits() {
+  const sc = $('kwicscroll'), card = $('hitcard');
+  const full = (document.fullscreenElement || document.webkitFullscreenElement) === card;
+  const top = full ? 0 : document.querySelector('.bar').getBoundingClientRect().height;
+  // 見出し・注記・頁送りの分を引く
+  // 全画面では枠が画面いっぱいになるので，枠の高さではなく中身（表以外）の高さを足す
+  const cs = getComputedStyle(card);
+  const rest = Array.from(card.children).filter(c => c !== sc && c.id !== 'pane').reduce((h, c) => {
+    const st = getComputedStyle(c);
+    return h + c.offsetHeight + parseFloat(st.marginTop) + parseFloat(st.marginBottom);
+  }, parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom));
+  sc.style.maxHeight = Math.max(240, window.innerHeight - top - rest - (full ? 8 : 40)) + 'px';
+}
+function qhelp(on) {
+  const open = on === undefined ? $('qhelp').hidden : on;
+  $('qhelp').hidden = !open; $('qhelpB').classList.toggle('on', open);
+}
+$('qhelpB').addEventListener('click', e => { e.stopPropagation(); qhelp(); });
+document.addEventListener('pointerdown', e => {
+  if (!$('qhelp').hidden && !e.target.closest('#qhelp') && e.target !== $('qhelpB')) qhelp(false);
+});
+[['optT', 'minopt', '設定'], ['fltT', 'minflt', '絞り込み']].forEach(([id, cls, lab]) => {
+  $(id).addEventListener('click', () => {
+    const bar = document.querySelector('.bar');
+    const min = bar.classList.toggle(cls);
+    $(id).textContent = lab + (min ? ' ▾' : ' ▴');
+    uiSummary(); sizeHits();
+  });
+});
+$('sideT').addEventListener('click', () => {
+  const off = document.querySelector('.cols').classList.toggle('noside');
+  $('sideT').textContent = off ? '◀ 分布欄を出す' : '分布欄を畳む ▶';
+});
+['context', 'sort', 'limit', 'sample', 'nopunct', 'coll', 'collwin'].forEach(id =>
+  $(id).addEventListener('change', uiSummary));
+FLT.forEach(([id]) => $(id).addEventListener('change', uiSummary));
+$('clearf').addEventListener('click', uiSummary);
+$('fsB').addEventListener('click', () => {
+  const card = $('hitcard');
+  if ((document.fullscreenElement || document.webkitFullscreenElement) === card)
+    (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+  else (card.requestFullscreen || card.webkitRequestFullscreen).call(card);
+});
+function onFs() {
+  const full = (document.fullscreenElement || document.webkitFullscreenElement) === $('hitcard');
+  $('fsB').textContent = full ? '⤡ 元に戻す' : '⤢ 全画面';
+  // 全画面の外にある要素は見えないので，前後の本文の欄を出し入れする
+  if (full) $('hitcard').appendChild($('pane')); else document.body.insertBefore($('pane'), $('prov'));
+  requestAnimationFrame(sizeHits);
+}
+document.addEventListener('fullscreenchange', onFs);
+document.addEventListener('webkitfullscreenchange', onFs);
+window.addEventListener('resize', () => requestAnimationFrame(sizeHits));
+if (window.ResizeObserver) new ResizeObserver(() => requestAnimationFrame(sizeHits)).observe(document.querySelector('.bar'));
+sizeHits();
 
 loadMeta().then(() => { $('q').focus(); })
   .catch(e => showErr('索引の情報が読めない: ' + e));

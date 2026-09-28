@@ -2271,11 +2271,9 @@ function showTip(i, ev){
 // ======================================================================
 // ラップトップ向けの表示。グラフの高さを画面の残りに合わせ，viewBox の横幅を枠の縦横比に
 // 合わせる（高さ NET.H は 620 のまま。座標の換算 svgPoint が枠と一致するように）。
-// 設定の欄と側欄を畳んだかどうかは，このブラウザに覚えておく
+// 設定の欄・側欄・凡例は畳める（開くたびに，すべて広げた状態から始める）
 // ======================================================================
 const UI = {noside: false, minbar: false, leg: true};
-try { Object.assign(UI, JSON.parse(localStorage.getItem('jlitTopicViewerUI') || '{}')); } catch (e) {}
-function saveUI(){ try { localStorage.setItem('jlitTopicViewerUI', JSON.stringify(UI)); } catch (e) {} }
 function isFull(){ return (document.fullscreenElement || document.webkitFullscreenElement) === $('netstage'); }
 function sizeNet(){
   const svg = $('netsvg');
@@ -2309,9 +2307,9 @@ function popToggle(id){
   ['nhint', 'nhelp'].forEach(p => { const on = p === id && $(p).hidden; $(p).hidden = !on; $(p + 'B').classList.toggle('on', on); });
 }
 function uiInit(){
-  $('sideT').onclick = () => { UI.noside = !UI.noside; saveUI(); uiApply(); };
-  $('nbarT').onclick = () => { UI.minbar = !UI.minbar; saveUI(); uiApply(); };
-  $('nlegT').onclick = () => { UI.leg = !UI.leg; saveUI(); uiApply(); if (!NET.userView) fitView(); };
+  $('sideT').onclick = () => { UI.noside = !UI.noside; uiApply(); };
+  $('nbarT').onclick = () => { UI.minbar = !UI.minbar; uiApply(); };
+  $('nlegT').onclick = () => { UI.leg = !UI.leg; uiApply(); if (!NET.userView) fitView(); };
   $('nhintB').onclick = ev => { ev.stopPropagation(); popToggle('nhint'); };
   $('nhelpB').onclick = ev => { ev.stopPropagation(); popToggle('nhelp'); };
   document.addEventListener('pointerdown', ev => { if (!ev.target.closest('.npop') && !ev.target.closest('#ntl')) popToggle(null); });
