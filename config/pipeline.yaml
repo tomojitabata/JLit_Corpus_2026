@@ -52,7 +52,7 @@ tokenise:
   dictionary_version: v202512     # NINJAL の日付版（3.1.x 系ではない）
   dictionary_decided: "2026-09-22"
   dictionary_evidence: docs/dictionary_comparison.md §10
-  # 測定値（語数重みづけ・101 点）: 未知語率 0.17%（cwj の 3.9 分の 1），
+  # 測定値（語数重みづけ・111 点）: 未知語率 0.17%（cwj の 3.9 分の 1），
   # 平均語長 1.575（cwj より長い。細かく分割して未知語を減らしたのではない）
   dicdir: /Users/Shared/jlit/unidic-novel-v202512
   # null にすると 05 が自動検出する（探索順は 05 の resolve_dicdir を見る）。

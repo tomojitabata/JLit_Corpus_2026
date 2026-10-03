@@ -732,7 +732,7 @@ a.help-q:hover{border-color:var(--acc);color:var(--acc)}
     </div>
     <div class="netbar">
       <label>線の色 <select id="necol"><option value="cat" selected>ノードの分類の色（境界は灰色の破線）</option><option value="gray">すべて灰色</option></select></label>
-      <label>線の形 <select id="ncurve"><option value="line" selected>直線</option><option value="curve">曲線</option></select></label>
+      <label>線の形 <select id="ncurve"><option value="curve" selected>曲線</option><option value="line">直線</option></select></label>
       <label><input type="checkbox" id="nlab" checked> ラベル</label>
       <label>文字の大きさ <input type="range" id="nfs" min="5" max="22" step="1" value="11"> <output id="nfsO"></output></label>
       <span class="ntools">大きさ：
@@ -1079,7 +1079,7 @@ const PAL = ['#0072B2', '#E69F00', '#009E73', '#CC79A7', '#56B4E9', '#D55E00', '
 const GRAY = '#9a9a93';
 const NET = {view: 'list', kind: 'topic', nodes: [], edges: [], raf: 0, alpha: 0,
              scale: 1, tx: 0, ty: 0, focus: null, W: 900, H: 620};
-const nst = {mfw: '100', lay: 'fr', lin: false, grav: 1, curve: false, note: true, latin: 'gill', meas: 'jsd', src: 'd2v', k: 2, top: 100, col: 'period', lab: true, fs: 11, nop: 100, eop: 100, ecol: 'cat', minsh: 5, nsz: 100, tsz: 60, tcol: 'gray'};
+const nst = {mfw: '100', lay: 'fr', lin: false, grav: 1, curve: true, note: true, latin: 'gill', meas: 'jsd', src: 'd2v', k: 2, top: 100, col: 'period', lab: true, fs: 11, nop: 100, eop: 100, ecol: 'cat', minsh: 5, nsz: 100, tsz: 60, tcol: 'gray'};
 const TGRAY = '#5f5f5a';   // 作品とトピックのネットワークでのトピック（四角）の色
 // 文字の大きさと不透過度は SVG の変数で持つ（配置を計算し直さずに変えられる）
 function netStyle(){

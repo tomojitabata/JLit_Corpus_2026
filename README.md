@@ -30,8 +30,8 @@
 | # | 問題 | 規模 |
 |---|---|---|
 | 1 | `乱歩_灰色の巨人.txt` の本文が『魔法博士』と同一（8-gram 一致率45.3%，冒頭完全一致，章題も同一） | 実効標本は 64 → **63** |
-| 2 | 外字が `※` のまま失われている（`※［＃…］` から括弧部分だけ削った結果） | **592箇所 / 22ファイル** |
-| 3 | `海野十三_敗戦日記.txt` に青空文庫の奥付・入力者注・外字一覧が残存 | 約300語 |
+| 2 | 外字が `※` のまま失われている（`※［＃…］` から括弧部分だけ削った結果） | **592箇所 / 21ファイル** |
+| 3 | `海野十三_敗戦日記.txt` に青空文庫の奥付・入力者注・外字一覧が残存 | 約570語（記号を除いて約450語） |
 
 加えて `藤村_家.txt` は下巻のみで作品として不完全，
 `林芙美子_放浪記初出.txt` には校訂注（`「裏」はママ］`）が漏れている。
@@ -58,7 +58,7 @@
 | 時代 | 昭和戦前が26点・42.3%。1899年以前は3点・4.6% |
 | 文体 | **文語体が1点のみ**（『学問のすすめ』）。言文一致以前を代表できない |
 | ジャンル | 小説（913+K913）が90.6%。**戯曲・韻文はゼロ** |
-| 性別 | 女性作家4名・11点（17%）。**1926年以前の女性作家はゼロ** |
+| 性別 | 女性作家4名・11点（17%）。**明治期の女性作家はゼロ**（最も早いのは『伸子』1924） |
 | 作家 | 上位5名で39%。1点のみの作家が4名。作家効果と時代効果が分離できない |
 | 語り | 一人称28点・三人称30点で**ほぼ均衡**（この変数の偏りは小さい） |
 
@@ -79,7 +79,7 @@ JLit_Corpus_2026/
 ├── requirements.txt
 ├── config/
 │   ├── pipeline.yaml            全工程の設定。これが「何をどう数えたか」の記録
-│   ├── corpus_manifest.tsv      取得する作品（現行64点＋増補候補59点）
+│   ├── corpus_manifest.tsv      取得する作品（現行 68 行＝64点と分冊，増補 58 行）
 │   ├── design_targets.yaml      設計目標。「バランスが良い」を数値にした表
 │   ├── gaiji_supplement.tsv     JIS X 0213 に無い外字に編者が当てた字の対照表
 │   ├── stopwords_ja.txt         292語。書誌由来の語（底本・入力・校正…）を含む
@@ -95,7 +95,7 @@ JLit_Corpus_2026/
 ├── metadata/
 │   ├── corpus_metadata_v2.csv   64作品 × 43列
 │   ├── corpus_metadata_v2.xlsx  7シート（凡例／メタデータ／変更点／診断／代表性／増補候補／コードブック）
-│   ├── expansion_candidates.csv 増補候補41件（優先度つき）
+│   ├── expansion_candidates.csv 増補候補72件（優先度つき）
 │   └── diagnostics_v1.csv       v1 全64ファイルの実測値
 ├── notebooks/                   全8ステップの講義ノートブック（配布版。受講生は直接開かない）
 ├── templates/                   課題のテンプレート（StepN_report.md・final_report.md。make_notebooks.py が生成）
@@ -228,7 +228,9 @@ python scripts/99_validate.py \
   --out logs/validation_v1.csv
 ```
 
-現時点では FATAL 16 件 / WARN 18 件が出る。これが再構築の対象である。
+配布している `logs/validation_v1.csv`（v1 の診断時の記録）は FATAL 16 件 / WARN 18 件である。
+現行の `99_validate.py` は，外字マーカーの判定などを改めたので，同じ v1 に対して
+FATAL 3 件 / WARN 31 件を出す。どちらも再構築の対象を示している。
 
 ### 2. 再構築
 
@@ -240,7 +242,7 @@ python scripts/02_fetch_aozora.py index --out data/aozora
 python scripts/02_fetch_aozora.py resolve \
   --manifest config/corpus_manifest.tsv --out data/aozora
 
-# XHTML の取得（1秒/件。104件で約2分）
+# XHTML の取得（1秒/件。126件で約2分）
 python scripts/02_fetch_aozora.py works \
   --manifest config/corpus_manifest.tsv --out data/aozora
 
@@ -253,7 +255,7 @@ python scripts/03_aozora2xml.py \
 python scripts/03b_merge_volumes.py \
   --xml data/xml --config config/merge_volumes.tsv
 
-# 正規化（踊り字展開，3ストリーム生成）
+# 正規化（踊り字展開，4ストリーム生成）
 python scripts/04_normalise.py \
   --in data/xml --out data/plain --config config/pipeline.yaml
 
@@ -385,7 +387,7 @@ v2 では 19 件が `editor` で，Excel では黄色で塗ってある。
 2. **`藤村_家` の上巻追加**（card1509）
 3. 外字592箇所の復元（`03_aozora2xml.py` が自動で行う）
 4. `metadata/corpus_metadata_v2.xlsx` の黄色セル（`year_source=editor` の19件）の確認
-5. 増補候補 priority 1–2（明治前期10点・女性作家10点）の追加
+5. 増補候補 priority 1–2（明治前期17件・女性作家20件ほか）の追加
 
 目標とする時代別語数は
 [`docs/representativeness_report.md`](docs/representativeness_report.md) §8 の表を参照。
