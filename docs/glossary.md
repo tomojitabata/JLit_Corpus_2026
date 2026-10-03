@@ -2828,6 +2828,11 @@ Numbers では化けないことがある）。
 `utf-8-sig` は BOM の無いファイルを読んでも無害なので，**読み書きとも
 一律に `utf-8-sig`** でよい。
 
+**例外は設けない。** `config/` の設定ファイル（`corpus_manifest.tsv`，
+`merge_volumes.tsv`，`gaiji_supplement.tsv`）も BOM 付きで配る。ブラウザから
+書き出す CSV（KWIC，トピックビューア）も同じである。検査は pandas の
+`to_csv` に `encoding='utf-8-sig'` があるかも見る。
+
 ```bash
 # 検査する
 python3 scripts/check_csv_encoding.py

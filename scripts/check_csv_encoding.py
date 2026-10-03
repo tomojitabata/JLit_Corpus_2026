@@ -26,9 +26,12 @@ macOS の Excel は，BOM の無い UTF-8 の CSV を開くと文字コードを
 
 検査すること
 ------------
-1. 同梱の .csv / .tsv に BOM があるか（設定ファイルは除外）
+1. 同梱の .csv / .tsv に BOM があるか（``config/`` の設定ファイルも含む）
 2. スクリプトが CSV/TSV を書くとき ``utf-8-sig`` を使っているか
 3. スクリプトが CSV/TSV を読むとき ``utf-8-sig`` を使っているか
+4. pandas の ``to_csv`` が ``encoding='utf-8-sig'`` を指定しているか
+5. ソースに BOM の文字そのものを書いていないか（``'\\ufeff'`` と綴る。
+   見えない文字はエディタが黙って消すことがある）
 
 使い方
 ------
@@ -44,12 +47,11 @@ import re
 import sys
 
 OK, WARN, FATAL = '[ok  ]', '[warn]', '[FATAL]'
-BOM = '﻿'
+BOM = '\ufeff'
 
-# 人が手で編集する設定ファイル。BOM は付けない（Git の差分が読みにくくなる）。
-# ただし**読む側は BOM を許す**ので，Excel で保存されても壊れない。
-CONFIG_FILES = {'config/corpus_manifest.tsv', 'config/merge_volumes.tsv',
-                'config/gaiji_supplement.tsv'}
+# ``config/`` の設定ファイルも例外にしない。macOS では .tsv を Excel でも
+# テキストエディットでも開くので，BOM が無ければ同じように化ける。
+# 読む側はすべて utf-8-sig なので，BOM が付いていても壊れない。
 
 
 def check_files(root: str, fix: bool) -> list[tuple]:
@@ -57,16 +59,16 @@ def check_files(root: str, fix: bool) -> list[tuple]:
     for p in sorted(glob.glob(os.path.join(root, '**', '*.csv'), recursive=True)
                     + glob.glob(os.path.join(root, '**', '*.tsv'), recursive=True)):
         rel = os.path.relpath(p, root)
-        if rel.replace(os.sep, '/') in CONFIG_FILES:
-            out.append((OK, rel, '設定ファイル（BOM 不要・読む側が許容する）'))
-            continue
         with open(p, 'rb') as fh:
             head = fh.read(3)
         if head == b'\xef\xbb\xbf':
             out.append((OK, rel, 'BOM あり'))
         elif fix:
-            s = open(p, encoding='utf-8-sig').read()
-            open(p, 'w', encoding='utf-8-sig').write(s)
+            # バイト列のまま先頭に足す（改行コードを変えない）
+            with open(p, 'rb') as fh:
+                raw = fh.read()
+            with open(p, 'wb') as fh:
+                fh.write(b'\xef\xbb\xbf' + raw)
             out.append((OK, rel, 'BOM を付けた'))
         else:
             out.append((FATAL, rel,
@@ -122,6 +124,18 @@ def check_scripts(root: str) -> list[tuple]:
                 out.append((FATAL, f'{rel}:{n}',
                             f'CSV/TSV を utf-8（BOM 無し）で{how}: '
                             f'{line.strip()[:60]}'))
+        for n, line in enumerate(src, 1):
+            if BOM in line:
+                out.append((FATAL, f'{rel}:{n}',
+                            "BOM の文字そのものがソースにある。'\\ufeff' と綴ること"))
+            # pandas の DataFrame.to_csv だけを見る（kwic_core.to_csv は自前の関数）
+            m = re.search(r'(?<![K\'])\.to_csv\(', line)
+            if m:
+                off = sum(len(x) + 1 for x in src[:n - 1]) + m.start()
+                if 'utf-8-sig' not in call_text(text, off):
+                    out.append((FATAL, f'{rel}:{n}',
+                                'to_csv に encoding=\'utf-8-sig\' が無い'
+                                f'（Excel で化ける）: {line.strip()[:60]}'))
     return out
 
 

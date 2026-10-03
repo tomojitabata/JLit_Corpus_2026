@@ -167,7 +167,7 @@ class Handler(BaseHTTPRequestHandler):
                         ' '.join(t['pos'] for t in r['key']),
                         r['in_work'], r['stem']])
                 name = urllib.parse.quote(f'kwic_{res["query"]}.csv')
-                self._send(200, '﻿'.encode() + buf.getvalue().encode('utf-8'),
+                self._send(200, '\ufeff'.encode('utf-8') + buf.getvalue().encode('utf-8'),
                            'text/csv; charset=utf-8',
                            {'Content-Disposition':
                             f"attachment; filename*=UTF-8''{name}"})
