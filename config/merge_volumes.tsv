@@ -14,8 +14,8 @@
 # もとの巻別 XML は data/xml/_volumes/ に退避するので失われない。
 #
 # group      : 任意の識別子（ログに出るだけ）
-# canonical  : まとめた後の語幹。ふつう最初の巻を使う
-# members    : まとめる巻の語幹をカンマ区切りで，**作品の順に**並べる
+# canonical  : まとめた後のファイル名（拡張子なし）。ふつう最初の巻を使う
+# members    : まとめる巻のファイル名（拡張子なし）をカンマ区切りで，**作品の順に**並べる
 # title      : まとめた後の作品名
 # note       : 由来の記録。メタデータの note に入る
 group	canonical	members	title	note

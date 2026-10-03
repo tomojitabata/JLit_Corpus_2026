@@ -11,7 +11,7 @@ KWIC コンコーダンサの中身（索引づくりと検索）。**画面も�
 
 なぜ必要か
 ------------
-数えたあとに**テクストに戻る**ための道具である。word embedding や特徴語で
+数えたあとに**テクストに戻る**ための道具である。word embedding やキーワードで
 「この語が効いている」と分かっても，**その語が本文でどう振る舞っているか**を
 読まなければ何も言えない。頻度表は問いを作る道具で，答えは本文にある。
 
@@ -101,7 +101,7 @@ COLL_MEASURES = {
     'mi': 'MI',                    # log2(O11/E11)。低頻度語を過大に評価する
     'mi3': 'MI3',                  # log2(O11³/E11)。MI の低頻度語への偏りを補正
     't': 't',                      # (O11−E11)/√O11。高頻度の語が上に来る
-    'g2': 'G²',                    # 対数尤度比。反発（O11<E11）は負にする
+    'g2': 'G²',                    # 対数尤度比。負の連関（O11<E11）は負にする
     'dp_fwd': 'ΔP（検索語→共起語）',  # Gries (2013)。O11/W − O21/(N−W)
     'dp_bwd': 'ΔP（共起語→検索語）',  # O11/f(c) − O12/(N−f(c))
     'co': '共起頻度',
@@ -129,7 +129,7 @@ def year_band(year) -> int:
 # メタデータの突合（0埋めの有無に左右されないキー）
 # ---------------------------------------------------------------------------
 def stem_keys(r: dict) -> list[str]:
-    """メタデータの1行から，トークンファイルの語幹になりうるキーをすべて作る。
+    """メタデータの1行から，トークンファイルのファイル名（拡張子なし）になりうるキーをすべて作る。
 
     ⚠ ``corpus_metadata_v3.csv`` の作品 ID は，v1 由来の行では0埋めされて
     おらず（``1743``），増補した行では0埋めされている（``001504``）。
@@ -149,7 +149,7 @@ def stem_keys(r: dict) -> list[str]:
 
 
 def load_meta_index(meta_path: str | os.PathLike) -> dict[str, dict]:
-    """メタデータを「語幹 → 行」の索引にする。"""
+    """メタデータを「ファイル名 → 行」の索引にする。"""
     idx: dict[str, dict] = {}
     with open(meta_path, encoding='utf-8-sig') as fh:
         for row in csv.DictReader(fh):
@@ -498,7 +498,7 @@ class KwicIndex:
                 raise QueryError(
                     f'「{t}」に当たる語形が{"語彙素" if key == "lem" else "表層形"}'
                     'の語彙に無い。'
-                    '列（語彙素／表層形）の選び違い，辞書の切り方'
+                    '列（語彙素／表層形）の選び違い，辞書によるテクスト分割'
                     '（「非常に」→「非常」＋「に」），旧仮名の表記を疑うこと。')
             terms.append(Term(raw, key, np.asarray(sorted(ids), dtype=np.int64),
                               pos, False))
@@ -595,7 +595,7 @@ class KwicIndex:
         rng = np.random.default_rng(seed)
         sampled = False
         if sample and total > sample:
-            # **間引いたことを必ず返す。** 何件から何件を見ているのかが
+            # **サンプリングしたことを必ず返す。** 何件から何件を見ているのかが
             # 分からない用例集は，数えたことにならない。
             hits = np.sort(rng.choice(hits, sample, replace=False))
             sampled = True
@@ -858,15 +858,15 @@ class KwicIndex:
                     window: int, topn: int, *, measure: str = 'logdice',
                     pos_sel: list[str] | None = None,
                     min_co: int = 2) -> tuple[list[dict], dict]:
-        """ウィンドウ内の共起語を数え，``measure`` の指標で上位を選ぶ。
+        """ウィンドウ（共起範囲）内の共起語を数え，``measure`` の指標で上位を選ぶ。
 
         2×2 の分割表で数える（Evert 2008 の数え方）。
 
         ==========  =================  ======================
                     共起語 c           c 以外
         ==========  =================  ======================
-        窓の中      O11                O12 = W − O11
-        窓の外      O21 = f(c) − O11   O22
+        ウィンドウの中      O11                O12 = W − O11
+        ウィンドウの外      O21 = f(c) − O11   O22
         ==========  =================  ======================
 
         W はウィンドウに入った形態素の延べ数（句読点・文境界の外は数えない），
@@ -902,7 +902,7 @@ class KwicIndex:
             jj = np.clip(j, 0, self.n - 1)
             ok &= np.asarray(sent[jj]) == s0          # 文境界を越えない
             ok &= ~punct_lut[np.asarray(self.a['pos'][jj], dtype=np.int64)]
-            W += int(ok.sum())                        # 窓の大きさは品詞で絞る前に数える
+            W += int(ok.sum())                        # ウィンドウの大きさは品詞で絞る前に数える
             if pl:
                 key, lut = pl
                 ok &= lut[np.asarray(self.a[key][jj], dtype=np.int64)]
@@ -929,7 +929,7 @@ class KwicIndex:
             with np.errstate(divide='ignore', invalid='ignore'):
                 return np.where(o > 0, o * np.log(o / e), 0.0)
         g2 = 2 * (xlx(o11, e11) + xlx(o12, e12) + xlx(o21, e21) + xlx(o22, e22))
-        g2 = np.where(o11 < e11, -g2, g2)             # 反発（期待より少ない）は負
+        g2 = np.where(o11 < e11, -g2, g2)             # 負の連関（期待より少ない）は負
         M = {
             'co': o11,
             'logdice': 14 + np.log2(2 * o11 / (f_node + fc)),
@@ -1246,7 +1246,7 @@ def to_csv(kw: KwicIndex, res: dict, path: str | os.PathLike) -> Path:
                     'index_built', res['provenance'].get('built_at', '')])
         w.writerow(['時代区分', '著者', '作品', '初出年', '文体',
                     '左文脈', 'キーワード', '右文脈', '語彙素', '品詞',
-                    '作品内位置', '作品の語幹'])
+                    '作品内位置', '作品のファイル名（拡張子なし）'])
         for r in res['rows']:
             w.writerow([
                 (kw.band_labels[r['band']]

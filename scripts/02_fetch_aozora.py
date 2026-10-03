@@ -409,10 +409,10 @@ def cmd_works(args) -> int:
         if not url:
             print(f"  [skip] {h['author_ja']}『{h['title']}』 XHTML URL なし")
             continue
-        # **ここで付ける名前が，以後すべての工程の語幹になる**
+        # **ここで付ける名前が，以後すべての工程で使うファイル名（拡張子なし）になる**
         # （03 は .html を .xml に replace するだけ）。青空文庫の索引は
         # ID を6桁に 0 埋めして配っているが，それに頼らず自分で揃える。
-        # 索引の書式が変われば語幹が変わり，メタデータとの突合が静かに
+        # 索引の書式が変わればファイル名が変わり，メタデータとの突合が静かに
         # 外れる（2026-09-22 に 07 で起きた事故と同じ型）。
         name = (f"{str(h['person_id']).strip().zfill(6)}"
                 f"_{str(h['work_id']).strip().zfill(6)}.html")

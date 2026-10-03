@@ -340,7 +340,7 @@ P_RE = re.compile(r'(<p>)(.*?)(</p>)', re.S)
 HEAD_BOUNDARY_RE = re.compile(r'<head')
 
 MAX_PAR_DEFAULT = 150      # 会話が何段落続くまで追跡するか
-EMBED_MIN_DEFAULT = 8      # 何段落以上なら「埋め込みテクスト」と見なすか
+EMBED_MIN_DEFAULT = 8      # 何段落以上なら「挿入テクスト」と見なすか
 
 PAIR_KAGI = re.compile(r'「[^「」]{0,600}」', re.S)
 PAIR_FUTAE = re.compile(r'『[^『』]{0,600}』', re.S)
@@ -406,7 +406,7 @@ def plan_spans(paras: list[tuple[str, bool]], openc: str, closec: str,
         開き括弧を「入れ子の開始」と誤読すると破綻するので，境界の
         直後に来る開き括弧は**同一の引用の継続**として扱う。
 
-    埋め込みテクスト
+    挿入テクスト
         ``embed_min`` 段落以上にわたる引用は，対話ではなく書簡・演説・
         手記といった**埋め込まれたテクスト**である。これを ``<said>`` に
         すると『こころ』下の全体が「会話」になってしまうので
@@ -492,7 +492,7 @@ def plan_spans(paras: list[tuple[str, bool]], openc: str, closec: str,
             if extent >= embed_min:
                 elem, attrs = 'quote', ' type="embedded"'
                 st.quote_embedded += 1
-                promote = 2      # 埋め込みテクストの内側の対話を拾う
+                promote = 2      # 挿入テクストの内側の対話を拾う
             else:
                 elem, attrs = 'said', ''
                 st.said += 1
@@ -995,7 +995,7 @@ def main() -> int:
     ap.add_argument('--max-par', type=int, default=MAX_PAR_DEFAULT,
                     help='会話を何段落まで追跡するか（既定 %(default)s）')
     ap.add_argument('--embed-min', type=int, default=EMBED_MIN_DEFAULT,
-                    help='何段落以上の引用を埋め込みテクストと見なすか'
+                    help='何段落以上の引用を挿入テクストと見なすか'
                          '（既定 %(default)s）')
     ap.add_argument('--min-said-density', type=float, default=MIN_DENSITY_DEFAULT,
                     help='1万字あたりの会話数がこれ未満なら会話標示を'
@@ -1074,7 +1074,7 @@ def main() -> int:
         if st.said_unclosed:
             flags.append(f'未閉の開き括弧{st.said_unclosed}')
         if st.quote_embedded:
-            flags.append(f'埋込テクスト{st.quote_embedded}')
+            flags.append(f'挿入テクスト{st.quote_embedded}')
         if st.speech_mark != '「」':
             flags.append(f'会話符{st.speech_mark}')
         if st.speech_markup != 'full':
@@ -1117,7 +1117,7 @@ def main() -> int:
             print(f'[note] ※ を引用した編者注 {tot_n} 件は外字として数えて'
                   'いない（底本についての注であって字形の説明ではない）。')
         print(f'[note] 継続引用符での接続 {tot_k} 箇所，'
-              f'埋め込みテクスト <quote type="embedded"> {tot_e} 件')
+              f'挿入テクスト <quote type="embedded"> {tot_e} 件')
         if futae:
             print(f'[note] 第一階層の会話符が『』の作品 {len(futae)} 件: '
                   + '，'.join(futae))

@@ -288,7 +288,7 @@ def main():
         ("文化的位置（register_level）", 'register_level',
          ["canonical", "middlebrow", "popular", "documentary"], ""),
         ("語りの視点（narration）", 'narration', ["first", "third", "mixed", "dialogue", "none"],
-         "一人称28点／三人称30点でほぼ均衡しており，この軸に限れば偏りは小さい。"),
+         "一人称28点／三人称30点でほぼ均衡しており，この変数に限れば偏りは小さい。"),
         ("著者の性別（author_sex）", 'author_sex', ["F", "M"],
          "女性作家は4名・11点（作品ベースで17%）。うち4点は宮本百合子1名に集中する。"),
         ("初出媒体（first_medium）", 'first_medium', ["newspaper", "magazine", "book"], ""),

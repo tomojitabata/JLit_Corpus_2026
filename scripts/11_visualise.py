@@ -9,7 +9,7 @@
 ------------
 ``corpus_balance.svg``      時代 × ジャンル × 語数のコーパス構成
 ``pca_works.svg``           最頻語 PCA 上の作品配置（時代で着色）
-``delta_dendrogram.svg``    Burrows's Delta によるクラスタ樹形図
+``delta_dendrogram.svg``    Burrows's Delta によるクラスター樹形図
 ``semantic_change.svg``     意味変化の大きい語の推移
 ``topic_heatmap.svg``       時代 × トピックのヒートマップ
 ``topic_trends.svg``        主要トピックの通時推移
@@ -181,7 +181,7 @@ def fig_dendrogram(path, out):
     fig, ax = plt.subplots(figsize=(9, max(6, len(labels) * 0.22)))
     dendrogram(Z, labels=labels, orientation='right', ax=ax,
                color_threshold=.7 * Z[:, 2].max(), leaf_font_size=7)
-    ax.set_title("Burrows's Delta によるクラスタ（Ward 法）")
+    ax.set_title("Burrows's Delta によるクラスター（Ward 法）")
     ax.set_xlabel('距離')
     fig.tight_layout()
     save_fig(fig, out, 'delta_dendrogram')
@@ -208,7 +208,7 @@ def fig_semantic_change(w2v_dir, out, topn=12):
                         .replace('6_', '') for c in step_cols],
                        rotation=25, ha='right', fontsize=8)
     ax.set_ylabel('隣接スライス間のコサイン距離')
-    ax.set_title('語義の変化量（Procrustes アラインメント後）')
+    ax.set_title('意味変化量（Procrustes アラインメント後）')
     ax.legend(frameon=False, ncol=3, fontsize=8)
     ax.spines[['top', 'right']].set_visible(False)
     ax.grid(axis='y', alpha=.25)

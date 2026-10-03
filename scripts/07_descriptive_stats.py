@@ -11,7 +11,7 @@
 ----
 ``freq_matrix_mfw.csv``   最頻語 N 語 × 作品 の相対頻度行列（stylo と互換）
 ``work_profile.csv``      作品ごとの文体指標（TTR・平均文長・漢字率・会話率ほか）
-``keyness_by_period.csv`` 時代ごとの特徴語（対数尤度比 G² と効果量，
+``keyness_by_period.csv`` 時代ごとのキーワード（対数尤度比 G² と効果量，
                           および**散らばり（ディスパーション）**の列 df_all_prop / dp_gries /
                           top_work_share。culling と bursty 判定に使う）
 ``delta_matrix.csv``      Burrows's Delta 距離行列
@@ -49,7 +49,7 @@ import numpy as np
 
 
 def stem_keys(r: dict) -> list[str]:
-    """メタデータ1行から，トークンファイルの語幹になりうる綴りを**全部**返す。
+    """メタデータ1行から，トークンファイルのファイル名（拡張子なし）になりうる綴りを**全部**返す。
 
     **ここを間違えると，突合が静かに失敗する。**
     青空文庫の索引の作品 ID は 0 埋めされていない（``1743``）が，
@@ -109,7 +109,7 @@ def main() -> int:
     ap.add_argument('--out', required=True)
     ap.add_argument('--mfw', type=int, default=300)
     ap.add_argument('--min-ll', type=float, default=15.13,
-                    help='特徴語の G² 下限（15.13 ≒ p<0.0001）')
+                    help='キーワードの G² 下限（15.13 ≒ p<0.0001）')
     ap.add_argument('--cull-df', type=float, default=0.10, metavar='RATIO',
                     help='報告に使う culling の閾値（既定 0.10 ＝ 全作品の 10%%）。'
                          '**行を削除するのではなく，この閾値で何語が弾かれるかを'
@@ -148,7 +148,7 @@ def main() -> int:
     #   * PCA の図で「初出年不明」の灰色になる
     #   * work_profile.csv の period 列が空になる
     #   * keyness_by_period.csv で「unknown」という架空の時代ができ，
-    #     **その作品群が「時代の特徴語」の計算に混ざる**
+    #     **その作品群が「時代のキーワード」の計算に混ざる**
     # どれもエラーにならない。数字は出るし図も描ける。だから
     # **出力を書く前に，ここで必ず件数を突き合わせる。**
     unmatched = [s for s in stems if s not in meta]
@@ -253,17 +253,17 @@ def main() -> int:
         w.writeheader()
         w.writerows(prof)
 
-    # ---- 時代別特徴語 -----------------------------------------------------
+    # ---- 時代別キーワード -----------------------------------------------------
     # **時代が分からない作品は，時代の分析から外す。**
     # period を 'unknown' にまとめて集計に混ぜると，
-    # 「unknown という時代の特徴語」という無意味な行ができるだけでなく，
-    # **比較の相手（残り全部）にその作品群が入る**ので，他のすべての時代の
+    # 「unknown という時代のキーワード」という無意味な行ができるだけでなく，
+    # **参照コーパス（残り全部）にその作品群が入る**ので，他のすべての時代の
     # G² が静かにずれる。Step 6 の時代スライスと同じ規則で外すのが正しい。
     no_period = [s for s in stems
                  if not str(meta.get(s, {}).get('period', '') or '').strip()]
     if no_period:
         print(f'\n[warn] period が分からない作品 {len(no_period)} 点を'
-              f'**時代別特徴語の集計から外す**（コーパス全体の集計には残す）:')
+              f'**時代別キーワードの集計から外す**（コーパス全体の集計には残す）:')
         for s in no_period[:8]:
             m = meta.get(s, {})
             lab = (f"{m.get('author_ja','?')}『{m.get('title_aozora','?')}』"
@@ -285,10 +285,10 @@ def main() -> int:
         len_period[p] += lengths[s]
     grand_n = sum(len_period.values())
     if grand_n == 0:
-        print('[FATAL] period を持つ作品が1点も無い。時代別特徴語は作れない。')
+        print('[FATAL] period を持つ作品が1点も無い。時代別キーワードは作れない。')
         return 1
 
-    # **比較の相手（残り全部）も，時代別集計に入る作品だけで数える。**
+    # **参照コーパス（残り全部）も，時代別集計に入る作品だけで数える。**
     # コーパス全体の total を使って b = total[term] - a とすると，
     # 分子は外した作品の頻度を含むのに分母 n_rest は含まないという
     # ねじれが起き，すべての時代の G² が静かにずれる。
@@ -353,12 +353,12 @@ def main() -> int:
         return val
 
     def dispersion_in(term: str, p: str) -> float:
-        """**その時代の中での** DP。時代別特徴語の bursty 判定はこちらを見る。
+        """**その時代の中での** DP。時代別キーワードの bursty 判定はこちらを見る。
 
         コーパス全体の DP（``dp_gries``）には落とし穴がある。ある時代だけに
         出る語は，たとえその時代の全作品に均等に出ていても，全体で見れば
         「偏っている」ので DP が 0.5 前後になる。ところが**その偏りは，
-        まさに時代の特徴語として望ましい偏り**である。全体の DP は
+        まさに時代のキーワードとして望ましい偏り**である。全体の DP は
         「時代に偏る」と「1作品に偏る」を区別できない。
 
         そこで分母をその時代の作品に限る。こちらが 0 に近ければ
@@ -413,16 +413,16 @@ def main() -> int:
             w.writeheader()
             w.writerows(out_rows)
     else:
-        print('  [warn] 閾値を超える特徴語がない。--min-ll を下げるか語数を増やすこと')
+        print('  [warn] 閾値を超えるキーワードがない。--min-ll を下げるか語数を増やすこと')
 
     print(f'\n[ok  ] {len(stems)} 作品 / MFW {len(mfw)} 語')
     cut = args.cull_df
     for p in sorted(by_period):
         rows_p = [r for r in out_rows if r['period'] == p and r['G2'] > 0]
         top = [r['term'] for r in rows_p[:12]]
-        print(f'  {p:<22} {len_period[p]:>9,}語  特徴語: {" ".join(top)}')
-        # **上位語のうち何語が「一部の作品にしか出ない語」か**を出す。
-        # ここが大きい時代の特徴語リストは，時代の特徴ではなく
+        print(f'  {p:<22} {len_period[p]:>9,}語  キーワード: {" ".join(top)}')
+        # **上位のキーワードのうち何語が「一部の作品にしか出ない語」か**を出す。
+        # ここが大きい時代のキーワードリストは，時代の特徴ではなく
         # 数点の作品の語彙を映している。
         t15 = rows_p[:15]
         if t15:
@@ -430,7 +430,7 @@ def main() -> int:
             print(f'{"":24}上位15語のうち df<{cut:.0%} が {len(thin):>2} 語'
                   + (f'（{" ".join(thin[:8])}）' if thin else ''))
     print(f'\n[ok  ] 出力 → {args.out}')
-    print('      注意：特徴語は作家効果を含む。1作家に偏る時代では，その作家固有の')
+    print('      注意：キーワードは作家効果を含む。1作家に偏る時代では，その作家固有の')
     print('      語（人名・地名）が上位に来る。keyness_by_period.csv を必ず目視すること。')
     print(f'      keyness_by_period.csv には散らばりの列がある'
           f'（df_all_prop / dp_gries / top_work_share）。')

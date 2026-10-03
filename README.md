@@ -53,14 +53,14 @@
 
 ### 代表性
 
-| 軸 | 実態 |
+| 変数 | 実態 |
 |---|---|
 | 時代 | 昭和戦前が26点・42.3%。1899年以前は3点・4.6% |
 | 文体 | **文語体が1点のみ**（『学問のすすめ』）。言文一致以前を代表できない |
 | ジャンル | 小説（913+K913）が90.6%。**戯曲・韻文はゼロ** |
 | 性別 | 女性作家4名・11点（17%）。**1926年以前の女性作家はゼロ** |
 | 作家 | 上位5名で39%。1点のみの作家が4名。作家効果と時代効果が分離できない |
-| 語り | 一人称28点・三人称30点で**ほぼ均衡**（この軸の偏りは小さい） |
+| 語り | 一人称28点・三人称30点で**ほぼ均衡**（この変数の偏りは小さい） |
 
 ---
 
@@ -111,7 +111,7 @@ JLit_Corpus_2026/
 │   ├── 04_normalise.py          XML → 解析用テクスト（踊り字展開・4ストリーム）
 │   ├── 05_tokenise_unidic.py    UniDic 短単位解析
 │   ├── 06_build_datasets.py     チャンク分割・語彙統計
-│   ├── 07_descriptive_stats.py  MFW・Delta・PCA・特徴語
+│   ├── 07_descriptive_stats.py  MFW・Delta・PCA・キーワード
 │   ├── 08_word2vec_diachronic.py  通時的 word embeddings＋Procrustes アラインメント
 │   ├── 09_doc2vec.py            作品の document vectors・交絡の分離
 │   ├── 10_mallet.py             MALLET LDA
@@ -333,7 +333,7 @@ python scripts/11_visualise.py --meta metadata/corpus_metadata_v3_local.csv \
 **05 の解析結果（TSV）から索引を作り，ブラウザで読む。**
 
 ```bash
-# 索引（05 を実行し直したら作り直す。辞書が変われば切り方が変わる）
+# 索引（05 を実行し直したら作り直す。辞書が変わればテクスト分割が変わる）
 python scripts/15_kwic_index.py \
   --tsv data/tokens/tsv --out data/kwic
 # --meta を省くと metadata/ の自分の版（*_v3_local.csv）> 配布版 v3 > v2 の順に探す

@@ -675,7 +675,7 @@ bash scripts/update.sh
 | KWIC の画面が「サーバに接続できません」（セルは `[ok  ] 起動した` と出た） | 続けて「止める」のセルまで実行した，またはカーネルを止めた | 「画面を起動する」のセルをもう一度実行する。いまの版では「止める」は `STOP_KWIC = True` にしたときだけ止める |
 | KWIC が `索引が無い` と言う | `15_kwic_index.py` を実行していない | Step 3 §5.5 の索引のセルを実行する。05 を実行し直したら索引も作り直す |
 | KWIC の用例の著者が「（メタデータ無し）」 | その作品がメタデータに無い | 自分の版 `metadata/corpus_metadata_v3_local.csv` に行を足す（配布版 `corpus_metadata_v3.csv` は編集しない）。**出典の出ない用例は証拠にならない** |
-| KWIC で「語彙に無い」と言われる | 列（語彙素／表層形）の選び違い・辞書の切り方・旧仮名 | 画面上の切替で列を変える。`S:` を付けるとその項だけ表層形で検索する |
+| KWIC で「語彙に無い」と言われる | 列（語彙素／表層形）の選び違い・辞書によるテクスト分割・旧仮名 | 画面上の切替で列を変える。`S:` を付けるとその項だけ表層形で検索する |
 | **UMAP を入れたのに図が t-SNE になる** | カーネルが `uv` の環境でない／`umap` という別パッケージ／numba と numpy の版違い | `python3 scripts/check_umap.py`（**ノートブックと同じカーネルで**）。原因別の対処が出る |
 | `uv add umap-learn` したのに `ModuleNotFoundError` | **`uv add` はプロジェクト（`pyproject.toml` のある場所）単位。** `dh_project/pyproject.toml` が無い，または `dh_project` の外に clone したので，別の `.venv` に入った | `bash scripts/00_bootstrap_mac.sh` を実行し直す（`pyproject.toml` を作る）。急ぐときはカーネルの Python を明示して入れる：`uv pip install --python "<sys.executable の値>" umap-learn` → **カーネルを再起動** |
 | 同上（カーネル自体が別の Python） | JupyterLab のカーネルが `dh_project/.venv` 以外の Python | `Kernel → Change Kernel` で `Python (JLit)` に切り替えて**再起動**。無ければ `bash scripts/00_bootstrap_mac.sh` を実行し直す |

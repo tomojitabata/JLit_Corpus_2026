@@ -8,10 +8,10 @@
 1 枚の HTML を書く。外部の資源は使わない（ネットワークに接続せず，サーバも要らない）。
 ブラウザで開くと，次ができる。
 
-* **品詞**でトピックの上位語を絞る（普通名詞・動詞・形容詞・固有名詞…）
-* **頻度帯**で絞る：全体の度数，出現作品の割合，1 作品への集中度
+* **品詞**でトピックの上位キーワードを絞る（普通名詞・動詞・形容詞・固有名詞…）
+* **頻度帯**で絞る：全体の頻度，出現作品の割合，1 作品への集中度
   （集中度が高い語＝その作品にしか出ない語。取りこぼした登場人物名が多い），
-  散らばり dp_in（Gries の DP をいちばん濃い時代の中で測ったもの。bursty な語）
+  散らばり dp_in（Gries の DP を，その語の最多区分（相対頻度が最も高い時代区分）の中で測ったもの。bursty な語）
 * **relevance λ**（Sievert & Shirley 2014）で並べ替える。λ=1 は p(w|t) の順，
   λ を下げるほど**そのトピックに特有の語**が上に来る
 * トピックごとに **時代別の割合**・**多い作品と作家**を見る
@@ -21,7 +21,7 @@
   Cosine Delta（以上は語分布の近さ），チャンク上の相関（CLR 変換後。共起）
 * 複数のモデル（例：内容語すべて／名詞・動詞・形容詞）を切り替えて比べる
 * トピックと作品の**ネットワーク**を描く（作品は doc2vec の作品ベクトルかトピック構成で結ぶ）
-* **ラベルづけ**：トピックごとの診断資料を依頼文にまとめて生成 AI に渡し，返ってきた JSON を
+* **ラベルづけ**：トピックごとの診断資料をプロンプトにまとめて生成 AI に渡し，返ってきた JSON を
   取り込む（どの AI でもよい。無料プランで足りる）。AI を使わない仮ラベルも機械的に付ける。
   ラベルは ``topic_labels.json`` に書き出し，ビューアと同じフォルダに置けば次に作るときも読み込む
 * 操作マニュアル（``topic_viewer_manual.html``）をビューアと同じフォルダに書き出す。
@@ -74,7 +74,7 @@ def default_meta() -> str:
 
 
 def load_meta(path: str) -> dict[str, dict]:
-    """作品の語幹（000148_000794）→ メタデータの行。0 埋めの揺れを両方登録する。"""
+    """作品のファイル名（拡張子なし。000148_000794）→ メタデータの行。0 埋めの揺れを両方登録する。"""
     out = {}
     with open(path, encoding='utf-8-sig') as fh:
         for r in csv.DictReader(fh):
@@ -102,7 +102,7 @@ def load_lexicon(path: str) -> dict[str, tuple]:
 
 
 def read_word_topic(mdir: str) -> tuple[int, dict[str, Counter]]:
-    """語 → {トピック: 度数}。word-topic-counts.txt があればそれ，無ければ state。"""
+    """語 → {トピック: 頻度}。word-topic-counts.txt があればそれ，無ければ state。"""
     wt: dict[str, Counter] = defaultdict(Counter)
     k = 0
     p = os.path.join(mdir, 'word-topic-counts.txt')
@@ -168,9 +168,9 @@ def relatedness(k: int, wt: dict[str, Counter], rows: list[list[float]],
     語分布の近さ（そのトピックがどの語でできているか）
       cos     p(w|t) のベクトルのコサイン類似度。大きいほど近い
       jsd     Jensen–Shannon divergence（底 2，0〜1）。小さいほど近い
-      delta   度数上位 mfw 語の p(w|t) をトピック間で z 得点にし，
+      delta   最頻語 mfw 語の p(w|t) をトピック間で zスコアにし，
               差の絶対値を平均したもの（Burrows's Delta の考え方）。小さいほど近い
-      cdelta  同じ z 得点ベクトルの 1 − コサイン類似度（Cosine Delta）。小さいほど近い
+      cdelta  同じ zスコアベクトルの 1 − コサイン類似度（Cosine Delta）。小さいほど近い
     文書の中での共起
       corr    チャンクごとのトピックの割合を CLR（centred log-ratio）で変換し，
               チャンクをまたいで取った Pearson の相関係数。大きいほど一緒に現れる
@@ -204,7 +204,7 @@ def relatedness(k: int, wt: dict[str, Counter], rows: list[list[float]],
         jsd[a:, a] = v
     jsd = np.clip(jsd, 0, 1)
 
-    # Delta 系：度数上位 mfw 語。z 得点はトピック（K 個）をまたいで取る
+    # Delta 系：最頻語 mfw 語。zスコアはトピック（K 個）をまたいで取る
     order = np.argsort(-C.sum(axis=1))[:mfw]
     X = P[order]
     sd = X.std(axis=1, ddof=1, keepdims=True)
@@ -234,7 +234,7 @@ def model_fingerprint(mdir: str) -> str:
 
     トピックの番号は学習のたびに変わるので，ラベルを番号だけで覚えると，
     学習し直したモデルに別のトピックのラベルが付いてしまう。topic-keys.txt
-    （上位語の一覧）の中身から作るので，同じ学習結果なら置き場所が変わっても同じ指紋になる。
+    （上位キーワードの一覧）の中身から作るので，同じ学習結果なら置き場所が変わっても同じ指紋になる。
     """
     import hashlib
     h = hashlib.sha1()
@@ -328,10 +328,10 @@ def load_delta(desc_dir: str, meta: dict) -> dict | None:
     Burrows's Delta と Cosine Delta を作る。
 
     ``freq_matrix_mfw.csv`` は列が最頻語の順（多い順）に並ぶので，先頭 n 列が
-    最頻語 n 語になる。各語の相対頻度を作品をまたいで z 得点にし（標準偏差は
+    最頻語 n 語になる。各語の相対頻度を作品をまたいで zスコアにし（標準偏差は
     ddof=0。07 と Excel の STDEVP に揃える），
-    Burrows's Delta は z 得点の差の絶対値の平均（Burrows 2002），
-    Cosine Delta は z 得点ベクトルの 1 − コサイン類似度（Smith & Aldridge 2011）。
+    Burrows's Delta は zスコアの差の絶対値の平均（Burrows 2002），
+    Cosine Delta は zスコアベクトルの 1 − コサイン類似度（Smith & Aldridge 2011）。
     """
     import numpy as np
     p = os.path.join(desc_dir, 'freq_matrix_mfw.csv')
@@ -453,8 +453,8 @@ def build_model(label: str, mdir: str, meta: dict, lex: dict, top: int, min_coun
             tot_t[t] += n
     N = sum(tot_t)
 
-    # 各トピックの上位 top 語（度数順）。relevance で並べ替えても上位に来うる
-    # 語を拾うため，度数の少ない語は min_count で切る
+    # 各トピックの上位 top 語（頻度順）。relevance で並べ替えても上位に来うる
+    # 語を拾うため，頻度の少ない語は min_count で切る
     per_topic = [[] for _ in range(k)]
     for w, c in wt.items():
         if tot_w[w] < min_count:
@@ -607,6 +607,7 @@ svg .mut{fill:var(--mut)}
 .netbar{display:flex;gap:6px 12px;flex-wrap:wrap;align-items:center;font-size:12px;margin-bottom:5px}
 .netbar input[type=range]{width:78px}
 .netbar select{max-width:190px}
+#nlay{max-width:150px}
 .netbar .fa2opt.off{opacity:.4}
 .netbar label{display:flex;gap:5px;align-items:center}
 .netbar label[hidden]{display:none}
@@ -674,7 +675,7 @@ a.help-q:hover{border-color:var(--acc);color:var(--acc)}
   <h1>JLit トピックビューア</h1>
   <label>モデル <select id="model"></select></label><a class="help-q" href="topic_viewer_manual.html#model" target="jlit-topic-manual" title="この欄の使い方（マニュアルを別のウィンドウで開く）">？</a>
   <a class="manual" href="topic_viewer_manual.html" target="jlit-topic-manual" title="操作マニュアルを別のウィンドウで開く。横に並べて参照しながら使える">操作マニュアル ↗</a>
-  <div class="note">上位語を<b>品詞・頻度帯</b>で絞り，<b>λ</b>で並べ替えて読む。
+  <div class="note">上位キーワードを<b>品詞・頻度帯</b>で絞り，<b>λ</b>で並べ替えて読む。
   ⚠ ここで語を隠しても，その語は学習には寄与している。除いて学習し直した結果と比べるには，
   モデルを切り替えること。</div>
 </header>
@@ -685,20 +686,20 @@ a.help-q:hover{border-color:var(--acc);color:var(--acc)}
   <div class="hint">品詞は UniDic の解析結果。人名が普通名詞と解析されることがある（→ 集中度）</div>
 
   <h2>頻度帯<a class="help-q" href="topic_viewer_manual.html#band" target="jlit-topic-manual" title="この欄の使い方（マニュアルを別のウィンドウで開く）">？</a></h2>
-  <label>全体の度数（最小）</label>
+  <label>全体の頻度（最小）</label>
   <div class="rng"><input type="range" id="minc" min="0" max="4" step="0.1" value="0"><output id="mincO"></output></div>
   <label>出現作品の割合（最大）</label>
   <div class="rng"><input type="range" id="maxdr" min="0.05" max="1" step="0.05" value="1"><output id="maxdrO"></output></div>
   <div class="hint">多くの作品に出る語（言う・思う・顔）を除く</div>
   <label>1作品への集中度（最大）</label>
   <div class="rng"><input type="range" id="maxws" min="0.2" max="1" step="0.05" value="1"><output id="maxwsO"></output></div>
-  <div class="hint">度数のうち1作品が占める割合。高い語はその作品にしか出ない（登場人物名など）</div>
+  <div class="hint">頻度のうち1作品が占める割合。高い語はその作品にしか出ない（登場人物名など）</div>
   <label>1作家への集中度（最大）</label>
   <div class="rng"><input type="range" id="maxas" min="0.2" max="1" step="0.05" value="1"><output id="maxasO"></output></div>
   <div class="hint">同じ作家の複数作品に出る人物名（「素子」など）は，作品ではなく作家に集中する</div>
   <label>散らばり dp_in（最大）</label>
   <div class="rng"><input type="range" id="maxdp" min="0.2" max="1" step="0.05" value="1"><output id="maxdpO"></output></div>
-  <div class="hint">Gries の DP を，その語がいちばん濃い時代の中で測ったもの。1 に近いほど少数の作品に固まる（bursty）。時代への偏りは不利に扱わない</div>
+  <div class="hint">Gries の DP を，その語の最多区分（相対頻度が最も高い時代区分）の中で測ったもの。1 に近いほど少数の作品に固まる（bursty）。時代への偏りは不利に扱わない</div>
 
   <h2>並べ方<a class="help-q" href="topic_viewer_manual.html#lambda" target="jlit-topic-manual" title="この欄の使い方（マニュアルを別のウィンドウで開く）">？</a></h2>
   <label>relevance λ</label>
@@ -716,15 +717,15 @@ a.help-q:hover{border-color:var(--acc);color:var(--acc)}
   <p class="hint" id="modelinfo"></p>
 </aside>
 <main>
-  <div class="tabs" id="tabs"><button type="button" id="sideT" hidden title="左の側欄（品詞・頻度帯など）を畳んで，グラフを広げる">◀ 側欄</button><button data-v="list" class="on">トピック一覧</button><button data-v="topicnet">トピックのネットワーク</button><button data-v="worknet">作品のネットワーク</button><button data-v="bipnet">作品とトピックのネットワーク</button><button data-v="label">ラベルづけ</button><button data-v="table">トピック表</button><a class="help-q" href="topic_viewer_manual.html#network" target="jlit-topic-manual" title="この欄の使い方（マニュアルを別のウィンドウで開く）">？</a><button type="button" id="nbarT" hidden title="設定の欄を畳む・広げる（畳むと，指標・色・レイアウト・書き出しだけを1行に残す）">設定 ▴</button></div>
+  <div class="tabs" id="tabs"><button type="button" id="sideT" hidden title="左のサイドパネル（品詞・頻度帯など）を畳んで，グラフを広げる">◀ サイドパネル</button><button data-v="list" class="on">トピック一覧</button><button data-v="topicnet">トピックのネットワーク</button><button data-v="worknet">作品のネットワーク</button><button data-v="bipnet">作品とトピックのネットワーク</button><button data-v="label">ラベルづけ</button><button data-v="table">トピック表</button><a class="help-q" href="topic_viewer_manual.html#network" target="jlit-topic-manual" title="この欄の使い方（マニュアルを別のウィンドウで開く）">？</a><button type="button" id="nbarT" hidden title="設定の欄を畳む・広げる（畳むと，指標・色・レイアウト・書き出しだけを1行に残す）">設定 ▴</button></div>
   <section id="netview" hidden>
     <div id="nbars">
     <div class="netbar">
       <label id="nmeasw" class="keep">指標 <select id="nmeas"></select></label>
-      <label id="nsrcw" class="keep" hidden>作品の表し方 <select id="nsrc"></select></label>
+      <label id="nsrcw" class="keep" hidden>文書ベクトル表現 <select id="nsrc"></select></label>
       <label id="nmfww" class="keep" hidden title="Delta に使う最頻語の数（Step 4 の最頻語の相対頻度から）">最頻語 <select id="nmfw"></select> 語</label>
       <label><span id="nkL">近い順に</span> <input type="range" id="nk" min="1" max="5" step="1" value="2"> <output id="nkO"></output> <span id="nkU">本</span></label>
-      <label id="ntopw" title="すべての組の近さを順位にし，上位 N% に入らない辺を消す">辺を残す：近さの上位 <input type="range" id="ntop" min="1" max="100" step="1" value="100"> <output id="ntopO"></output></label>
+      <label id="ntopw" title="すべての組の近さを順位にし，上位 N% に入らないエッジ（辺）を消す">エッジを残す：近さの上位 <input type="range" id="ntop" min="1" max="100" step="1" value="100"> <output id="ntopO"></output></label>
       <label id="nminw" hidden>作品内の割合が <input type="range" id="nmin" min="0" max="30" step="1" value="5"> <output id="nminO"></output> 以上</label>
       <label class="keep">色 <select id="ncol"></select></label>
       <label id="ntcolw" hidden>トピックの色 <select id="ntcol"><option value="gray" selected>灰色（作品と区別する）</option><option value="cat">作品の色分けに合わせる</option></select></label>
@@ -750,7 +751,7 @@ a.help-q:hover{border-color:var(--acc);color:var(--acc)}
       <label id="ngrw" class="fa2opt">Gravity <input type="range" style="width:60px" id="ngr" min="0" max="5" step="0.1" value="1"> <output id="ngrO"></output></label>
       <button id="nre" type="button" class="keep">配置し直す</button>
       <span class="hint" id="nlayst"></span>
-      <span class="ntools">濃さ：
+      <span class="ntools">不透過度：
         <label>ノード <input type="range" id="nno" min="15" max="100" step="5" value="100"> <output id="nnoO"></output></label>
         <label>線 <input type="range" id="neo" min="10" max="100" step="5" value="100"> <output id="neoO"></output></label></span>
     </div>
@@ -783,13 +784,13 @@ a.help-q:hover{border-color:var(--acc);color:var(--acc)}
         <p>ノードをドラッグして動かす（放した位置に留まる。ダブルクリックで解く）・ホイールで拡大縮小・背景のドラッグで移動。</p>
         <p>ノードを押すと近い順の一覧が出て，つながる相手が強調される（一覧はグラフの下，全画面では右）。トピックはダブルクリックで詳細へ移る。</p>
         <p>「⊡ 全体を表示」で拡大・移動を解く。「⤢ 全画面」でグラフを画面いっぱいに広げる（Esc で戻る）。
-        上の「設定 ▴」で設定の欄を1行に畳み，「◀ 側欄」で左の側欄を畳むと，グラフが広くなる。</p></div>
+        上の「設定 ▴」で設定の欄を1行に畳み，「◀ サイドパネル」で左のサイドパネルを畳むと，グラフが広くなる。</p></div>
     </div>
     <div id="ninfo"></div>
     </div>
   </section>
   <section id="labelview" hidden>
-    <p class="hint" style="margin-top:0">トピックごとの<b>診断資料</b>（上位語・担う作品と作家・時代別の割合・偏りの警告）を依頼文にまとめる。
+    <p class="hint" style="margin-top:0">トピックごとの<b>診断資料</b>（上位キーワード・担う作品と作家・時代別の割合・偏りの警告）をプロンプトにまとめる。
     それを生成 AI（Claude・ChatGPT・Gemini などの無料プランでよい）に貼り付け，返ってきた JSON をここに貼り付けて取り込む。
     <b>ラベルは AI の仮説である。</b>根拠の語と作品を詳細と KWIC で確かめ，必要なら下の一覧で手で直す。<a class="help-q" href="topic_viewer_manual.html#labels" target="jlit-topic-manual" title="この欄の使い方（マニュアルを別のウィンドウで開く）">？</a></p>
     <div class="netbar">
@@ -797,9 +798,9 @@ a.help-q:hover{border-color:var(--acc);color:var(--acc)}
       <label>1回に含めるトピック <select id="lbatch"><option value="5">5</option><option value="10" selected>10</option><option value="20">20</option><option value="0">すべて</option></select></label>
       <button id="lprev" type="button">← 前</button><span id="lpage" class="hint"></span><button id="lnext" type="button">次 →</button>
     </div>
-    <h3 class="lh">1. 依頼文をコピーして，生成 AI に貼り付ける <span class="hint" id="lfp"></span></h3>
+    <h3 class="lh">1. プロンプトをコピーして，生成 AI に貼り付ける <span class="hint" id="lfp"></span></h3>
     <textarea id="lprompt" readonly rows="10"></textarea>
-    <div class="netbar"><button id="lcopy" type="button">依頼文をコピー</button><span id="lcopied" class="hint"></span><span id="lcount" class="hint"></span></div>
+    <div class="netbar"><button id="lcopy" type="button">プロンプトをコピー</button><span id="lcopied" class="hint"></span><span id="lcount" class="hint"></span></div>
     <h3 class="lh">2. 返ってきた JSON を貼り付けて取り込む</h3>
     <textarea id="lans" rows="6" placeholder='{"model": "…", "topics": [{"topic": 0, "label": "…", …}]}'></textarea>
     <div class="netbar">
@@ -819,18 +820,18 @@ a.help-q:hover{border-color:var(--acc);color:var(--acc)}
     <div class="ltwrap"><table id="ltab"></table></div>
   </section>
   <section id="tableview" hidden>
-    <p class="hint" style="margin-top:0">トピックとキーワード（主表）と，トピック診断表を書き出す。キャプションにはコーパス・モデル・学習条件・キーワードの選び方が入るので，
+    <p class="hint" style="margin-top:0">トピックと上位キーワード（主表）と，トピック診断表を書き出す。キャプションにはコーパス・モデル・学習条件・キーワードの選び方が入るので，
     論文にそのまま載せられる。LaTeX は booktabs と xltabular を使い，ページをまたぐ長い表にも対応する。<a class="help-q" href="topic_viewer_manual.html#table" target="jlit-topic-manual" title="この欄の使い方（マニュアルを別のウィンドウで開く）">？</a></p>
     <div class="netbar">
-      <label>表 <select id="ttype"><option value="main" selected>トピックとキーワード（主表）</option><option value="diag">トピック診断表</option></select></label>
+      <label>表 <select id="ttype"><option value="main" selected>トピックと上位キーワード（主表）</option><option value="diag">トピック診断表</option></select></label>
       <label>見出しとキャプション <select id="tlang"><option value="ja" selected>日本語</option><option value="en">English</option></select></label>
       <label>コーパス名 <input type="text" id="tcorp" value="JLit Corpus 2026" style="width:150px"></label>
       <label>並べ方 <select id="tsort"><option value="id" selected>トピック番号</option><option value="prev">平均割合の大きい順</option></select></label>
     </div>
     <div class="netbar" id="tmainopts">
-      <label>キーワード <input type="number" id="tn" min="1" max="50" value="20" style="width:56px"> 語</label>
+      <label>上位キーワード <input type="number" id="tn" min="1" max="50" value="20" style="width:56px"> 語</label>
       <label>選び方 <select id="trank"><option value="raw" selected>絞り込みなし（p(w|t) の順）</option><option value="view">いまの表示設定に従う（λ・品詞・頻度帯）</option></select></label>
-      <label>語の後の値 <select id="twv"><option value="p" selected>p(w|t)</option><option value="n">度数</option></select></label>
+      <label>語の後の値 <select id="twv"><option value="p" selected>p(w|t)</option><option value="n">頻度</option></select></label>
       <label>小数の桁 <input type="number" id="tdig" min="1" max="6" value="3" style="width:46px"></label>
       <span class="ntools">列：<label><input type="checkbox" id="tcmean" checked> 平均割合</label>
         <label id="tcalphaw"><input type="checkbox" id="tcalpha" checked> α</label>
@@ -884,11 +885,11 @@ const RELS = [
   ['jsd', 'Jensen–Shannon divergence', -1,
    '2つのトピックの語分布 p(w|t) の Jensen–Shannon divergence（底 2，0〜1）。0 に近いほど同じ語でできている。LDAvis のトピック間距離と同じ考え方（Sievert & Shirley 2014）。'],
   ['cos', '語分布のコサイン類似度', +1,
-   'p(w|t) を並べたベクトルのコサイン類似度。1 に近いほど同じ語でできている。度数の大きい語に引きずられやすい。'],
-  ['delta', "Burrows's Delta（z 得点）", -1,
-   'モデル内の度数上位 __MFW__ 語について，p(w|t) をトピックをまたいで z 得点にし，差の絶対値を平均したもの（Burrows 2002 の考え方をトピックに当てはめたもの）。高頻度語の支配を抑える。小さいほど近い。'],
+   'p(w|t) を並べたベクトルのコサイン類似度。1 に近いほど同じ語でできている。頻度の大きい語に引きずられやすい。'],
+  ['delta', "Burrows's Delta（zスコア）", -1,
+   'モデル内の最頻語 __MFW__ 語について，p(w|t) をトピックをまたいで zスコアにし，差の絶対値を平均したもの（Burrows 2002 の考え方をトピックに当てはめたもの）。高頻度語の支配を抑える。小さいほど近い。'],
   ['cdelta', 'Cosine Delta', -1,
-   '同じ z 得点のベクトルの 1 − コサイン類似度（Smith & Aldridge 2011）。0 に近いほど近い。'],
+   '同じ zスコアのベクトルの 1 − コサイン類似度（Smith & Aldridge 2011）。0 に近いほど近い。'],
   ['corr', 'チャンク上の相関（CLR 変換後）', +1,
    'チャンクごとのトピックの割合を CLR（centred log-ratio; Aitchison 1986）で変換し，チャンクをまたいで取った Pearson の相関係数。同じチャンクに<b>一緒に現れやすい</b>トピックが高い。割合をそのまま使うと，1 つのトピックが大きい割合を占めたときに他がそろって小さくなり，見かけの相関が生じるので，対数比にしてから取る。ただし和が 1（CLR では和が 0）という制約は変換しても残るため，相関の平均は −1/(K−1)＝__BASE__ になる。<b>この値を基準に</b>読むこと。同じ作品のチャンクが多いので，作品・作家の偏りも拾う。'],
 ];
@@ -942,7 +943,7 @@ function ranked(t){
     out.push({j, n, pwt, r: lam * Math.log(pwt) + (1 - lam) * Math.log(pwt / pw)});
   }
   out.sort((a, b) => b.r - a.r);
-  // 残存＝ビューアが持っている上位語の確率のうち，絞り込み後に残った割合
+  // 残存＝ビューアが持っている上位キーワードの確率のうち，絞り込み後に残った割合
   return {list: out, keptMass: stored ? keptMass / stored : 0};
 }
 
@@ -971,7 +972,7 @@ function render(){
       const hit = q && (v[0] === q || disp(v[0]) === q);
       return `<b style="color:${COLORS[gOf[x.j]]}" class="${hit?'m':''}" title="${esc(v[0])}（${esc(v[1])}）">${esc(disp(v[0]))}</b>`;}).join(' ');
     const lb = labelOf(t);
-    const ltag = lb ? `<div class="clab" title="${esc(lb.type)}・確信度 ${esc(lb.confidence)}・${esc(lb.source || '')}：${esc(lb.evidence || '')}">${esc(lb.label)}</div>`
+    const ltag = lb ? `<div class="clab" title="${esc(lb.type)}・信頼度 ${esc(lb.confidence)}・${esc(lb.source || '')}：${esc(lb.evidence || '')}">${esc(lb.label)}</div>`
                     : `<div class="clab auto" title="仮ラベル（機械的に付けたもの）">${esc(autoLabel(t))}</div>`;
     return `<div class="card${dim}${sel===t?' sel':''}" data-t="${t}"><h3>T${String(t).padStart(2,'0')}
       <span title="全体に占める割合・絞り込み後に残った語の確率の割合">${(100*M.prev[t]).toFixed(1)}%・残存 ${(100*keptMass).toFixed(0)}%</span></h3>
@@ -979,9 +980,9 @@ function render(){
   }).join('');
   $('grid').querySelectorAll('.card').forEach(el => el.onclick = () => {sel = +el.dataset.t; render(); detail(sel); $('detail').scrollIntoView({behavior:'smooth'});});
   const nk = M.vocab.filter((_, j) => keep(j)).length;
-  $('summary').innerHTML = `表示対象の語 ${nk.toLocaleString()} / ${M.vocab.length.toLocaleString()}（各トピックの上位語から）` +
+  $('summary').innerHTML = `表示対象の語 ${nk.toLocaleString()} / ${M.vocab.length.toLocaleString()}（各トピックの上位キーワードから）` +
     (q ? `・「${esc(q)}」を上位 ${st.nw} 語に持つトピック ${hits}` : '') +
-    `・「残存」＝そのトピックの上位語の確率のうち，絞り込み後に残った割合（低いトピックは隠した語でできている）`;
+    `・「残存」＝そのトピックの上位キーワードの確率のうち，絞り込み後に残った割合（低いトピックは隠した語でできている）`;
   if (sel !== null) detail(sel);
   if (M && document.getElementById('tableview') && !$('tableview').hidden) tblView();
 }
@@ -1035,8 +1036,8 @@ function detail(t){
     ${labBox(t)}
     <div class="legend">${POSGROUPS.map((g, gi) => `<span><i style="background:${COLORS[gi]}"></i>${g[0]}</span>`).slice(0, 8).join('')}</div>
     ${warn}
-    <div class="cols"><div><h3 style="font-size:13px">上位語（λ=${st.lam.toFixed(2)} の順・棒は p(w|t)）</h3>${words}
-      <p class="hint">MALLET の上位語（絞り込み前）：${esc(M.keys[t] || '')}</p>
+    <div class="cols"><div><h3 style="font-size:13px">上位キーワード（λ=${st.lam.toFixed(2)} の順・棒は p(w|t)）</h3>${words}
+      <p class="hint">MALLET の上位キーワード（絞り込み前）：${esc(M.keys[t] || '')}</p>
       <p class="hint">外来語は片仮名だけを表示している。語にマウスを載せると UniDic の語彙素（原綴つき）と品詞が出る。</p></div>
     <div><h3 style="font-size:13px">時代別の割合（チャンク平均）</h3>${per}
       <h3 style="font-size:13px">このトピックが多い作品（作品内の割合の順）</h3>${wtab}
@@ -1057,7 +1058,7 @@ function relTable(t){
       <label>件数 <input type="number" id="nrel" min="3" max="${Math.max(3, M.K-1)}" value="${st.nrel}" style="width:56px"></label></div>
     <p class="hint">${hint.replace('__MFW__', M.rel.mfw).replace('__BASE__', (-1/(M.K-1)).toFixed(3))}</p>
     <table><tr><th>順位</th><th>トピック</th><th class="num">${dir > 0 ? '値（大きいほど近い）' : '値（小さいほど近い）'}</th>
-      <th class="num" title="全体に占める割合">割合</th><th>上位語（いまの絞り込みと λ で）</th></tr>` +
+      <th class="num" title="全体に占める割合">割合</th><th>上位キーワード（いまの絞り込みと λ で）</th></tr>` +
     others.map((x, i) => `<tr class="go" data-t="${x.u}"><td class="num">${i+1}</td><td>T${String(x.u).padStart(2,'0')}</td>
       <td class="num">${fmt(x.v)}</td><td class="num">${(100*M.prev[x.u]).toFixed(1)}%</td><td class="w">${words(x.u) || '—'}</td></tr>`).join('') +
     `</table><p class="hint">上の 4 つは<b>語分布の近さ</b>（同じ語でできているか），相関は<b>文書の中での共起</b>（同じチャンクに一緒に現れるか）で，別のものを測っている。
@@ -1080,7 +1081,7 @@ const NET = {view: 'list', kind: 'topic', nodes: [], edges: [], raf: 0, alpha: 0
              scale: 1, tx: 0, ty: 0, focus: null, W: 900, H: 620};
 const nst = {mfw: '100', lay: 'fr', lin: false, grav: 1, curve: false, note: true, latin: 'gill', meas: 'jsd', src: 'd2v', k: 2, top: 100, col: 'period', lab: true, fs: 11, nop: 100, eop: 100, ecol: 'cat', minsh: 5, nsz: 100, tsz: 60, tcol: 'gray'};
 const TGRAY = '#5f5f5a';   // 作品とトピックのネットワークでのトピック（四角）の色
-// 文字の大きさと濃さは SVG の変数で持つ（配置を計算し直さずに変えられる）
+// 文字の大きさと不透過度は SVG の変数で持つ（配置を計算し直さずに変えられる）
 function netStyle(){
   const s = $('netsvg').style;
   s.setProperty('--nfs', nst.fs + 'px'); s.setProperty('--nop', nst.nop / 100); s.setProperty('--eop', nst.eop / 100);
@@ -1151,7 +1152,7 @@ function netControls(){
     $('nmeasw').hidden = true;
     const so = [['theta', 'トピック構成の近さ（Jensen–Shannon divergence）']];
     if (D.d2v) so.unshift(['d2v', 'doc2vec の作品ベクトル（コサイン類似度）']);
-    if (D.delta) so.push(['delta', "Burrows's Delta（最頻語の z 得点）"], ['cdelta', 'Cosine Delta（最頻語の z 得点）']);
+    if (D.delta) so.push(['delta', "Burrows's Delta（最頻語の zスコア）"], ['cdelta', 'Cosine Delta（最頻語の zスコア）']);
     if (!so.some(x => x[0] === nst.src)) nst.src = so[0][0];
     $('nsrc').innerHTML = so.map(x => `<option value="${x[0]}"${x[0]===nst.src?' selected':''}>${esc(x[1])}</option>`).join('');
     if (isDelta()) {
@@ -1384,15 +1385,15 @@ function buildNet(){
   svg.appendChild(vp);
   const eg = svgEl('g', {}), ng = svgEl('g', {}), lg = svgEl('g', {});
   vp.append(eg, ng, lg);
-  // **線の太さと濃さ＝近さ。** 近さの順位 w（全組の中で 0〜1）を，いま表示している辺の中で
-  // 0〜1 に引き伸ばして太さにする（k 近傍の辺はどれも上位にあるので，そのままでは差が見えない）
+  // **線の太さと不透過度＝近さ。** 近さの順位 w（全組の中で 0〜1）を，いま表示しているエッジの中で
+  // 0〜1 に引き伸ばして太さにする（k 近傍のエッジはどれも上位にあるので，そのままでは差が見えない）
   const ws = g.edges.map(e => e.w), wmin = Math.min(...ws), wmax = Math.max(...ws);
   const lab = i => (NET.kind === 'topic' || g.nodes[i].kind === 't') ? g.nodes[i].label : `${g.nodes[i].w[1]}『${g.nodes[i].w[2]}』`;
   g.edges.forEach(e => {
     e.rel = wmax > wmin ? (e.w - wmin) / (wmax - wmin) : 1;
     e.el = svgEl('path', {class: 'edge', 'stroke-width': (0.7 + 4.8 * e.rel).toFixed(2),
       'stroke-opacity': (0.28 + 0.6 * e.rel).toFixed(2)});
-    // 両端が同じ分類なら内側の辺，違えば境界の辺（作家・時代などを橋渡しする辺）
+    // 両端が同じ分類なら内側のエッジ，違えば境界のエッジ（作家・時代などを橋渡しするエッジ）
     e.inside = cat[e.a] === cat[e.b];
     const tt = svgEl('title', {});
     tt.textContent = NET.kind === 'bip'
@@ -1433,15 +1434,15 @@ function buildNet(){
     + (nst.tcol === 'cat' ? (nst.col === 'community' ? '四角の色はトピックの属するコミュニティ（作品の無いコミュニティなら，つながる作品で重みの合計が最も大きい分類）。' : '四角の色は，線でつながる作品の分類のうち割合の合計が最も大きいもの。') : '');
   else if (NET.kind === 'topic') src = `指標：${RELS.find(x => x[0] === nst.meas)[1]}（${NET.dir > 0 ? '大きいほど近い' : '小さいほど近い'}）。円の大きさはトピックの割合。`;
   else if (nst.src === 'd2v' && D.d2v) src = `指標：doc2vec の作品ベクトル（チャンクの document vector の平均，${D.d2v.dim} 次元）のコサイン類似度。${esc(D.d2v.dir)}`;
-  else if (isDelta()) src = `指標：${nst.src === 'delta' ? "Burrows's Delta（z 得点の差の絶対値の平均）" : 'Cosine Delta（z 得点ベクトルの 1 − コサイン類似度）'}。`
-    + `最頻語 ${nst.mfw} 語（うち作品間で値のばらつく ${D.delta.mats[nst.mfw].used} 語）の相対頻度を，作品をまたいで z 得点にしたもの（Step 4 の ${esc(D.delta.dir)}）。小さいほど近い。`;
+  else if (isDelta()) src = `指標：${nst.src === 'delta' ? "Burrows's Delta（zスコアの差の絶対値の平均）" : 'Cosine Delta（zスコアベクトルの 1 − コサイン類似度）'}。`
+    + `最頻語 ${nst.mfw} 語（うち作品間で値のばらつく ${D.delta.mats[nst.mfw].used} 語）の相対頻度を，作品をまたいで zスコアにしたもの（Step 4 の ${esc(D.delta.dir)}）。小さいほど近い。`;
   else src = `指標：作品のトピック構成（チャンクの θ の平均）どうしの Jensen–Shannon divergence（モデル「${esc(M.label)}」）。`
     + (D.d2v ? '' : ' doc2vec の結果はビューアに入っていない（Step 7 のあと，--d2v を付けて作り直すと選べる）。')
     + (D.delta ? '' : ' Delta はビューアに入っていない（Step 4 のあと，--delta を付けて作り直すと選べる）。');
   $('nhint').innerHTML = NET.kind === 'bip'
     ? src + (iso ? `線の無いノード ${iso}（割合が低いトピックや作品）。` : '')
-    : `線が太く濃いほど近い（線にポインタを載せると値が出る）。${g.nodes.length} ノード・${g.edges.length} 辺（各ノードから近い順に ${nst.k} 本，全組の近さの上位 ${nst.top}% まで）`
-      + (iso ? `・辺の無いノード ${iso}` : '') + '。' + src;
+    : `線が太く濃いほど近い（線にポインタを載せると値が出る）。${g.nodes.length} ノード・${g.edges.length} エッジ（各ノードから近い順に ${nst.k} 本，全組の近さの上位 ${nst.top}% まで）`
+      + (iso ? `・エッジの無いノード ${iso}` : '') + '。' + src;
   $('ninfo').innerHTML = '';
   startLayout();
 }
@@ -1458,8 +1459,8 @@ function fitView(){
   NET.scale = s; NET.tx = (NET.W - s * (x0 + x1)) / 2; NET.ty = pt + (NET.H - pt - pb - s * (y1 - y0)) / 2 - s * y0;
   applyView();
 }
-// 辺の色：内側の辺はその分類の色，境界の辺は灰色の破線（「すべて灰色」なら従来どおり）。
-// 灰色の分類（その他・不明）どうしの辺は，色を付けずに実線の灰色にする
+// エッジの色：内側のエッジはその分類の色，境界のエッジは灰色の破線（「すべて灰色」なら従来どおり）。
+// 灰色の分類（その他・不明）どうしのエッジは，色を付けずに実線の灰色にする
 function edgeColors(){
   if (NET.kind === 'bip') {
     // 作品とトピックの線は作品の色（灰色の作品は灰色）
@@ -1483,7 +1484,7 @@ function edgeColors(){
   });
   NET.nin = nin; NET.nb = nb;
   const s = $('necnt');
-  if (s) s.textContent = NET.edges.length ? `内側の辺 ${nin} 本・境界の辺 ${nb} 本（境界 ${(100 * nb / NET.edges.length).toFixed(0)}%）` : '';
+  if (s) s.textContent = NET.edges.length ? `内側のエッジ ${nin} 本・境界のエッジ ${nb} 本（境界 ${(100 * nb / NET.edges.length).toFixed(0)}%）` : '';
 }
 function applyView(){
   const vp = document.getElementById('netvp');
@@ -1494,7 +1495,7 @@ function applyView(){
 // レイアウト。Fruchterman–Reingold（従来の配置）は tick() で動かしながら落ち着かせる。
 // ほかは一度に計算して置く（乱数は種を固定し，同じ条件なら同じ配置になる）。
 //   ForceAtlas2  Jacomy et al. (2014)。斥力は (次数+1) の積に比例，LinLog は Noack (2007)
-//   Yifan Hu     Hu (2005)。辺の縮約で粗いグラフを作り，粗いほうから配置して細かくする
+//   Yifan Hu     Hu (2005)。エッジの縮約で粗いグラフを作り，粗いほうから配置して細かくする
 //   MDS          Gansner, Koren & North (2005) の stress majorisation。古典的 MDS を初期値にする
 //   Circular     分類（色）ごとにまとめて円周上に並べる
 // ======================================================================
@@ -1555,7 +1556,7 @@ function placeFit(x, y){
   });
 }
 
-// 力学モデルは連結成分ごとに配置し，辺の平均の長さを揃えてから棚詰めで並べる
+// 力学モデルは連結成分ごとに配置し，エッジの平均の長さを揃えてから棚詰めで並べる
 // （成分どうしの斥力で全体が広がり，成分の中が潰れて見えるのを防ぐ）
 function byComponents(fn){
   const n = NET.nodes.length, E = layEdges();
@@ -1647,7 +1648,7 @@ function layYH(n, E){
     L.E.forEach(([a, b, w]) => { if (a !== b) { adj[a].push([b, w]); adj[b].push([a, w]); } });
     const order = [...Array(L.n).keys()].sort((a, b) => adj[a].length - adj[b].length || a - b);
     const par = new Array(L.n).fill(-1); let nc = 0;
-    order.forEach(i => {                 // 辺の縮約（重みの大きい相手と組にする）
+    order.forEach(i => {                 // エッジの縮約（重みの大きい相手と組にする）
       if (par[i] >= 0) return;
       let best = -1, bw = -1;
       adj[i].forEach(([j, w]) => { if (par[j] < 0 && w > bw) { bw = w; best = j; } });
@@ -1719,7 +1720,7 @@ function layMDS(){
       D[i][j] = D[j][i] = Math.max(0, NET.dir < 0 ? v : 1 - v);
     }
   } else {
-    // 作品とトピックのネットワーク：辺をたどる最短経路の長さ（つながらない組は最大値＋1）
+    // 作品とトピックのネットワーク：エッジをたどる最短経路の長さ（つながらない組は最大値＋1）
     const adj = Array.from({length: n}, () => []);
     NET.edges.forEach(e => { adj[e.a].push(e.b); adj[e.b].push(e.a); });
     let mx = 0;
@@ -1899,43 +1900,43 @@ function noteLines(){
   const nE = NET.edges.length, nN = NET.nodes.length;
   let g;
   if (NET.kind === 'bip') {
-    g = `グラフ：作品とトピックの 2 部グラフ（作品のトピック構成＝チャンクの θ の作品平均）。各作品から割合の高い順に ${nst.k} 個・割合 ${nst.minsh}% 以上。ノード ${nN}・辺 ${nE}。`;
+    g = `グラフ：作品とトピックの 2 部グラフ（作品のトピック構成＝チャンクの θ の作品平均）。各作品から割合の高い順に ${nst.k} 個・割合 ${nst.minsh}% 以上。ノード ${nN}・エッジ ${nE}。`;
   } else {
     const how = NET.kind === 'topic'
-      ? `トピック間の近さ：${optText('nmeas')}` + (/delta/.test(nst.meas) ? `（度数上位 ${G.rel_mfw} 語）` : '')
+      ? `トピック間の近さ：${optText('nmeas')}` + (/delta/.test(nst.meas) ? `（最頻語 ${G.rel_mfw} 語）` : '')
       : (nst.src === 'd2v' && D.d2v ? `作品間の近さ：doc2vec の作品ベクトル（${D.d2v.dim} 次元，${lastDirs(D.d2v.dir)}）のコサイン類似度`
-        : isDelta() ? `作品間の近さ：${nst.src === 'delta' ? "Burrows's Delta" : 'Cosine Delta'}（最頻語 ${nst.mfw} 語の相対頻度の z 得点，${lastDirs(D.delta.dir)}/freq_matrix_mfw.csv）`
+        : isDelta() ? `作品間の近さ：${nst.src === 'delta' ? "Burrows's Delta" : 'Cosine Delta'}（最頻語 ${nst.mfw} 語の相対頻度の zスコア，${lastDirs(D.delta.dir)}/freq_matrix_mfw.csv）`
                                     : '作品間の近さ：トピック構成（θ の作品平均）の Jensen–Shannon divergence');
-    g = `グラフ：${how}。各ノードから近い順に k = ${nst.k} 本，全組の近さの上位 ${nst.top}% まで。ノード ${nN}・辺 ${nE}`
+    g = `グラフ：${how}。各ノードから近い順に k = ${nst.k} 本，全組の近さの上位 ${nst.top}% まで。ノード ${nN}・エッジ ${nE}`
       + (NET.nin != null ? `（内側 ${NET.nin}・境界 ${NET.nb}）` : '') + '。';
   }
-  if (nst.col === 'community') g += ' コミュニティは Louvain 法（いま張られている辺による）。';
+  if (nst.col === 'community') g += ' コミュニティは Louvain 法（いま張られているエッジによる）。';
   L.push(g);
   // 3. 見た目
   let v = `表示：色＝${optText('ncol')}（8 分類まで色，残りは灰色）`;
   if (NET.kind === 'bip') v += `，トピックの色＝${optText('ntcol')}`;
-  v += `，線の色＝${optText('necol')}，線の形＝${optText('ncurve')}，線の太さと濃さ＝${NET.kind === 'bip' ? '作品内の割合' : '近さの順位'}（表示中の辺の中で 0.7〜5.5）`;
+  v += `，線の色＝${optText('necol')}，線の形＝${optText('ncurve')}，線の太さと不透過度＝${NET.kind === 'bip' ? '作品内の割合' : '近さの順位'}（表示中のエッジの中で 0.7〜5.5）`;
   v += `，ノードの大きさ＝${NET.kind === 'topic' ? 'トピックの割合' : 'チャンク数'}の平方根 ×${nst.nsz}%` + (NET.kind === 'bip' ? `（トピック ×${nst.tsz}%）` : '');
-  v += `，濃さ：ノード ${nst.nop}%・線 ${nst.eop}%，ラベル ${nst.lab ? nst.fs + 'px' : 'なし'}。`;
+  v += `，不透過度：ノード ${nst.nop}%・線 ${nst.eop}%，ラベル ${nst.lab ? nst.fs + 'px' : 'なし'}。`;
   L.push(v);
   // 4. 配置
   let a = `配置：${optText('nlay').split('（')[0]}`;
-  if (nst.lay === 'fa2') a += `（LinLog ${nst.lin ? 'あり' : 'なし'}，Gravity ${nst.grav.toFixed(1)}，Scaling ${nNodesScale()}，連結成分ごと，乱数の種は固定）`;
-  else if (nst.lay === 'yh') a += '（連結成分ごと，乱数の種は固定）';
+  if (nst.lay === 'fa2') a += `（LinLog ${nst.lin ? 'あり' : 'なし'}，Gravity ${nst.grav.toFixed(1)}，Scaling ${nNodesScale()}，連結成分ごと，乱数シードは固定）`;
+  else if (nst.lay === 'yh') a += '（連結成分ごと，乱数シードは固定）';
   else if (nst.lay === 'fr') a += '（動きながら落ち着く。初期配置は円周上）';
   a += `，補助の操作：${NET.ops && NET.ops.length ? NET.ops.join(' → ') : 'なし'}`;
   if (NET.moved && NET.moved.size) a += `，手で動かしたノード ${NET.moved.size}`;
   if (NET.focus != null) a += `，強調：${NET.nodes[NET.focus] ? NET.nodes[NET.focus].label : ''} の近傍`;
   a += '。';
   L.push(a);
-  L.push(`作成：JLit トピックビューア © Tomoji Tabata (DH UOsaka)（ビューア生成 ${String(G.generated || '').replace('T', ' ')}，上位語 ${G.top}・最小度数 ${G.min_count}）。書き出し ${new Date().toLocaleString('sv-SE').slice(0, 16)}。`);
+  L.push(`作成：JLit トピックビューア © Tomoji Tabata (DH UOsaka)（ビューア生成 ${String(G.generated || '').replace('T', ' ')}，上位キーワード ${G.top}・最小頻度 ${G.min_count}）。書き出し ${new Date().toLocaleString('sv-SE').slice(0, 16)}。`);
   return L;
 }
 function nNodesScale(){ return NET.nodes.length > 100 ? 2 : 10; }
 
 // ---- 書き出し（SVG・PDF）-------------------------------------------------
 // いま画面にある図を，拡大縮小・移動に関係なく全体が入るように切り出し，
-// 見た目（色・太さ・濃さ・破線・文字）を属性に写した単独の SVG にする。
+// 見た目（色・太さ・不透過度・破線・文字）を属性に写した単独の SVG にする。
 // 背景は白，凡例を下に付ける。強調（押したノードの周り）もそのまま写る
 const EXPORT_PROPS = ['stroke', 'stroke-width', 'stroke-opacity', 'stroke-dasharray', 'stroke-linecap', 'stroke-linejoin',
   'fill', 'fill-opacity', 'opacity', 'font-size', 'font-weight', 'font-family', 'paint-order'];
@@ -2132,7 +2133,7 @@ function focusNode(i){
   NET.edges.forEach(e => e.el.classList.toggle('dim', i !== null && e.a !== i && e.b !== i));
   if (i === null) { $('ninfo').innerHTML = ''; return; }
   if (NET.kind === 'bip') { focusBip(i); return; }
-  // 近い順の一覧（辺の有無にかかわらず上位10）
+  // 近い順の一覧（エッジの有無にかかわらず上位10）
   const row = NET.mat[i];
   const lst = row.map((v, j) => ({j, v})).filter(x => x.j !== i).sort((a, b) => NET.dir * (b.v - a.v)).slice(0, 10);
   const nd = NET.nodes[i];
@@ -2254,7 +2255,7 @@ function showTip(i, ev){
     const tid = nd.kind === 't' ? nd.t : nd.id;
     const lb = labelOf(tid);
     h = `<b>${esc(nd.label)}</b>　${(100 * M.prev[tid]).toFixed(1)}%${NET.kind === 'topic' ? '・' + esc(nd.cat) : ''}${nd.tcat ? '・色：' + esc(nd.tcat) : ''}<br>` +
-      (lb ? `ラベル：${esc(lb.label)}（${esc(lb.type)}・確信度 ${esc(lb.confidence)}）<br>` : `仮ラベル：${esc(autoLabel(tid))}<br>`) +
+      (lb ? `ラベル：${esc(lb.label)}（${esc(lb.type)}・信頼度 ${esc(lb.confidence)}）<br>` : `仮ラベル：${esc(autoLabel(tid))}<br>`) +
       ranked(tid).list.slice(0, 8).map(x => esc(disp(M.vocab[x.j][0]))).join(' ');
   } else {
     const w = nd.w;
@@ -2271,7 +2272,7 @@ function showTip(i, ev){
 // ======================================================================
 // ラップトップ向けの表示。グラフの高さを画面の残りに合わせ，viewBox の横幅を枠の縦横比に
 // 合わせる（高さ NET.H は 620 のまま。座標の換算 svgPoint が枠と一致するように）。
-// 設定の欄・側欄・凡例は畳める（開くたびに，すべて広げた状態から始める）
+// 設定の欄・サイドパネル・凡例は畳める（開くたびに，すべて広げた状態から始める）
 // ======================================================================
 const UI = {noside: false, minbar: false, leg: true};
 function isFull(){ return (document.fullscreenElement || document.webkitFullscreenElement) === $('netstage'); }
@@ -2300,7 +2301,7 @@ function uiApply(){
   $('nlegT').textContent = UI.leg ? '凡例 ▾' : '凡例 ▸';
   const net = !$('netview').hidden;
   document.querySelector('.wrap').classList.toggle('noside', net && UI.noside);
-  $('sideT').textContent = UI.noside ? '▶ 側欄' : '◀ 側欄';
+  $('sideT').textContent = UI.noside ? '▶ サイドパネル' : '◀ サイドパネル';
   sizeNet();
 }
 function popToggle(id){
@@ -2365,12 +2366,12 @@ function netInit(){
 }
 
 // ======================================================================
-// トピック表の書き出し。トピックとキーワード（主表）と，トピック診断表を
+// トピック表の書き出し。トピックと上位キーワード（主表）と，トピック診断表を
 // CSV・LaTeX・Markdown・JSON・HTML（Word などに貼る）で書き出す。
-// キャプションにはコーパス・モデル・学習条件・キーワードの選び方を入れる（再現のため）
+// キャプションにはコーパス・モデル・学習条件・上位キーワードの選び方を入れる（再現のため）
 // ======================================================================
-const TW = {ja: {topic: 'トピック', mean: '平均割合', alpha: 'α', label: 'ラベル', kwP: 'キーワード（p(w|t)）', kwN: 'キーワード（度数）',
-                 tokens: 'トークン数', coh: 'coherence', exc: 'exclusivity', peak: '最も濃い時代', ltype: 'ラベルの種類', conf: '確信度',
+const TW = {ja: {topic: 'トピック', mean: '平均割合', alpha: 'α', label: 'ラベル', kwP: '上位キーワード（p(w|t)）', kwN: '上位キーワード（頻度）',
+                 tokens: 'トークン数', coh: 'coherence', exc: 'exclusivity', peak: '最多区分', ltype: 'ラベルの種類', conf: '信頼度',
                  prov: '仮ラベル', word: '語', val: '値', cont: '（続き）', sep: '，'},
             en: {topic: 'Topic', mean: 'Mean θ', alpha: 'α', label: 'Label', kwP: 'Keywords (p(w|t))', kwN: 'Keywords (count)',
                  tokens: 'Tokens', coh: 'Coherence', exc: 'Exclusivity', peak: 'Peak period', ltype: 'Label type', conf: 'Confidence',
@@ -2406,7 +2407,7 @@ function filterDesc(lang){
   const parts = [];
   if (st.pos.size < POSGROUPS.length) parts.push((lang === 'en' ? 'parts of speech: ' : '品詞：') + POSGROUPS.filter((_, i) => st.pos.has(i)).map(g => g[0]).join('・'));
   const J = lang === 'en';
-  if (st.minc > 1) parts.push((J ? 'corpus frequency ≥ ' : '全体の度数 ≥ ') + st.minc);
+  if (st.minc > 1) parts.push((J ? 'corpus frequency ≥ ' : '全体の頻度 ≥ ') + st.minc);
   if (st.maxdr < 1) parts.push((J ? 'share of works containing the word ≤ ' : '出現作品の割合 ≤ ') + st.maxdr);
   if (st.maxws < 1) parts.push((J ? 'concentration in one work ≤ ' : '1作品への集中度 ≤ ') + st.maxws);
   if (st.maxas < 1) parts.push((J ? 'concentration in one author ≤ ' : '1作家への集中度 ≤ ') + st.maxas);
@@ -2452,14 +2453,14 @@ function tblCaption(rows){
     if (tst.type === 'main') {
       const f = filterDesc('ja');
       s += tst.rank === 'view'
-        ? `キーワードは relevance（λ = ${st.lam}; Sievert & Shirley 2014）の上位 ${tst.n} 語` + (f.length ? `（絞り込み：${f.join('，')}）` : '')
-        : `キーワードは p(w|t) の上位 ${tst.n} 語`;
-      s += `で，各語の後に${tst.wv === 'n' ? '度数' : ' p(w|t) '}を示す。`;
+        ? `上位キーワードは relevance（λ = ${st.lam}; Sievert & Shirley 2014）の上位 ${tst.n} 語` + (f.length ? `（絞り込み：${f.join('，')}）` : '')
+        : `上位キーワードは p(w|t) の上位 ${tst.n} 語`;
+      s += `で，各語の後に${tst.wv === 'n' ? '頻度' : ' p(w|t) '}を示す。`;
       if (tst.cmean) s += '平均割合はテクストチャンクにおけるトピックの割合（θ）の平均。';
     } else {
       s += '平均割合はテクストチャンクにおける θ の平均，トークン数はトピックに割り当てられたトークンの数';
       if (M.diag && M.diag.coherence) s += '，coherence と exclusivity は MALLET の診断値（Mimno et al. 2011）';
-      s += '，最も濃い時代は平均割合が最も高い時代区分。';
+      s += '，最多区分は平均割合が最も高い時代区分。';
     }
     if (tst.sort === 'prev') s += 'トピックは平均割合の大きい順に並べた。';
     if (anyProv) s += '＊は仮ラベル（機械的に付けたもの）。';
@@ -2500,7 +2501,7 @@ function toCSV(rows){
   const head = cols.map(c => c[0]);
   if (tst.type === 'main') {
     if (tst.clab) head.push(W.prov);
-    for (let i = 1; i <= tst.n; i++) head.push(`${W.word} ${i}`, `${tst.wv === 'n' ? (tst.lang === 'en' ? 'Count' : '度数') : 'p(w|t)'} ${i}`); }
+    for (let i = 1; i <= tst.n; i++) head.push(`${W.word} ${i}`, `${tst.wv === 'n' ? (tst.lang === 'en' ? 'Count' : '頻度') : 'p(w|t)'} ${i}`); }
   const lines = ['# ' + tblCaption(rows) + ' ｜ ' + provenance(), head.map(q).join(',')];
   rows.forEach(r => {
     const v = cols.map(c => c[0] === W.label ? r.label : c[1](r));
@@ -2651,7 +2652,7 @@ function tblInit(){
 }
 
 // ======================================================================
-// ラベルづけ。① 診断資料（依頼文）を作って生成 AI に渡し，回答（JSON）を取り込む。
+// ラベルづけ。① 診断資料（プロンプト）を作って生成 AI に渡し，回答（JSON）を取り込む。
 // ② AI を使わない仮ラベルを機械的に付ける。ラベルはモデルの指紋（fp）に結び付ける
 // （トピックの番号は学習のたびに変わるので，別のモデルには当てはめない）。
 // ======================================================================
@@ -2682,7 +2683,7 @@ function saveLocal(){ try { localStorage.setItem(LSTORE, JSON.stringify(LAB)); }
 function labelsOf(){ return LAB[M.fp] || (LAB[M.fp] = {}); }
 function labelOf(t){ return labelsOf()[t] || null; }
 
-// ---- トピックの輪郭（依頼文と仮ラベルの材料。画面の絞り込みには左右されない）----
+// ---- トピックの輪郭（プロンプトと仮ラベルの材料。画面の絞り込みには左右されない）----
 function topWords(t, lam, n){
   const Tt = M.topicTotals[t], N = M.N;
   return M.tw[t].map(([j, c]) => {
@@ -2734,7 +2735,7 @@ function namesIn(label){
 }
 function shortLabel(s, n){ s = String(s || ''); return s.length > n ? s.slice(0, n) + '…' : s; }
 
-// ---- 依頼文（診断資料）-------------------------------------------------
+// ---- プロンプト（診断資料）-------------------------------------------------
 function dossier(t){
   const p = topicProfile(t);
   const wl = (lam, n) => topWords(t, lam, n).map(x => `${disp(M.vocab[x.j][0])}（${M.vocab[x.j][1].split('-')[0] || '?'}）`).join('、');
@@ -2745,7 +2746,7 @@ function dossier(t){
   else if (p.topA && p.topA.sh > 0.5) warn = `このトピックの重みの ${pct(p.topA.sh)} が1作家（${p.topA.a}）の作品から来ている。`;
   return [
     `### トピック ${t}（コーパス全体の ${pct(M.prev[t])}）`,
-    `- 上位語（トピック内の確率の順）：${wl(1, 15)}`,
+    `- 上位キーワード（トピック内の確率の順）：${wl(1, 15)}`,
     `- 特有の語（relevance λ=0.6 の順）：${wl(0.6, 15)}`,
     `- 時代区分ごとの割合：${p.per.map(x => `${x.p} ${pct(x.v)}`).join('、')}`,
     `- このトピックの割合が高い作品：\n` + p.byInside.slice(0, 6).map(x => '  - ' + wrow(x)).join('\n'),
@@ -2762,7 +2763,7 @@ LDA（MALLET）でトピックモデルを学習しました。下の「診断�
 ラベルを付けてください。
 
 ## 診断の手順
-1. 上位語と特有の語から，そのトピックが何でできているかを見る。
+1. 上位キーワードと特有の語から，そのトピックが何でできているかを見る。
 2. 担う作品・作家と偏りの警告から，それが**主題**なのか，1作品・1作家の**指標**（作品指標・作家指標）
    （登場人物名・固有の語彙）なのか，**文体・機能語**の偏り（文語・会話体など）なのかを判断する。
 3. 時代区分ごとの割合も参考にする。
@@ -2770,7 +2771,7 @@ LDA（MALLET）でトピックモデルを学習しました。下の「診断�
 ## 守ること
 - 根拠は**資料にある語と作品だけ**から挙げる。作品について一般に知られていることを使ったときは，
   「一般知識」と明記する。資料から言えないことは推測しない。
-- 判断がつかないときは，確信度を「低」にし，caution に理由を書く。
+- 判断がつかないときは，信頼度を「低」にし，caution に理由を書く。
 - ラベルは**できるだけ短く**する。日本語の名詞句で**2〜8字**を目安とし，**10字を超えない**
   （ネットワークの図にそのまま載るので，短いほど読みやすい）。説明は evidence に回す。
 - **作家名・作品名はラベルに入れない**（どの作品・作家に偏るかは図と詳細で分かる）。作品指標・作家指標で
@@ -2895,7 +2896,7 @@ function labelView(){
   $('lfp').textContent = `モデル「${M.label}」の指紋 ${M.fp}`;
   // 一覧（手で直せる）
   const L = labelsOf();
-  $('ltab').innerHTML = `<tr><th>トピック</th><th>仮ラベル（機械的）</th><th>ラベル</th><th>種類</th><th>確信度</th><th>根拠・注意</th><th>出典</th></tr>` +
+  $('ltab').innerHTML = `<tr><th>トピック</th><th>仮ラベル（機械的）</th><th>ラベル</th><th>種類</th><th>信頼度</th><th>根拠・注意</th><th>出典</th></tr>` +
     [...Array(M.K).keys()].map(t => {
       const r = L[t];
       return `<tr data-t="${t}"><td><a href="#" data-go="${t}">T${String(t).padStart(2, '0')}</a></td>
@@ -2954,7 +2955,7 @@ function labelInit(){
 function labBox(t){
   const lb = labelOf(t);
   if (!lb) return `<div class="labbox auto">仮ラベル：${esc(autoLabel(t))}　<span class="hint">（機械的に付けたもの。「ラベルづけ」で生成 AI に診断させられる）</span></div>`;
-  return `<div class="labbox"><b>${esc(lb.label)}</b><span class="ty">${esc(lb.type)}</span><span class="ty">確信度 ${esc(lb.confidence)}</span>
+  return `<div class="labbox"><b>${esc(lb.label)}</b><span class="ty">${esc(lb.type)}</span><span class="ty">信頼度 ${esc(lb.confidence)}</span>
     <span class="hint">　${esc(lb.source || '')}・${esc(lb.date || '')}</span><br>
     <span class="hint">根拠：${esc(lb.evidence || '')}${lb.caution ? '　⚠ ' + esc(lb.caution) : ''}　／仮ラベル：${esc(autoLabel(t))}</span></div>`;
 }
@@ -2992,7 +2993,7 @@ def main() -> int:
     ap.add_argument('--top', type=int, default=400,
                     help='各トピックについて保持する語の数（多いほど λ を下げたときに正確）')
     ap.add_argument('--min-count', type=int, default=3,
-                    help='モデル内の度数がこれ未満の語はビューアに入れない')
+                    help='モデル内の頻度がこれ未満の語はビューアに入れない')
     ap.add_argument('--d2v', default=None, metavar='DIR',
                     help='Step 7 の doc2vec の出力（work_vectors.csv のあるディレクトリ）。'
                          '作品のネットワークに使う')
@@ -3003,7 +3004,7 @@ def main() -> int:
                     help='ビューアで書き出したトピックのラベル（topic_labels.json）。'
                          '既定: --out と同じフォルダの topic_labels.json があれば読む')
     ap.add_argument('--rel-mfw', type=int, default=500,
-                    help='トピック間の Delta・Cosine Delta に使う語の数（モデル内の度数の上位）')
+                    help='トピック間の Delta・Cosine Delta に使う語の数（モデル内の最頻語）')
     ap.add_argument('--out', default=os.path.join(ROOT, 'my_work', 'results', 'topic_viewer.html'))
     args = ap.parse_args()
 

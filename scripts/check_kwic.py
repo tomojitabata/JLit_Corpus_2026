@@ -252,10 +252,10 @@ def main() -> int:
     chk(hits('。', stream='lemma')['total'] == 6,
         '7d) 既定では句読点も索引にある（読み返すのに必要）')
 
-    # ---- 8. 間引きは**間引いたと言う** -----------------------------------
+    # ---- 8. サンプリングは**サンプリングしたと言う** -----------------------------------
     s = hits('。', stream='lemma', sample=2)
     chk(s['total'] == 6 and s['sampled'] and s['shown'] == 2,
-        '8a) 総数は総数のまま，間引いたことを返す',
+        '8a) 総数は総数のまま，サンプリングしたことを返す',
         (s['total'], s['sampled'], s['shown']))
     s2 = kw.search('。', stream='lemma', sample=2, seed=7)
     s3 = kw.search('。', stream='lemma', sample=2, seed=7)
@@ -370,7 +370,7 @@ def main() -> int:
                 co[lem[j]] += 1
     fc = _C(w for w, c in zip(lem, content) if c)
     chk(info['W'] == W and info['N'] == N and info['node'] == len(node),
-        '14a) 窓の延べ W・母数 N・検索語の件数が素朴な数え方と一致',
+        '14a) ウィンドウの延べ W・母数 N・検索語の件数が素朴な数え方と一致',
         (info['W'], W, info['N'], N))
     bad = []
     for r in res['collocates']:
@@ -398,7 +398,7 @@ def main() -> int:
     rn = kv.search('汽車', stream='lemma', collocates=100, coll_window=3,
                    coll_min=1, coll_pos=['名詞'])
     chk(rn['coll_info']['N'] == N and rn['coll_info']['W'] == W,
-        '14c) 品詞で絞っても W と N は変わらない（窓の大きさは同じ）')
+        '14c) 品詞で絞っても W と N は変わらない（ウィンドウの大きさは同じ）')
 
     # ---- 15. 指標を替えると**選び直す** --------------------------------
     for m in K.COLL_MEASURES:

@@ -32,7 +32,7 @@
 出力
 ----
 ==============================  ==========================================
-``semantic_change.csv``         語ごとの変化量。**平均 ± 標準偏差**
+``semantic_change.csv``         語ごとの意味変化量（semantic drift）。**平均 ± 標準偏差**
 ``semantic_change_runs.csv``    試行ごとの生の値（上位2000語）
 ``probe_neighbours.csv``        指定語の近傍。``jaccard_runs`` は試行間の一致
 ``w2v_provenance.json``         設定と**使ったシードの並び**
@@ -313,7 +313,7 @@ def main() -> int:
                       encoding='utf-8') as fh:
                 json.dump(keys, fh, ensure_ascii=False)
 
-        # ---- 変化量 --------------------------------------------------------
+        # ---- 意味変化量 --------------------------------------------------------
         for w in cm:
             i = pos[w]
             steps = [1 - cos(aligned[keys[j]][i], aligned[keys[j + 1]][i])
@@ -322,7 +322,7 @@ def main() -> int:
                                          aligned[keys[-1]][i]))
             step_runs[w].append(steps)
 
-        # ---- 指定語の近傍（試行ごとに取る。一致率を測るため）---------------
+        # ---- 指定語の近傍（試行ごとに取る。近傍一致度を測るため）---------------
         for w in probes_want:
             if w not in pos:
                 continue
@@ -461,7 +461,7 @@ def main() -> int:
     print('[ok  ] w2v_provenance.json（設定とシードの並び）')
 
     print(f'\n[ok  ] 出力 → {args.out}')
-    print('      注意：drift 上位語には低頻度語・固有名詞が混じりやすい。')
+    print('      注意：意味変化量の上位語には低頻度語・固有名詞が混じりやすい。')
     print('      --min-count を上げるか，vocab_stats.csv で頻度を確認して解釈すること。')
     return 0
 

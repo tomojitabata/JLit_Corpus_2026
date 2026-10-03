@@ -16,23 +16,23 @@
 ⚠ **品詞だけでは固有名詞を除き切れない。** UniDic は辞書に無い人名を
 普通名詞や形状詞と解析することがある（『青年』の「純一」，『坊っちゃん』の
 「山嵐」，『黒死館殺人事件』の「法水」）。こうした語は**1作品に集中する**ので，
-``--max-work-share``（1作品が度数に占める割合の上限）で除外できる。
+``--max-work-share``（1作品が頻度に占める割合の上限）で除外できる。
 同じ作家の複数の作品に出る人物名（宮本百合子の「素子」）は1作品に集中しないので，
-``--max-author-share``（1作家が度数に占める割合の上限）で除外する。
+``--max-author-share``（1作家が頻度に占める割合の上限）で除外する。
 
 **bursty な語**（少数の作品に固まって出る語）は Gries (2008) の DP でも除外できる。
 DP は「各作品にその語が何割あるか」と「各作品がコーパスの何割か」の差の
 総和の半分で，0＝均等に散らばる，1＝一点に固まる。Step 4 の 07 と同じ定義で
 
     dp      コーパス全体の DP
-    dp_in   **その語がいちばん濃い時代の中での** DP（07 の dp_in と同じ考え方）
+    dp_in   **その語の最多区分（相対頻度が最も高い時代区分）の中での** DP（07 の dp_in と同じ考え方）
 
 の2つを出す。全体の dp は「ある時代に偏る」語まで不利に扱ってしまう。時代の主題を
 見たいトピックモデルでは，**時代への偏りは残し，作品への偏りだけを除きたい**
 ので，絞り込みには ``--max-dp-in`` を使う。
 
 ここでは 05 が書いた ``data/tokens/tsv/`` の品詞情報（UniDic の pos1–pos3）を
-読み，**指定した品詞だけ**を残した語彙素の列を作る。頻度帯（全体の度数・
+読み，**指定した品詞だけ**を残した語彙素の列を作る。頻度帯（全体の頻度・
 作品の何割に出るか）でも絞れる。出力は 05 の ``tokens_*`` と同じ形式なので，
 そのまま 06_build_datasets.py → 10_mallet.py に渡せる。
 
@@ -60,11 +60,11 @@ DP は「各作品にその語が何割あるか」と「各作品がコーパ�
     # 頻度帯でも絞る：全体で 5 回未満の語と，作品の 60% 超に出る語を除く
     python3 scripts/18_pos_select.py --profile nva --min-count 5 --max-doc-ratio 0.6
 
-    # 1作品に度数の 8 割以上が集中する語も除く（品詞解析が普通名詞と誤った
+    # 1作品に頻度の 8 割以上が集中する語も除く（品詞解析が普通名詞と誤った
     # 登場人物名＝「純一」「山嵐」「法水」などを除く）
     python3 scripts/18_pos_select.py --profile nva --max-work-share 0.8
 
-    # bursty な語を除く：いちばん濃い時代の中で DP が 0.8 を超える語
+    # bursty な語を除く：最多区分の中で DP が 0.8 を超える語
     python3 scripts/18_pos_select.py --profile nva --max-dp-in 0.8 --name nva_dp80
 
     # 品詞を直接指定する（--exclude は --pos の中からさらに除く）
@@ -75,8 +75,8 @@ DP は「各作品にその語が何割あるか」と「各作品がコーパ�
 ----
 ``<tokens の親>/tokens_<name>/<作品>.txt``  選んだ語彙素の列（空白区切り）
 ``<tokens の親>/tokens_<name>/selection.json``  何をどう選んだかの記録
-``<tokens の親>/lexicon.tsv``  語彙素ごとの代表品詞・度数・出現作品数・1作品への集中度・
-                               DP（全体／いちばん濃い時代の中）（全語。
+``<tokens の親>/lexicon.tsv``  語彙素ごとの代表品詞・頻度・出現作品数・1作品への集中度・
+                               DP（全体／最多区分の中）（全語。
                                トピックビューア 19 が品詞と頻度帯の絞り込みに使う）
 """
 from __future__ import annotations
@@ -102,7 +102,7 @@ def default_meta() -> str:
 
 
 def load_periods(path: str) -> tuple[dict[str, str], dict[str, str]]:
-    """作品の語幹 → 時代，作品の語幹 → 作家。0 埋めの揺れを両方登録する。"""
+    """作品のファイル名（拡張子なし）→ 時代，作品のファイル名 → 作家。0 埋めの揺れを両方登録する。"""
     per_of, au_of = {}, {}
     if not path or not os.path.exists(path):
         return per_of, au_of
@@ -151,17 +151,17 @@ def main() -> int:
     ap.add_argument('--pos', nargs='+', default=None, help='残す品詞（前方一致）')
     ap.add_argument('--exclude', nargs='+', default=[], help='--pos からさらに除く品詞')
     ap.add_argument('--min-count', type=int, default=1,
-                    help='全体の度数がこれ未満の語を除く（既定 1＝除かない）')
+                    help='全体の頻度がこれ未満の語を除く（既定 1＝除かない）')
     ap.add_argument('--max-doc-ratio', type=float, default=1.0,
                     help='これを超える割合の作品に出る語を除く（既定 1.0＝除かない）')
     ap.add_argument('--max-work-share', type=float, default=1.0,
-                    help='度数のうち1作品が占める割合がこれを超える語を除く'
+                    help='頻度のうち1作品が占める割合がこれを超える語を除く'
                          '（登場人物名の取りこぼし対策。例 0.8。既定 1.0＝除かない）')
     ap.add_argument('--max-author-share', type=float, default=1.0,
-                    help='度数のうち1作家が占める割合がこれを超える語を除く'
+                    help='頻度のうち1作家が占める割合がこれを超える語を除く'
                          '（複数作品にまたがる人物名。例 0.9。既定 1.0＝除かない）')
     ap.add_argument('--max-dp-in', type=float, default=1.0,
-                    help='いちばん濃い時代の中での Gries の DP がこれを超える語を除く'
+                    help='最多区分（その語の相対頻度が最も高い時代区分）の中での Gries の DP がこれを超える語を除く'
                          '（bursty な語。例 0.8。既定 1.0＝除かない）')
     ap.add_argument('--meta', default=None,
                     help='時代を引くメタデータ（dp_in に使う。既定 *_v3_local.csv > v3 > v2）')
@@ -189,14 +189,14 @@ def main() -> int:
     if not files:
         sys.exit(f'TSV が1つも無い: {args.tsv}')
 
-    # ---- 1回目：全語の品詞・度数・出現作品数（lexicon）と，選んだ列 --------
-    count = Counter()                       # 全語の度数
+    # ---- 1回目：全語の品詞・頻度・出現作品数（lexicon）と，選んだ列 --------
+    count = Counter()                       # 全語の頻度
     docs = Counter()                        # 全語の出現作品数
-    pos_of = defaultdict(Counter)           # 語彙素 → 品詞ラベルの度数
-    top_in_work = Counter()                 # 語彙素 → 1作品での最大度数
+    pos_of = defaultdict(Counter)           # 語彙素 → 品詞ラベルの頻度
+    top_in_work = Counter()                 # 語彙素 → 1作品での最大頻度
     top_work = {}                           # 語彙素 → その作品
     selected: dict[str, list[str]] = {}
-    per_work: dict[str, Counter] = {}       # 作品 → 語の度数（DP 用）
+    per_work: dict[str, Counter] = {}       # 作品 → 語の頻度（DP 用）
     lengths: dict[str, int] = {}
     header = ''
     for f in files:
@@ -242,7 +242,7 @@ def main() -> int:
         by_period[period_of.get(s, '不明')].append(s)
     plen = {p: sum(lengths[s] for s in ss) for p, ss in by_period.items()}
     pset = {p: set(ss) for p, ss in by_period.items()}
-    where = defaultdict(list)                # 語 → [(作品, 度数)]
+    where = defaultdict(list)                # 語 → [(作品, 頻度)]
     for s, c in per_work.items():
         for w, n in c.items():
             where[w].append((s, n))
@@ -349,7 +349,7 @@ def main() -> int:
               + (' …' if len(drop_high) > 20 else ''))
     print('       品詞の内訳: ' + '，'.join(f'{k} {v / max(1, total_out):.1%}'
                                      for k, v in by_pos.most_common(6)))
-    print(f'[ok  ] {lex}（全 {len(count):,} 語の品詞・度数・出現作品数）')
+    print(f'[ok  ] {lex}（全 {len(count):,} 語の品詞・頻度・出現作品数）')
     return 0
 
 

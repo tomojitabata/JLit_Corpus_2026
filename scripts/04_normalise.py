@@ -17,7 +17,7 @@ XML には本文以外の情報（ルビ・注記・見出し・会話標示）�
 ``full``      地の文＋会話（既定の分析対象）
 ``narration`` 地の文のみ（``<said>`` を除く）。語りの人称を測るときはこちら
 ``speech``    会話のみ。会話文比率・文体指標に用いる
-``embedded``  埋め込みテクストのみ（``<quote type="embedded">``）。
+``embedded``  挿入テクストのみ（``<quote type="embedded">``）。
               書簡体・手記の部分を切り出して対照するときに使う
 
 いずれも，注記 ``<note>``・ルビの読み ``@rt`` は除外し，外字 ``<g>`` は
@@ -110,7 +110,7 @@ def extract(elem: ET.Element, mode: str, keep_ruby_base: bool = True,
         embedded   <quote type="embedded"> のみ
 
     ``<said>`` は ``<quote type="embedded">`` の内側にも現れる（書簡の中の
-    対話）。これは会話として数える。埋め込みテクストの地の文を語りから
+    対話）。これは会話として数える。挿入テクストの地の文を語りから
     外したいときは ``narration_excludes_embedded`` を真にする。
     """
     parts: list[str] = []
@@ -420,7 +420,7 @@ def main() -> int:
                   + '，'.join(f"{r['title']}({r['speech_markup']})" for r in na))
             print('       分析では 0 で埋めず，欠測のまま扱うこと')
         if emb:
-            print(f'[note] 埋め込みテクストを含む作品 {len(emb)} 件。'
+            print(f'[note] 挿入テクストを含む作品 {len(emb)} 件。'
                   'data/plain/embedded/ に切り出した')
     return 0
 

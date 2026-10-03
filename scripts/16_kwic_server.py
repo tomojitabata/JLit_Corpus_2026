@@ -151,7 +151,7 @@ class Handler(BaseHTTPRequestHandler):
                             'index_built', pv.get('built_at', '')])
                 w.writerow(['時代区分', '著者', '作品', '初出年', '文体',
                             '左文脈', 'キーワード', '右文脈',
-                            '語彙素', '品詞', '作品内位置', '作品の語幹'])
+                            '語彙素', '品詞', '作品内位置', '作品のファイル名（拡張子なし）'])
                 bl = self.kw.band_labels
                 for r in res['rows']:
                     w.writerow([
@@ -227,7 +227,7 @@ def export_html(kw: KwicIndex, res: dict, path: str | os.PathLike) -> Path:
     """検索結果を，そのまま読める HTML に書き出す。
 
     **由来を必ず書く**（検索式・列・辞書・索引の作成時刻・総ヒット数）。
-    間引いたときはそのことも書く。
+    サンプリングしたときはそのことも書く。
     """
     e = html.escape
     bl = kw.band_labels
@@ -246,7 +246,7 @@ def export_html(kw: KwicIndex, res: dict, path: str | os.PathLike) -> Path:
     note = (f'検索式「{res["query"]}」／列 '
             f'{"語彙素" if res["stream"] == "lem" else "表層形"}／'
             f'総ヒット {res["total"]:,} 件のうち {res["shown"]:,} 件を表示'
-            + (f'／**{res["sample"]} 件に無作為間引き（シード {res["seed"]}）**'
+            + (f'／**{res["sample"]} 件に無作為サンプリング（シード {res["seed"]}）**'
                if res['sampled'] else '')
             + f'／辞書 {p.get("dictionary", "?")} '
               f'{p.get("dictionary_version", "")}／'

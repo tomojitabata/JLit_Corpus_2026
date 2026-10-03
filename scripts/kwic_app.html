@@ -186,7 +186,7 @@ summary.h2{cursor:pointer;font-size:.86rem;color:var(--ink2);font-weight:650}
     <label class="f">表示 <select id="limit">
       <option>50</option><option selected>200</option><option>500</option>
       <option>1000</option></select> 件</label>
-    <label class="f">間引き <input id="sample" type="number" min="0" step="50"
+    <label class="f">サンプリング <input id="sample" type="number" min="0" step="50"
       value="0" style="width:82px"> 件（0で全件）</label>
     <label class="f"><input id="nopunct" type="checkbox"> 句読点を外す</label>
     <label class="f"><input id="coll" type="checkbox" checked> 共起語も出す</label>
@@ -219,7 +219,7 @@ summary.h2{cursor:pointer;font-size:.86rem;color:var(--ink2);font-weight:650}
         <td><b>語の連なり</b>（空白区切り。<b>文境界は越えない</b>）</td></tr>
   </table>
   <p class="sub">語形が語彙に無いときは「0件」ではなく<b>理由</b>が出る
-  （列の選び違い・辞書の切り方・旧仮名の表記）。行をクリックすると
+  （列の選び違い・辞書によるテクスト分割・旧仮名の表記）。行をクリックすると
   <b>前後の本文へ広がる</b>。本文の語にカーソルを当てると語彙素と品詞が出る。</p>
   </div>
 </div></div>
@@ -279,16 +279,16 @@ summary.h2{cursor:pointer;font-size:.86rem;color:var(--ink2);font-weight:650}
           固有名詞や誤解析が上位に来やすい</td></tr>
         <tr><td>MI3</td><td>log2(O11³ / E11)。MI の低頻度語への偏りを共起頻度の3乗で補う</td></tr>
         <tr><td>t</td><td>(O11 − E11) / √O11。高頻度の語（機能語など）が上に来る</td></tr>
-        <tr><td>G²</td><td>対数尤度比（Step 4 と同じ）。期待より少ない（反発する）語は負にしてある</td></tr>
+        <tr><td>G²</td><td>対数尤度比（Step 4 と同じ）。期待より少ない（負の連関の）語は負にしてある</td></tr>
         <tr><td>ΔP（検索語→共起語）</td><td>O11/W − O21/(N − W)。
-          検索語の窓の中にいると，その語が現れる確率がどれだけ上がるか（Gries 2013）</td></tr>
+          検索語のウィンドウ（共起範囲）の中にいると，その語が現れる確率がどれだけ上がるか（Gries 2013）</td></tr>
         <tr><td>ΔP（共起語→検索語）</td><td>O11/f(c) − O12/(N − f(c))。
-          その語が現れると，そこが検索語の窓である確率がどれだけ上がるか。
+          その語が現れると，そこが検索語のウィンドウである確率がどれだけ上がるか。
           <b>向きのある指標</b>で，2つは一致しない</td></tr>
       </table>
-      <p class="sub">O11＝窓の中での共起頻度，W＝窓に入った形態素の延べ数，
+      <p class="sub">O11＝ウィンドウの中での共起頻度，W＝ウィンドウに入った形態素の延べ数，
       f(c)＝共起語の頻度，N＝全形態素数，E11 = W·f(c)/N（期待値）。
-      句読点は数えず，窓は文境界を越えない。品詞で絞ったときは，f(c) も同じ品詞で数える。</p>
+      句読点は数えず，ウィンドウは文境界を越えない。品詞で絞ったときは，f(c) も同じ品詞で数える。</p>
       </details>
     </div>
 
@@ -521,7 +521,7 @@ function render(res) {
   const bl = (META && META.band_labels) || [];
   $('hits-h').textContent =
     `用例  ${num(res.total)} 件`
-    + (res.sampled ? `（うち ${num(res.sample)} 件に無作為間引き・シード ${res.seed}）` : '')
+    + (res.sampled ? `（うち ${num(res.sample)} 件に無作為サンプリング・シード ${res.seed}）` : '')
     + `／表示 ${num(res.shown)} 件・100万語あたり ${res.per_million}`
     + `／${res.elapsed_ms} ms`;
 
@@ -664,7 +664,7 @@ function renderColl(res) {
   const pos = (info.pos || []).length ? `共起語の品詞：${info.pos.join('・')}` : '共起語の品詞：すべて';
   $('collnote').textContent =
     `検索語 ${num(info.node)} 件の前後 ${info.window} 語（句読点を除き，文境界を越えない）。`
-    + `窓の延べ W = ${num(info.W)}／N = ${num(info.N)}（句読点を除く形態素数）。${pos}。`
+    + `ウィンドウの延べ W = ${num(info.W)}／N = ${num(info.N)}（句読点を除く形態素数）。${pos}。`
     + `共起 ${info.min_co} 回以上かつ頻度 3 以上の語から ${num(res.collocates.length)} 語。`
     + '見出しの指標を押すと，その指標で上位を選び直す（並べ替えではなく選び直し）。';
 }
@@ -918,7 +918,7 @@ function saveHtml() {
   const note = `検索式「${LAST.query}」／列 `
     + (LAST.stream === 'lem' ? '語彙素' : '表層形')
     + `／総ヒット ${LAST.total} 件のうち ${LAST.shown} 件`
-    + (LAST.sampled ? `／${LAST.sample} 件に無作為間引き（シード ${LAST.seed}）` : '')
+    + (LAST.sampled ? `／${LAST.sample} 件に無作為サンプリング（シード ${LAST.seed}）` : '')
     + `／並べ替え ${LAST.sort}／前後 ${LAST.context} 語`
     + `／辞書 ${p.dictionary || '?'} ${p.dictionary_version || ''}`
     + `／索引 ${p.built_at || '?'} 作成`;
@@ -1016,9 +1016,9 @@ function uiSummary() {
   const min = bar.classList.contains('minopt');
   $('optsum').textContent = min
     ? `文脈 ${$('context').value} 語・${$('sort').selectedOptions[0].textContent}・${$('limit').value} 件`
-      + ($('sample').value > 0 ? `・間引き ${$('sample').value} 件` : '')
+      + ($('sample').value > 0 ? `・サンプリング ${$('sample').value} 件` : '')
       + ($('nopunct').checked ? '・句読点を外す' : '')
-      + ($('coll').checked ? `・共起語 窓 ${$('collwin').value}` : '・共起語なし')
+      + ($('coll').checked ? `・共起語 ウィンドウ ${$('collwin').value}` : '・共起語なし')
     : '';
   const on = FLT.map(([id, lab]) => [lab, $(id).selectedOptions.length]).filter(x => x[1]);
   $('fltsum').textContent = on.length ? on.map(x => `${x[0]} ${x[1]}`).join('・') + ' を選択中'

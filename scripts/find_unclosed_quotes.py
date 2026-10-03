@@ -91,7 +91,7 @@ def paragraphs(path: str) -> list[tuple[int, str, bool, bool]]:
     """ファイルを (段落番号, 本文, ブロック境界か, 標示済みか) の並びにする。
 
     第4要素は変換後 XML 用で，その段落に ``<said>`` / ``<quote>`` が
-    付いているかを示す。継続引用符や埋め込みテクストとして
+    付いているかを示す。継続引用符や挿入テクストとして
     ``03_aozora2xml.py`` が既に処理した箇所を，未処理と取り違えないため。
     """
     raw = open(path, encoding='utf-8', errors='replace').read()

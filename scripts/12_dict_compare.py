@@ -45,7 +45,7 @@
 ``dict_by_stratum.csv``     辞書 × 層（正書法・文体）の指標
 ``dict_by_work.csv``        辞書 × 作品の指標
 ``dict_agreement.csv``      辞書ペア × 作品の境界一致率
-``dict_disagreements.csv``  切り方が分かれた箇所の実例（既定 400 件）
+``dict_disagreements.csv``  テクスト分割が分かれた箇所の実例（既定 400 件）
 ``dict_features.csv``       各辞書の素性の並び（互換性の記録）
 
 **``dict_disagreements.csv`` は必ず目で見ること。** 数値だけでは，
