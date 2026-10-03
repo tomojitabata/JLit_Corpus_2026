@@ -147,6 +147,9 @@ class Handler(BaseHTTPRequestHandler):
                 pv = res.get('provenance', {})
                 w.writerow(['# query', res['query'], 'stream', res['stream'],
                             'total', res['total'], 'shown', res['shown'],
+                            'collocate', (res.get('focus') or {}).get('form', ''),
+                            'window', (res.get('focus') or {}).get('window', ''),
+                            'with_collocate', (res.get('focus') or {}).get('hits', ''),
                             'dictionary', pv.get('dictionary', ''),
                             'index_built', pv.get('built_at', '')])
                 w.writerow(['時代区分', '著者', '作品', '初出年', '文体',
@@ -217,6 +220,7 @@ class Handler(BaseHTTPRequestHandler):
             coll_sort=str(req.get('coll_sort', 'logdice')),
             coll_pos=[str(x) for x in (req.get('coll_pos') or [])] or None,
             coll_min=max(1, min(1000, int(req.get('coll_min', 2)))),
+            coll_focus=(str(req.get('coll_focus')) if req.get('coll_focus') else None),
             variants=bool(req.get('variants', True)))
 
 
@@ -246,6 +250,9 @@ def export_html(kw: KwicIndex, res: dict, path: str | os.PathLike) -> Path:
     note = (f'検索式「{res["query"]}」／列 '
             f'{"語彙素" if res["stream"] == "lem" else "表層形"}／'
             f'総ヒット {res["total"]:,} 件のうち {res["shown"]:,} 件を表示'
+            + ((f'／**共起語「{res["focus"]["form"]}」を前後 {res["focus"]["window"]} 語以内に'
+                f'含む用例 {res["focus"]["hits"]:,} 件に絞った**')
+               if res.get('focus') else '')
             + (f'／**{res["sample"]} 件に無作為サンプリング（シード {res["seed"]}）**'
                if res['sampled'] else '')
             + f'／辞書 {p.get("dictionary", "?")} '

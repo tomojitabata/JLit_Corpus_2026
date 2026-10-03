@@ -114,6 +114,13 @@ details.opt summary{cursor:pointer;font-size:12.5px;color:var(--accent)}
 td.pct{color:var(--ink3);font-size:11px}
 .vm td{white-space:nowrap}
 .vm td.lab{max-width:260px;overflow:hidden;text-overflow:ellipsis}
+#colltab tr.go{cursor:pointer}
+#colltab tr.go:hover{background:#fbfaf6}
+#colltab tr.sel td{background:#fff3c4}
+#kwic span.co{background:#ffe9a8;border-radius:3px;padding:0 1px;font-weight:700}
+.focus{display:none;align-items:center;gap:8px;margin:0 0 .5em;padding:4px 9px;font-size:12.5px;
+  background:#fff8dc;border:1px solid #e8d48a;border-radius:7px;color:#5a4a00}
+.focus button{padding:2px 9px;font-size:12px}
 #vtab tr.go{cursor:pointer}
 #vtab tr.go:hover{background:#fbfaf6}
 summary.h2{cursor:pointer;font-size:.86rem;color:var(--ink2);font-weight:650}
@@ -231,6 +238,8 @@ summary.h2{cursor:pointer;font-size:.86rem;color:var(--ink2);font-weight:650}
     <div class="card" id="hitcard">
       <div class="cardbar"><h2><span id="hits-h">用例</span><a class="help-q" href="/manual#kwic" target="jlit-kwic-manual" title="この欄の使い方（マニュアルを別のウィンドウで開く）">？</a></h2>
       <button class="ghost" id="fsB" title="用例の表を画面いっぱいに広げる（Esc で戻る）">⤢ 全画面</button></div>
+      <div class="focus" id="focusbar"><span id="focustxt"></span>
+        <button class="ghost" id="focusclear" title="共起語による絞り込みを解いて，検索語の全用例に戻す">× 絞り込みを解く</button></div>
       <div class="scroll" id="kwicscroll"><table id="kwic">
         <thead><tr>
           <th>時代区分</th><th>著者</th><th>作品</th>
@@ -373,6 +382,8 @@ function fx(v, d) { return (typeof v === 'number' && isFinite(v)) ? v.toFixed(d)
 const $ = (id) => document.getElementById(id);
 
 let META = null, STREAM = 'lemma', LAST = null, OFFSET = 0;
+// 用例を絞るのに選んだ共起語（共起語の表の行を押して選ぶ。null なら絞らない）
+let FOCUS = null;
 // サーバとの取り決めの版（kwic_core.API_VERSION と同じ番号）
 const API_VERSION = 2;
 const STALE = 'サーバが古い（画面より前の版のまま動いている）。'
@@ -468,6 +479,7 @@ function req(offset) {
     coll_sort: $('collsort').value || 'logdice',
     coll_min: parseInt($('collmin').value, 10) || 2,
     coll_pos: posSelection(),
+    coll_focus: ($('coll').checked && FOCUS) ? FOCUS : null,
     variants: true,
     bands: selected('bands').map(Number),
     authors: selected('authors'),
@@ -515,12 +527,32 @@ async function search(offset) {
 }
 
 function tokJoin(list) { return list.map(t => t.surf).join(''); }
+// 文脈のセル。絞り込みに使った共起語（t.coll）だけ印を付ける。本文は textContent で入れる
+function tokCell(cls, list) {
+  const td = el('td', cls);
+  let buf = '';
+  list.forEach(t => {
+    if (t.coll) {
+      if (buf) { td.appendChild(document.createTextNode(buf)); buf = ''; }
+      td.appendChild(el('span', 'co', t.surf));
+    } else buf += t.surf;
+  });
+  if (buf) td.appendChild(document.createTextNode(buf));
+  return td;
+}
 
 function render(res) {
   // ---- 見出し
   const bl = (META && META.band_labels) || [];
+  const fo = res.focus;
+  $('focusbar').style.display = fo ? 'flex' : 'none';
+  if (fo) $('focustxt').textContent =
+    `共起語「${fo.form}」を前後 ${fo.window} 語以内に含む用例 ${num(fo.hits)} 件に絞っている`
+    + `（検索語の全用例 ${num(fo.of)} 件のうち。共起 ${num(fo.co)} 回）。`
+    + '時代区分・作品・語形・共起語の表は，全用例のままである。';
   $('hits-h').textContent =
-    `用例  ${num(res.total)} 件`
+    (fo ? `用例  ${num(fo.hits)} 件（共起語「${fo.form}」つき）／全 ${num(res.total)} 件`
+        : `用例  ${num(res.total)} 件`)
     + (res.sampled ? `（うち ${num(res.sample)} 件に無作為サンプリング・シード ${res.seed}）` : '')
     + `／表示 ${num(res.shown)} 件・100万語あたり ${res.per_million}`
     + `／${res.elapsed_ms} ms`;
@@ -534,9 +566,9 @@ function render(res) {
     tr.appendChild(el('td', 'src', band));
     tr.appendChild(el('td', r.has_meta ? 'src' : 'src nometa', r.author));
     tr.appendChild(el('td', 'src', r.title));
-    tr.appendChild(el('td', 'l', tokJoin(r.left)));
+    tr.appendChild(tokCell('l', r.left));
     tr.appendChild(el('td', 'k', tokJoin(r.key)));
-    tr.appendChild(el('td', 'r', tokJoin(r.right)));
+    tr.appendChild(tokCell('r', r.right));
     tr.appendChild(el('td', 'num', r.in_work));
     tr.addEventListener('click', () => {
       Array.from(tb.children).forEach(x => x.classList.remove('on'));
@@ -549,11 +581,13 @@ function render(res) {
   // ---- 頁送り
   const lim = parseInt($('limit').value, 10);
   const from = res.offset + 1, to = res.offset + res.shown;
-  $('page').textContent = res.total
-    ? `${num(from)}–${num(to)} / ${num(res.sampled ? res.sample : res.total)} 件`
+  // 共起語で絞っているときは，絞った後の件数で頁を送る
+  const nlist = (res.listed !== undefined) ? res.listed : (res.sampled ? res.sample : res.total);
+  $('page').textContent = nlist
+    ? `${num(from)}–${num(to)} / ${num(nlist)} 件`
     : '';
   $('prev').disabled = res.offset <= 0;
-  $('next').disabled = to >= (res.sampled ? res.sample : res.total);
+  $('next').disabled = to >= nlist;
 
   // ---- 時代区分ごとの分布（1色の横棒＋表。棒は表の添え物である）
   const bt = $('bandtab').tBodies[0];
@@ -649,7 +683,11 @@ function renderColl(res) {
   });
   ct.appendChild(hd);
   res.collocates.forEach(c => {
-    const tr = document.createElement('tr');
+    const tr = el('tr', 'go' + (FOCUS === c.form ? ' sel' : ''));
+    tr.title = FOCUS === c.form
+      ? 'もう一度押すと絞り込みを解く'
+      : `「${c.form}」をウィンドウの中に含む用例だけを，上の用例の表に出す`;
+    tr.addEventListener('click', () => setFocus(FOCUS === c.form ? null : c.form));
     tr.appendChild(el('td', null, c.form));
     tr.appendChild(el('td', 'num' + (cur === 'co' ? ' on' : ''), num(c.co)));
     tr.appendChild(el('td', 'num', num(c.freq)));
@@ -666,7 +704,8 @@ function renderColl(res) {
     `検索語 ${num(info.node)} 件の前後 ${info.window} 語（句読点を除き，文境界を越えない）。`
     + `ウィンドウの延べ W = ${num(info.W)}／N = ${num(info.N)}（句読点を除く形態素数）。${pos}。`
     + `共起 ${info.min_co} 回以上かつ頻度 3 以上の語から ${num(res.collocates.length)} 語。`
-    + '見出しの指標を押すと，その指標で上位を選び直す（並べ替えではなく選び直し）。';
+    + '見出しの指標を押すと，その指標で上位を選び直す（並べ替えではなく選び直し）。'
+    + '語の行を押すと，その語をウィンドウの中に含む用例だけを用例の表に出す（もう一度押すと解く）。';
 }
 
 // 品詞の木
@@ -919,6 +958,7 @@ function saveHtml() {
     + (LAST.stream === 'lem' ? '語彙素' : '表層形')
     + `／総ヒット ${LAST.total} 件のうち ${LAST.shown} 件`
     + (LAST.sampled ? `／${LAST.sample} 件に無作為サンプリング（シード ${LAST.seed}）` : '')
+    + (LAST.focus ? `／共起語「${LAST.focus.form}」を前後 ${LAST.focus.window} 語以内に含む用例 ${LAST.focus.hits} 件に絞った` : '')
     + `／並べ替え ${LAST.sort}／前後 ${LAST.context} 語`
     + `／辞書 ${p.dictionary || '?'} ${p.dictionary_version || ''}`
     + `／索引 ${p.built_at || '?'} 作成`;
@@ -948,8 +988,20 @@ function saveHtml() {
 }
 
 // ---- 結び付け -----------------------------------------------------------
-$('go').addEventListener('click', () => search(0));
-$('q').addEventListener('keydown', e => { if (e.key === 'Enter') search(0); });
+// 検索語を改めたら，共起語による絞り込みは解く（別の検索語の共起語になるため）
+$('go').addEventListener('click', () => { FOCUS = null; search(0); });
+$('q').addEventListener('keydown', e => { if (e.key === 'Enter') { FOCUS = null; search(0); } });
+function setFocus(form) {
+  FOCUS = form;
+  search(0).then(() => {
+    if (!form) return;
+    // 用例の表を，上部の固定欄に隠れない位置まで送る
+    const top = $('hitcard').getBoundingClientRect().top + window.scrollY
+      - document.querySelector('.bar').getBoundingClientRect().height - 8;
+    window.scrollTo({top: Math.max(0, top)});
+  });
+}
+$('focusclear').addEventListener('click', () => setFocus(null));
 $('prev').addEventListener('click', () => search(Math.max(
   0, OFFSET - parseInt($('limit').value, 10))));
 $('next').addEventListener('click', () => search(
@@ -974,6 +1026,7 @@ Array.from($('stream-seg').children).forEach(b => {
     Array.from($('stream-seg').children).forEach(x => x.classList.remove('on'));
     b.classList.add('on');
     STREAM = b.dataset.v;
+    FOCUS = null;
     if ($('q').value.trim()) search(0);
   });
 });

@@ -540,7 +540,8 @@ class KwicIndex:
                sample: int = 0, seed: int = 20260920,
                collocates: int = 0, coll_window: int = 4,
                coll_sort: str = 'logdice', coll_pos: list[str] | None = None,
-               coll_min: int = 2, variants: bool = True) -> dict:
+               coll_min: int = 2, coll_focus: str | None = None,
+               variants: bool = True) -> dict:
         """検索して用例と集計を返す。
 
         ``context`` は前後の語数。``sort`` は
@@ -550,6 +551,10 @@ class KwicIndex:
         共起語は ``coll_sort`` の指標で上位 ``collocates`` 語を選ぶ
         （``COLL_MEASURES`` の名前）。``coll_pos`` は共起語の品詞
         （``名詞`` のような大分類か ``名詞-普通名詞`` のような中分類の並び）。
+        ``coll_focus`` に共起語を1つ渡すと，**その語がウィンドウ（共起範囲）に
+        現れる用例だけ**を ``rows`` に並べる（数え方は共起語の表と同じ。品詞の
+        絞り込みも同じに掛ける）。集計（時代別・作品別・語形・共起語の表）は
+        検索語の全ヒットのまま変えない。絞ったことは ``focus`` に返す。
         ``variants`` が真なら，一致した語の**異綴形**（書字形基本形）と
         その内訳を返す（版 2 の索引が要る）。
         """
@@ -619,14 +624,44 @@ class KwicIndex:
             coll = []
         var = self._variants(hits, span) if variants else None
 
-        order = self._order(hits, span, base, sort, rng)
+        # 共起語で用例を絞る。**絞るのは並べる用例だけ**で，上の集計は変えない
+        # （共起語の表が変わると，次の語を選べなくなる）。
+        focus = None
+        listed = hits
+        mark = None
+        if coll_focus:
+            fid = self._rev[base].get(coll_focus)
+            if fid is None:
+                raise QueryError(f'共起語「{coll_focus}」が'
+                                 f'{"語彙素" if base == "lem" else "表層形"}の語彙に無い。')
+            cmask = self._coll_mask(hits, span, base, coll_window, fid, coll_pos)
+            listed = hits[cmask.any(axis=1)] if hits.size else hits
+            mark = (int(fid), int(coll_window), coll_pos)
+            # 共起語が文脈の外に出て見えなくならないよう，文脈をウィンドウ以上にする
+            context = max(int(context), int(coll_window))
+            focus = {'form': coll_focus, 'window': int(coll_window),
+                     'pos': list(coll_pos or []),
+                     'hits': int(listed.size), 'co': int(cmask.sum()),
+                     'of': total}
+
+        order = self._order(listed, span, base, sort, rng)
         shown = order[offset:offset + limit] if limit else order
-        rows = [self._row(int(i), span, context, base) for i in shown]
+        # 絞り込みに使った共起語の位置を，表示する用例の分だけまとめて求める
+        cpos = [None] * len(shown)
+        if mark and len(shown):
+            sh = np.asarray(shown, dtype=np.int64)
+            offs = self._coll_offsets(span, mark[1])
+            cm = self._coll_mask(sh, span, base, mark[1], mark[0], mark[2])
+            cpos = [{int(i) + o for o, hit in zip(offs, row) if hit}
+                    for i, row in zip(sh, cm)]
+        rows = [self._row(int(i), span, context, base, cp)
+                for i, cp in zip(shown, cpos)]
 
         return {
             'query': query, 'stream': base, 'span': span,
             'terms': [t.raw for t in terms],
-            'total': total, 'sampled': sampled, 'sample': int(sample or 0),
+            'total': total, 'listed': int(listed.size), 'focus': focus,
+            'sampled': sampled, 'sample': int(sample or 0),
             'seed': int(seed), 'shown': len(rows), 'offset': int(offset),
             'sort': sort, 'context': int(context),
             'rows': rows,
@@ -744,11 +779,14 @@ class KwicIndex:
         return hits[idx]
 
     # -- 1行ぶん ----------------------------------------------------------
-    def _row(self, i: int, span: int, context: int, base: str) -> dict:
+    def _row(self, i: int, span: int, context: int, base: str,
+             cpos: set | None = None) -> dict:
         sent = self.a['sent']
         s = sent[i]
         lo = max(0, i - context)
         hi = min(self.n, i + span + context)
+        # cpos：絞り込みに使った共起語の位置（search がまとめて求めて渡す）
+        cpos = cpos or set()
         # 文をまたいだ文脈は出すが，**どこで文が切れたかを記録する**
         def seq(a: int, b: int) -> list[dict]:
             out = []
@@ -759,6 +797,8 @@ class KwicIndex:
                     'pos': self.v['pos'][int(self.a['pos'][j])],
                     'same_sent': bool(sent[j] == s),
                 })
+                if j in cpos:
+                    out[-1]['coll'] = True
             return out
 
         w = self.works[int(self.a['work'][i])]
@@ -954,6 +994,43 @@ class KwicIndex:
                 row[m] = round(float(v[k]), d)
             out.append(row)
         return out, info
+
+    @staticmethod
+    def _coll_offsets(span: int, window: int) -> list[int]:
+        """ウィンドウのずらし幅（検索語の左 window 語と右 window 語）。"""
+        return ([-k for k in range(1, window + 1)]
+                + [span + k for k in range(window)])
+
+    def _coll_mask(self, hits: np.ndarray, span: int, base: str, window: int,
+                   fid: int, pos_sel: list[str] | None = None) -> np.ndarray:
+        """各用例のウィンドウの各位置に，語 ``fid`` があるか（用例 × ずらし幅）。
+
+        ``_collocates`` と**同じ条件**で見る：文境界を越えない，句読点は数えない，
+        品詞で絞っていればその品詞の語だけ。したがって真の数の合計は，共起語の
+        表の「共起」（O11）に一致する。
+        """
+        offs = self._coll_offsets(span, window)
+        out = np.zeros((hits.size, len(offs)), dtype=bool)
+        if hits.size == 0:
+            return out
+        sent = self.a['sent']
+        punct_lut = np.zeros(len(self.v['pos']) + 1, dtype=bool)
+        if self._punct.size:
+            punct_lut[np.asarray(self._punct, dtype=np.int64)] = True
+        pl = self.pos_lut(pos_sel)
+        s0 = np.asarray(sent[hits])
+        for c, o in enumerate(offs):
+            j = hits + o
+            ok = (j >= 0) & (j < self.n)
+            jj = np.clip(j, 0, self.n - 1)
+            ok &= np.asarray(sent[jj]) == s0
+            ok &= ~punct_lut[np.asarray(self.a['pos'][jj], dtype=np.int64)]
+            if pl:
+                key, lut = pl
+                ok &= lut[np.asarray(self.a[key][jj], dtype=np.int64)]
+            ok &= np.asarray(self.a[base][jj], dtype=np.int64) == fid
+            out[:, c] = ok
+        return out
 
     # -- 異綴形（書字形基本形）---------------------------------------------
     def _band_of_work(self) -> np.ndarray:
@@ -1240,8 +1317,12 @@ def to_csv(kw: KwicIndex, res: dict, path: str | os.PathLike) -> Path:
     p = Path(path)
     with open(p, 'w', newline='', encoding='utf-8-sig') as fh:
         w = csv.writer(fh)
+        fo = res.get('focus') or {}
         w.writerow(['# query', res['query'], 'stream', res['stream'],
                     'total', res['total'], 'shown', res['shown'],
+                    'collocate', fo.get('form', ''),
+                    'window', fo.get('window', ''),
+                    'with_collocate', fo.get('hits', ''),
                     'dictionary', res['provenance'].get('dictionary', ''),
                     'index_built', res['provenance'].get('built_at', '')])
         w.writerow(['時代区分', '著者', '作品', '初出年', '文体',

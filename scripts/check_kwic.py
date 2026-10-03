@@ -400,6 +400,36 @@ def main() -> int:
     chk(rn['coll_info']['N'] == N and rn['coll_info']['W'] == W,
         '14c) 品詞で絞っても W と N は変わらない（ウィンドウの大きさは同じ）')
 
+    # ---- 14d. 共起語で用例を絞る --------------------------------------
+    # 絞った用例に付く印の数は，共起語の表の「共起」（O11）と同じでなければならない
+    full = kv.search('汽車', stream='lemma', collocates=100, coll_window=3,
+                     coll_min=1, coll_sort='co', limit=2000)
+    bad = []
+    for c in full['collocates']:
+        rf = kv.search('汽車', stream='lemma', collocates=100, coll_window=3,
+                       coll_min=1, coll_sort='co', coll_focus=c['form'], limit=2000)
+        fo = rf['focus']
+        marks = sum(1 for r in rf['rows'] for t in r['left'] + r['right'] if t.get('coll'))
+        every = all(any(t.get('coll') for t in r['left'] + r['right']) for r in rf['rows'])
+        same = [x['form'] for x in rf['collocates']] == [x['form'] for x in full['collocates']]
+        if not (fo['co'] == c['co'] == marks and every and same
+                and fo['hits'] == rf['listed'] == len(rf['rows']) <= fo['of'] == full['total']
+                and rf['total'] == full['total'] and rf['by_band'] == full['by_band']):
+            bad.append((c['form'], fo, marks))
+    chk(not bad and full['collocates'],
+        '14d) 共起語で絞った用例の印の数は「共起」と一致し，集計と共起語の表は変わらない', bad[:3])
+    rp = kv.search('汽車', stream='lemma', collocates=100, coll_window=3,
+                   coll_min=1, coll_pos=['動詞'], coll_focus='乗る', limit=2000)
+    chk(rp['focus']['hits'] > 0
+        and all(t['pos'].startswith('動詞') for r in rp['rows']
+                for t in r['left'] + r['right'] if t.get('coll')),
+        '14e) 品詞で絞っているときは，印もその品詞の語にだけ付く')
+    try:
+        kv.search('汽車', stream='lemma', collocates=10, coll_focus='この語は無い')
+        chk(False, '14f) 語彙に無い共起語は理由つきの例外')
+    except K.QueryError:
+        chk(True, '14f) 語彙に無い共起語は理由つきの例外')
+
     # ---- 15. 指標を替えると**選び直す** --------------------------------
     for m in K.COLL_MEASURES:
         rr = kv.search('汽車', stream='lemma', collocates=3, coll_window=3,
