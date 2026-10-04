@@ -728,7 +728,7 @@ a.help-q:hover{border-color:var(--acc);color:var(--acc)}
       <label id="ntopw" title="すべての組の近さを順位にし，上位 N% に入らないエッジ（辺）を消す">エッジを残す：近さの上位 <input type="range" id="ntop" min="1" max="100" step="1" value="100"> <output id="ntopO"></output></label>
       <label id="nminw" hidden>作品内の割合が <input type="range" id="nmin" min="0" max="30" step="1" value="5"> <output id="nminO"></output> 以上</label>
       <label class="keep">色 <select id="ncol"></select></label>
-      <label id="ntcolw" hidden>トピックの色 <select id="ntcol"><option value="gray" selected>灰色（作品と区別する）</option><option value="cat">作品の色分けに合わせる</option></select></label>
+      <label id="ntcolw" hidden>トピックの色 <select id="ntcol"><option value="cat" selected>作品の色分けに合わせる</option><option value="gray">灰色（作品と区別する）</option></select></label>
     </div>
     <div class="netbar">
       <label>線の色 <select id="necol"><option value="cat" selected>ノードの分類の色（境界は灰色の破線）</option><option value="gray">すべて灰色</option></select></label>
@@ -1079,7 +1079,7 @@ const PAL = ['#0072B2', '#E69F00', '#009E73', '#CC79A7', '#56B4E9', '#D55E00', '
 const GRAY = '#9a9a93';
 const NET = {view: 'list', kind: 'topic', nodes: [], edges: [], raf: 0, alpha: 0,
              scale: 1, tx: 0, ty: 0, focus: null, W: 900, H: 620};
-const nst = {mfw: '100', lay: 'fr', lin: false, grav: 1, curve: true, note: true, latin: 'gill', meas: 'jsd', src: 'd2v', k: 2, top: 100, col: 'period', lab: true, fs: 11, nop: 100, eop: 100, ecol: 'cat', minsh: 5, nsz: 100, tsz: 60, tcol: 'gray'};
+const nst = {mfw: '100', lay: 'fr', lin: false, grav: 1, curve: true, note: true, latin: 'gill', meas: 'jsd', src: 'd2v', k: 2, top: 100, col: 'community', lab: true, fs: 11, nop: 100, eop: 100, ecol: 'cat', minsh: 5, nsz: 100, tsz: 60, tcol: 'cat'};
 const TGRAY = '#5f5f5a';   // 作品とトピックのネットワークでのトピック（四角）の色
 // 文字の大きさと不透過度は SVG の変数で持つ（配置を計算し直さずに変えられる）
 function netStyle(){
@@ -1164,9 +1164,9 @@ function netControls(){
   }
   if (opts) $('nmeas').innerHTML = opts.map(x => `<option value="${x[0]}"${x[0]===nst.meas?' selected':''}>${esc(x[1])}</option>`).join('');
   const cols = NET.kind === 'topic'
-    ? [['period', 'いちばん割合の高い時代区分'], ['community', 'コミュニティ']]
-    : [['period', '時代区分'], ['author', '作家'], ['genre', 'ジャンル'], ['style', '文体'], ['community', 'コミュニティ']];
-  if (!cols.some(c => c[0] === nst.col)) nst.col = 'period';
+    ? [['community', 'コミュニティ'], ['period', 'いちばん割合の高い時代区分']]
+    : [['community', 'コミュニティ'], ['period', '時代区分'], ['author', '作家'], ['genre', 'ジャンル'], ['style', '文体']];
+  if (!cols.some(c => c[0] === nst.col)) nst.col = 'community';
   $('ncol').innerHTML = cols.map(c => `<option value="${c[0]}"${c[0]===nst.col?' selected':''}>${esc(c[1])}</option>`).join('');
   $('nk').value = nst.k; $('nkO').textContent = nst.k;
   $('ntop').value = nst.top; $('ntopO').textContent = nst.top + '%';
