@@ -762,7 +762,7 @@ a.help-q:hover{border-color:var(--acc);color:var(--acc)}
         <button id="nnov" type="button" title="Noverlap：ノードの重なりを解消">Noverlap</button>
         <button id="nlad" type="button" title="Label Adjust：ラベルの重なりを解消">Label Adjust</button>
         <button id="nrot" type="button" title="Rotate：形を保って全体を回す（正の角度は時計回り，負は反時計回り）">Rotate</button>
-        <input type="number" id="nrotA" value="15" step="1" min="-360" max="360" style="width:58px" title="回す角度（度）"> °</span>
+        <input type="number" id="nrotA" value="30" step="1" min="-360" max="360" style="width:58px" title="回す角度（度）"> °</span>
       <span class="ntools keep">書き出し：
         <button id="nsvg" type="button" title="いまの図を SVG ファイルに保存する（凡例つき）">SVG</button>
         <button id="npdf" type="button" title="印刷の画面を開く。印刷先に「PDF に保存」を選ぶ（A4 横に収める）">PDF（印刷）</button>
