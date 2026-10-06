@@ -441,7 +441,8 @@ https://clrd.ninjal.ac.jp/unidic_archive/2512/unidic-novel-v202512.zip
 
 ### 手順 0 — 展開先を Dropbox の外にする（本プロジェクトで最も多い原因）
 
-本プロジェクトのマスター（教員の作業コピー）は `~/Library/CloudStorage/Dropbox/` の下にある
+本プロジェクトのマスター（教員の作業コピー）は Dropbox の中
+（`~/Dropbox/Corpus/DH_text_analytics_2025/JLit_Corpus_2026`）にある
 （受講生の作業コピーは `~/Documents/dh_project/JLit_Corpus_2026`）。
 **そこに辞書の zip を置いたり展開したりしてはいけない。**
 
