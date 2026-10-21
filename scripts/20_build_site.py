@@ -18,7 +18,11 @@ JLit KWIC コンコーダンサとトピックビューアを，**サーバの�
           index.html  topic_viewer_manual.html
       teaching/dh-text-analytics/   授業のページ
         index.html
-      assets/site.css               2つのページの体裁
+
+2つの紹介ページの体裁は，ホームページ（~tabata/）の ``css/style.css`` を使う
+（ディケンズ方言プロジェクトのページと同じ作り）。ホームページの側に置かれて
+いるので，ここでは作らない。手元で見た目を確かめるときだけ ``--home-css`` に
+ホームページの css フォルダを渡すと，``site_build/css/`` に写す（公開はしない）。
 
 なぜ要るのか
 ------------
@@ -288,6 +292,8 @@ def main() -> int:
                     help='トピックビューアの HTML（既定：my_work/results/ か results/ の topic_viewer.html）')
     ap.add_argument('--no-viewer', action='store_true', help='トピックビューアを入れない')
     ap.add_argument('--out', default=str(ROOT / 'site_build'))
+    ap.add_argument('--home-css', default=None,
+                    help='手元で確かめるときだけ：ホームページの css フォルダ（site_build/css/ に写す。公開はしない）')
     args = ap.parse_args()
 
     kwic_dir, out = Path(args.kwic), Path(args.out)
@@ -329,8 +335,12 @@ def main() -> int:
         dst = out / rel
         dst.parent.mkdir(parents=True, exist_ok=True)
         dst.write_text(fill(tpl, vals), encoding='utf-8')
-    (out / 'assets').mkdir(exist_ok=True)
-    shutil.copy2(ROOT / 'site' / 'assets' / 'site.css', out / 'assets' / 'site.css')
+    if args.home_css:
+        shutil.copytree(args.home_css, out / 'css')
+        print(f'[css ] 確かめる用にホームページの体裁を写した（公開しない）← {args.home_css}')
+    else:
+        print('[note] 紹介ページの体裁はホームページの css/style.css を使う。手元で見た目を確かめるには '
+              '--home-css にホームページの css フォルダを渡すこと。')
     if vinfo is None:
         print('[warn] トピックビューアを入れていない。紹介ページのリンクは切れる。')
 

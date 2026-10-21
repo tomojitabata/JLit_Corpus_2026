@@ -1,81 +1,184 @@
-<!DOCTYPE html>
-<html lang="ja">
+<!doctype html>
+<html lang="ja" data-lang="ja">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>JLit Corpus 2026 — 近代日本文学コーパス</title>
-<meta name="description" content="青空文庫の公開作品から作り直した近代日本文学コーパス JLit Corpus 2026 と，その KWIC コンコーダンサ・トピックビューア。A corpus of modern Japanese literature rebuilt from Aozora Bunko, with a KWIC concordancer and a topic-model viewer.">
-<link rel="stylesheet" href="../assets/site.css">
+<title>JLit Corpus 2026</title>
+<meta name="description" content="青空文庫の公開作品から作り直した近代日本文学コーパス JLit Corpus 2026 と，その KWIC コンコーダンサ・トピックビューア（田畑智司）。">
+<!-- このページは scripts/20_build_site.py が site/jlit/index.html から作る。
+     {{ }} の中は索引から自動で入る。体裁はホームページの css/style.css を使う
+     （ディケンズ方言プロジェクトのページと同じ作り）。 -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Zen+Old+Mincho:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="../css/style.css">
+<style>
+  .jl-hero { background: var(--hero-bg); color: var(--hero-ink); padding-block: 56px 44px; }
+  .jl-hero h1 { font-size: var(--step-4, 2.4rem); line-height: 1.15; }
+  .jl-hero h1 small { display: block; font-family: var(--font-body); font-size: .4em; letter-spacing: .14em; color: var(--hero-muted); font-weight: 400; margin-top: 10px; text-transform: uppercase; }
+  .jl-hero p { max-width: 46em; color: var(--hero-muted); margin: 18px 0 0; }
+  .jl-hero .statrow { margin-top: 28px; }
+  .jl-hero .stat b { color: var(--hero-ink); font-size: var(--step-2); }
+  .jl-hero .prov { font-family: var(--font-mono); font-size: .74rem; color: var(--hero-muted); letter-spacing: .03em; margin-top: 14px; }
+  .tool { display: flex; flex-direction: column; gap: 10px; }
+  .tool h3 { font-size: var(--step-2); }
+  .tool .size { font-family: var(--font-mono); font-size: .74rem; color: var(--gold); letter-spacing: .04em; }
+  .tool p { margin: 0; color: var(--muted); font-size: .95rem; }
+  .tool .btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; padding-top: 6px; }
+  .notes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
+  .notes h3 { font-size: var(--step-1); margin-bottom: 6px; }
+  .notes p { margin: 0; color: var(--muted); font-size: .92rem; }
+  .doclist { list-style: none; margin: 18px 0 0; padding: 0; border-top: 1px solid var(--line); }
+  .doclist li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 18px; align-items: baseline; padding: 11px 0; border-bottom: 1px solid var(--line); }
+  .doclist .path { font-family: var(--font-code); font-size: .78rem; color: var(--muted); overflow-wrap: anywhere; }
+  @media (max-width: 760px) {
+    .notes { grid-template-columns: minmax(0, 1fr); }
+    .doclist li { grid-template-columns: minmax(0, 1fr); }
+  }
+</style>
 </head>
 <body>
-<!-- このページは scripts/20_build_site.py が site/jlit/index.html から作る。
-     {{ }} の中は索引から自動で入る。直すときは site/ の側を直すこと。 -->
-<header class="top"><div class="wrap">
-  <div class="crumb"><a href="../">田畑智司 Tomoji Tabata</a> ／ JLit Corpus 2026</div>
-  <nav><a href="#tools">道具 Tools</a><a href="#corpus">コーパス Corpus</a><a href="#repo">リポジトリ Repository</a><a href="#credits">出典 Credits</a><a href="../teaching/dh-text-analytics/">授業 Course</a></nav>
-</div></header>
 
-<main class="wrap">
-<section class="hero">
-  <p class="kicker">Corpus and tools</p>
-  <h1>JLit Corpus 2026 — 近代日本文学コーパス<span class="en">A corpus of modern Japanese literature, rebuilt from Aozora Bunko</span></h1>
-  <p class="lead">青空文庫で公開されている近代の文学作品を，典拠のある書誌と再現できる前処理のうえに作り直したコーパスです。
-  本文は TEI に倣った XML に符号化し，外字を復元したうえで UniDic で形態素解析しています。</p>
-  <p class="en">A corpus of modern Japanese literary works from Aozora Bunko, rebuilt on documented bibliographic metadata and a reproducible pipeline: the texts are encoded in TEI-style XML, with <i>gaiji</i> (characters outside the standard character set) restored, and analysed morphologically with UniDic.</p>
-  <ul class="stats">
-    <li><b>{{works}}</b><span>作品 works</span></li>
-    <li><b>{{authors}}</b><span>作家 authors</span></li>
-    <li><b>{{year_from}}–{{year_to}}</b><span>初出年 first published</span></li>
-    <li><b>{{tokens}}</b><span>形態素（記号を含む）tokens incl. punctuation</span></li>
-  </ul>
-  <p class="note">辞書 Dictionary: {{dictionary}} ／ 索引の作成 Index built: {{built}}</p>
+<nav class="topnav" aria-label="サイト内">
+  <div class="wrap">
+    <a class="brand" href="../index.html">田畑智司</a>
+    <div class="navlinks">
+      <a href="../index.html#research"><span class="ja-only">← ホーム</span><span class="en-only">← Home</span></a>
+      <a href="#tools"><span class="ja-only">道具</span><span class="en-only">Tools</span></a>
+      <a href="#corpus"><span class="ja-only">コーパス</span><span class="en-only">Corpus</span></a>
+      <a href="#credits"><span class="ja-only">出典</span><span class="en-only">Credits</span></a>
+      <a href="../teaching/dh-text-analytics/index.html"><span class="ja-only">授業</span><span class="en-only">Course</span></a>
+    </div>
+    <button class="lang-toggle" id="langToggle" type="button" aria-label="Switch language">EN</button>
+  </div>
+</nav>
+
+<header class="jl-hero">
+  <div class="wrap">
+    <span class="kicker" style="color:var(--hero-muted)">Corpus and tools · Modern Japanese literature</span>
+    <h1>JLit Corpus 2026<small>A corpus of modern Japanese literature, rebuilt from Aozora Bunko</small></h1>
+    <p class="ja-only">青空文庫で公開されている近代の文学作品を，典拠のある書誌と再現できる前処理のうえに作り直したコーパスです。本文は TEI に倣った XML に符号化し，外字を復元したうえで UniDic で形態素解析しています。用例を引く KWIC コンコーダンサと，トピックモデルを読むためのビューアを，ブラウザだけで使える形で公開しています。</p>
+    <p class="en-only">Modern Japanese literary works from Aozora Bunko, rebuilt on documented bibliographic metadata and a reproducible pipeline: the texts are encoded in TEI-style XML, with <i>gaiji</i> (characters outside the standard character set) restored, and analysed morphologically with UniDic. A KWIC concordancer and a topic-model viewer run entirely in the browser.</p>
+    <div class="statrow">
+      <div class="stat"><b>{{works}}</b><span><span class="ja-only">作品</span><span class="en-only">works</span></span></div>
+      <div class="stat"><b>{{authors}}</b><span><span class="ja-only">作家</span><span class="en-only">authors</span></span></div>
+      <div class="stat"><b>{{year_from}}–{{year_to}}</b><span><span class="ja-only">初出年</span><span class="en-only">first published</span></span></div>
+      <div class="stat"><b>{{tokens}}</b><span><span class="ja-only">形態素（記号を含む）</span><span class="en-only">tokens incl. punctuation</span></span></div>
+    </div>
+    <p class="prov">UniDic {{dictionary}} · <span class="ja-only">索引の作成</span><span class="en-only">index built</span> {{built}}</p>
+  </div>
+</header>
+
+<main>
+
+<section class="block wrap" id="tools">
+  <div class="sec-head">
+    <div><span class="kicker">Tools</span><h2><span class="ja-only">道具</span><span class="en-only">Tools</span></h2></div>
+    <p class="ja-only">どちらもインストールは要りません。検索も表示もブラウザの中で行い，検索語はどこにも送りません。授業（Step 3・Step 8）で作るものと同じ道具です。</p>
+    <p class="en-only">Nothing to install: searching and display happen in the browser, and queries are not sent anywhere. These are the same tools students build in Steps 3 and 8 of the course.</p>
+  </div>
+  <div class="grid-2">
+    <article class="panel tool">
+      <span class="size"><span class="ja-only">初回の読み込み 約 {{kwic_mb}} MB</span><span class="en-only">About {{kwic_mb}} MB on first load</span></span>
+      <h3><span class="ja-only">JLit KWIC コンコーダンサ</span><span class="en-only">JLit KWIC concordancer</span></h3>
+      <p class="ja-only">語彙素・表層形・品詞で検索し，用例を文脈つきで並べます。共起語（LogDice・MI・G²・ΔP など），時代区分・作品ごとの分布，異綴形（書字形基本形）の内訳，広い文脈の表示，CSV への書き出しができます。</p>
+      <p class="en-only">Search by lemma, surface form or part of speech; read concordance lines with collocates (LogDice, MI, G², ΔP and others), distribution by period and by work, spelling variants and extended context; export to CSV.</p>
+      <div class="btns">
+        <a class="btn" href="kwic/index.html"><span class="ja-only">開く</span><span class="en-only">Open</span></a>
+        <a class="btn" href="kwic/manual.html"><span class="ja-only">操作マニュアル</span><span class="en-only">Manual</span></a>
+      </div>
+    </article>
+    <article class="panel tool">
+      <span class="size"><span class="ja-only">約 {{viewer_mb}} MB</span><span class="en-only">About {{viewer_mb}} MB</span></span>
+      <h3><span class="ja-only">JLit トピックビューア</span><span class="en-only">JLit topic viewer</span></h3>
+      <p class="ja-only">MALLET で学習したトピックモデルを読むための画面です。トピックごとの上位キーワードと作品，時代区分による変化，トピックと作品のネットワークグラフを見られます。トピックのラベルは AI による仮説なので，根拠の語と作品を確かめてお使いください。</p>
+      <p class="en-only">An interface for reading a topic model trained with MALLET: top keywords and works for each topic, change across periods, and network graphs of topics and works. Topic labels are AI-generated hypotheses; check them against the evidence.</p>
+      <div class="btns">
+        <a class="btn" href="topics/index.html"><span class="ja-only">開く</span><span class="en-only">Open</span></a>
+        <a class="btn" href="topics/topic_viewer_manual.html"><span class="ja-only">操作マニュアル</span><span class="en-only">Manual</span></a>
+      </div>
+    </article>
+  </div>
 </section>
 
-<h2 id="tools">道具<span class="en">Tools</span></h2>
-<p>どちらもブラウザだけで動きます。インストールは要りません。</p>
-<p class="en">Both run entirely in the browser; nothing needs to be installed.</p>
-<div class="cards">
-  <div class="card">
-    <h3>JLit KWIC コンコーダンサ<span class="en">JLit KWIC concordancer</span></h3>
-    <p>語彙素・表層形・品詞で検索し，用例を文脈つきで並べます。共起語（LogDice・MI・G²・ΔP など），時代区分・作品ごとの分布，異綴形（書字形基本形）の内訳，広い文脈の表示，CSV への書き出しができます。</p>
-    <p class="en">Search by lemma, surface form or part of speech; view concordance lines with collocates (LogDice, MI, G², ΔP and others), distribution by period and by work, spelling variants, and extended context; export to CSV.</p>
-    <p class="note"><span class="tag">初回 約 {{kwic_mb}} MB</span>検索はブラウザの中で行い，検索語はどこにも送りません。<br>The index (about {{kwic_mb}} MB) is downloaded once; searches run locally and are not sent anywhere.</p>
-    <div class="go"><a class="btn" href="kwic/">開く Open</a><a class="btn ghost" href="kwic/manual.html">操作マニュアル Manual</a></div>
+<section class="block wrap" id="corpus">
+  <div class="sec-head">
+    <div><span class="kicker">Corpus</span><h2><span class="ja-only">コーパスについて</span><span class="en-only">About the corpus</span></h2></div>
+    <p class="ja-only">元のコーパス（64 ファイル）を診断し，時代・文体・作家の偏りを補うように作品を増補しました。設計の考え方と診断の結果は，リポジトリの文書にまとめています。</p>
+    <p class="en-only">The original corpus of 64 files was diagnosed and then expanded to redress imbalances of period, style and authorship. The design and the diagnosis are documented in the repository.</p>
   </div>
-  <div class="card">
-    <h3>JLit トピックビューア<span class="en">JLit topic viewer</span></h3>
-    <p>MALLET で学習したトピックモデルを読むための画面です。トピックごとの上位キーワードと作品，時代区分による変化，トピック・作品のネットワークグラフを見られます。</p>
-    <p class="en">An interface for reading a topic model trained with MALLET: top keywords and works for each topic, change across periods, and network graphs of topics and works.</p>
-    <p class="note"><span class="tag">約 {{viewer_mb}} MB</span>トピックのラベルは AI による仮説です。根拠の語と作品を確かめてお使いください。<br>Topic labels are AI-generated hypotheses; check them against the evidence.</p>
-    <div class="go"><a class="btn" href="topics/">開く Open</a><a class="btn ghost" href="topics/topic_viewer_manual.html">操作マニュアル Manual</a></div>
+  <div class="notes">
+    <div>
+      <h3><span class="ja-only">書誌</span><span class="en-only">Metadata</span></h3>
+      <p class="ja-only">初出年・ジャンル・文体などを青空文庫の図書カードと底本の情報に照らして作り直し，すべての変更に典拠を付けています。</p>
+      <p class="en-only">Year of first publication, genre, style and other fields were rebuilt against the Aozora Bunko catalogue cards and source editions, with every change sourced.</p>
+    </div>
+    <div>
+      <h3><span class="ja-only">本文</span><span class="en-only">Texts</span></h3>
+      <p class="ja-only">XML に符号化し，外字（JIS X 0208 にない字）を面区点・Unicode の注記と編者の同定から復元しています。</p>
+      <p class="en-only">Encoded in XML, with <i>gaiji</i> restored from JIS and Unicode references and from editorial identification.</p>
+    </div>
+    <div>
+      <h3><span class="ja-only">解析</span><span class="en-only">Analysis</span></h3>
+      <p class="ja-only">UniDic（{{dictionary}}）で形態素解析し，語彙素・表層形・品詞・書字形基本形を索引にしています。</p>
+      <p class="en-only">Morphological analysis with UniDic ({{dictionary}}); the index holds lemma, surface form, part of speech and orthographic base form.</p>
+    </div>
   </div>
-</div>
+  <ul class="doclist">
+    <li><a href="{{repo}}/blob/main/docs/corpus_design.md"><span class="ja-only">コーパスの設計</span><span class="en-only">Corpus design</span></a><span class="path">docs/corpus_design.md</span></li>
+    <li><a href="{{repo}}/blob/main/docs/encoding_guidelines.md"><span class="ja-only">符号化の決定事項（外字の復元を含む）</span><span class="en-only">Encoding guidelines, including gaiji restoration</span></a><span class="path">docs/encoding_guidelines.md</span></li>
+    <li><a href="{{repo}}/blob/main/docs/representativeness_report.md"><span class="ja-only">元のコーパスの診断</span><span class="en-only">Diagnosis of the original corpus</span></a><span class="path">docs/representativeness_report.md</span></li>
+    <li><a href="{{repo}}/blob/main/metadata/corpus_metadata_v3.csv"><span class="ja-only">メタデータ（CSV）</span><span class="en-only">Metadata (CSV)</span></a><span class="path">metadata/corpus_metadata_v3.csv</span></li>
+    <li><a href="{{repo}}"><span class="ja-only">リポジトリ（前処理・分析のスクリプトと授業のノートブック）</span><span class="en-only">Repository: pipeline, analysis scripts and course notebooks</span></a><span class="path">github.com/tomojitabata/JLit_Corpus_2026</span></li>
+  </ul>
+</section>
 
-<h2 id="corpus">コーパス<span class="en">The corpus</span></h2>
-<p>元のコーパス（64 ファイル）を診断し，時代・文体・作家の偏りを補うように作品を増補しました。書誌は青空文庫の図書カードと底本の情報に照らして作り直し，すべての変更に典拠を付けています。設計の考え方と診断の結果は，リポジトリの文書にまとめています。</p>
-<p class="en">The original corpus of 64 files was diagnosed and then expanded to redress imbalances of period, style and authorship. The bibliographic metadata was rebuilt against the Aozora Bunko catalogue cards and source editions, with every change documented. The design and the diagnosis are described in the repository.</p>
-<ul>
-  <li><a href="{{repo}}/blob/main/docs/corpus_design.md">コーパスの設計 Corpus design</a></li>
-  <li><a href="{{repo}}/blob/main/docs/encoding_guidelines.md">符号化の決定事項（外字の復元を含む）Encoding guidelines, including gaiji restoration</a></li>
-  <li><a href="{{repo}}/blob/main/docs/representativeness_report.md">元のコーパスの診断 Diagnosis of the original corpus</a></li>
-  <li><a href="{{repo}}/blob/main/metadata/corpus_metadata_v3.csv">メタデータ Metadata (CSV)</a></li>
-</ul>
+<section class="block wrap" id="credits">
+  <div class="sec-head">
+    <div><span class="kicker">Credits</span><h2><span class="ja-only">出典と注意</span><span class="en-only">Credits and notes</span></h2></div>
+  </div>
+  <div class="notes">
+    <div>
+      <h3><span class="ja-only">本文の出典</span><span class="en-only">Source texts</span></h3>
+      <p class="ja-only">本文は<a href="https://www.aozora.gr.jp/">青空文庫</a>によります。入力と校正に携わった方々に感謝します。収録作品はいずれも著作権の保護期間が満了したものです。</p>
+      <p class="en-only">The texts come from <a href="https://www.aozora.gr.jp/">Aozora Bunko</a>, with thanks to the volunteers who transcribed and proofread them. All works included are in the public domain.</p>
+    </div>
+    <div>
+      <h3><span class="ja-only">辞書と道具</span><span class="en-only">Dictionary and software</span></h3>
+      <p class="ja-only">形態素解析には国立国語研究所の UniDic，トピックモデルには MALLET を用いています。</p>
+      <p class="en-only">Morphological analysis uses UniDic from the National Institute for Japanese Language and Linguistics; the topic model was trained with MALLET.</p>
+    </div>
+    <div>
+      <h3><span class="ja-only">使うときの注意</span><span class="en-only">Using the examples</span></h3>
+      <p class="ja-only">解析の誤りや外字の扱いによって，語の区切りや品詞が実際と違うことがあります。研究に用いるときは本文に戻って確かめてください。</p>
+      <p class="en-only">Errors in analysis or in the treatment of gaiji can affect word boundaries and part-of-speech tags; check examples against the text before citing them.</p>
+    </div>
+  </div>
+</section>
 
-<h2 id="repo">リポジトリ<span class="en">Repository</span></h2>
-<p>コーパスを作り直す手順・分析のスクリプト・授業で使うノートブックを GitHub で公開しています。手元で同じ索引と道具を作り直せます。</p>
-<p class="en">The pipeline, the analysis scripts and the course notebooks are on GitHub, so that the index and both tools can be rebuilt locally.</p>
-<p><a class="btn ghost" href="{{repo}}">{{repo}}</a></p>
-
-<h2 id="credits">出典と注意<span class="en">Credits and notes</span></h2>
-<ul>
-  <li>本文の出典は<a href="https://www.aozora.gr.jp/">青空文庫</a>です。入力と校正に携わった方々に感謝します。収録作品はいずれも著作権の保護期間が満了したものです。<br><span class="en">The texts come from <a href="https://www.aozora.gr.jp/">Aozora Bunko</a>; we are grateful to its volunteers who transcribed and proofread them. All works included are in the public domain.</span></li>
-  <li>形態素解析には国立国語研究所の UniDic（{{dictionary}}），トピックモデルには MALLET を用いています。<br><span class="en">Morphological analysis uses UniDic ({{dictionary}}) from the National Institute for Japanese Language and Linguistics; the topic model was trained with MALLET.</span></li>
-  <li>解析の誤りや外字の扱いによって，用例の語の区切りや品詞が実際と違うことがあります。研究に用いるときは，本文に戻って確かめてください。<br><span class="en">Errors in morphological analysis or in the treatment of gaiji may affect word boundaries and part-of-speech tags; please verify examples against the text before citing them.</span></li>
-</ul>
 </main>
 
-<footer><div class="wrap">
-  © {{year_now}} Tomoji Tabata (Graduate School of Humanities, The University of Osaka) ／ ページの更新 Page updated: {{web_build}}
-</div></footer>
+<footer>
+  <div class="wrap">
+    <span>© Tomoji Tabata (DH UOsaka) · <span class="ja-only">ページの更新</span><span class="en-only">Updated</span> {{web_build}}</span>
+    <a href="../index.html"><span class="ja-only">田畑智司のホームページへ</span><span class="en-only">Tomoji Tabata's homepage</span></a>
+  </div>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+  // 言語の切り替え（ホームページと同じ鍵 tt-lang を使い，ページをまたいで同じ言語で読めるようにする）
+  var root = document.documentElement, btn = document.getElementById("langToggle");
+  function setLang(l) {
+    root.dataset.lang = l; root.lang = l; btn.textContent = l === "ja" ? "EN" : "日本語";
+    try { localStorage.setItem("tt-lang", l); } catch (e) { /* storage unavailable */ }
+  }
+  var saved = null;
+  try { saved = localStorage.getItem("tt-lang"); } catch (e) { /* ignore */ }
+  setLang(saved === "en" ? "en" : "ja");
+  btn.addEventListener("click", function () { setLang(root.dataset.lang === "ja" ? "en" : "ja"); });
+})();
+</script>
 </body>
 </html>
