@@ -26,6 +26,7 @@
   .tool p { margin: 0; color: var(--muted); font-size: .95rem; }
   .tool .btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; padding-top: 6px; }
   .notes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
+  .notes-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .notes h3 { font-size: var(--step-1); margin-bottom: 6px; }
   .notes p { margin: 0; color: var(--muted); font-size: .92rem; }
   .doclist { list-style: none; margin: 18px 0 0; padding: 0; border-top: 1px solid var(--line); }
@@ -137,7 +138,7 @@
   <div class="sec-head">
     <div><span class="kicker">Credits</span><h2><span class="ja-only">出典と注意</span><span class="en-only">Credits and notes</span></h2></div>
   </div>
-  <div class="notes">
+  <div class="notes notes-2">
     <div>
       <h3><span class="ja-only">本文の出典</span><span class="en-only">Source texts</span></h3>
       <p class="ja-only">本文は<a href="https://www.aozora.gr.jp/">青空文庫</a>によります。入力と校正に携わった方々に感謝します。収録作品はいずれも著作権の保護期間が満了したものです。</p>
@@ -147,6 +148,11 @@
       <h3><span class="ja-only">辞書と道具</span><span class="en-only">Dictionary and software</span></h3>
       <p class="ja-only">形態素解析には国立国語研究所の UniDic，トピックモデルには MALLET を用いています。</p>
       <p class="en-only">Morphological analysis uses UniDic from the National Institute for Japanese Language and Linguistics; the topic model was trained with MALLET.</p>
+    </div>
+    <div>
+      <h3><span class="ja-only">利用条件</span><span class="en-only">Licence</span></h3>
+      <p class="ja-only">プログラムは MIT，文書・メタデータ・符号化は <a href="https://creativecommons.org/licenses/by/4.0/deed.ja">CC BY 4.0</a> で公開しています。作品の本文は青空文庫によるパブリックドメインです。詳しくは<a href="{{repo}}#利用条件--licence">リポジトリの README</a> を見てください。</p>
+      <p class="en-only">Code is released under the MIT licence, and documents, metadata and encoding under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>. The literary texts are public-domain works from Aozora Bunko. See the <a href="{{repo}}#利用条件--licence">repository README</a> for details.</p>
     </div>
     <div>
       <h3><span class="ja-only">使うときの注意</span><span class="en-only">Using the examples</span></h3>

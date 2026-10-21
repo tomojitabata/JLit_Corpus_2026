@@ -124,7 +124,6 @@ JLit_Corpus_2026/
 │   ├── 19_topic_viewer.py       トピックビューア（品詞・頻度帯で絞り込む HTML）
 │   ├── topic_viewer_manual.html トピックビューアの操作マニュアル（ビューアと同じフォルダに書き出す）
 │   ├── 20_build_site.py         KWIC とトピックビューアをサーバの要らない Web ページにまとめる（教員用）
-│   ├── publish_site.sh          組み立てた Web ページを sftp でサーバに置く（教員用）
 │   ├── kwic_web/                KWIC の Web 版（engine.js＝kwic_core.py の JavaScript 版，shim.js）
 │   ├── check_kwic_web.py        Web 版とサーバ版の検索結果を突き合わせる（Node.js が要る）
 │   ├── check_script_calls.py    ノートブックの呼び出しとスクリプトの引数を突き合わせる
@@ -374,15 +373,24 @@ KWIC コンコーダンサとトピックビューアを，**静的なファイ�
 | 授業「デジタルヒューマニティーズ（テクスト分析論）A/B」 | `teaching/dh-text-analytics/` |
 
 ページの文面は `site/` にある（数値は索引から自動で入る）。
-**索引とトピックビューアのある作業用クローン**で組み立て，sftp で置く。
+**索引とトピックビューアのある作業用クローン**で組み立て，Cyberduck でサーバに置く
+（このサーバはターミナルからの接続を許していない）。
 
 ```bash
 # 作業用クローン（索引 data/kwic と my_work/results/topic_viewer.html があるところ）で
 cd /Users/tabata/Documents/dh_project/JLit_Corpus_2026
 python3 scripts/20_build_site.py                       # → site_build/
 python3 -m http.server 8000 --directory site_build     # 手元で確かめる → http://127.0.0.1:8000/jlit/
-bash scripts/publish_site.sh <ユーザー名@サーバ名> <公開ディレクトリ>
 ```
+
+**Cyberduck で置く。** サーバの `public_html` を開き，`site_build/` の中の `jlit` と
+`teaching` の2つのフォルダをそこへドラッグする（2回目からは「上書き」を選ぶ）。
+`site_build/` のほかのもの（`--home-css` で写した `css/`）は置かない。
+公開先は `public_html/jlit/` と `public_html/teaching/`
+（http://www.lang.osaka-u.ac.jp/~tabata/jlit/ と …/~tabata/teaching/dh-text-analytics/）。
+ファイルの権限は `20_build_site.py` が 644（フォルダは 755）にしておくので，
+Cyberduck の設定（転送 → 権限）で「アップロード時に権限を変更」を切るか，同じ値にすること。
+サーバの接続先は公開リポジトリには書かない。
 
 ⚠ `kwic_core.py` の検索を直したら `scripts/kwic_web/engine.js` も同じように直し，
 `python3 scripts/check_kwic_web.py --index data/kwic` で両者の結果が一致することを
@@ -427,6 +435,19 @@ v2 では 19 件が `editor` で，Excel では黄色で塗ってある。
 
 目標とする時代別語数は
 [`docs/representativeness_report.md`](docs/representativeness_report.md) §8 の表を参照。
+
+---
+
+## 利用条件 / Licence
+
+| 対象 | 条件 |
+|---|---|
+| プログラム（`scripts/` の Python・シェル・JavaScript・KWIC とトピックビューアの HTML，ノートブックのコードのセル） | MIT（[`LICENSE`](LICENSE)） |
+| 文書とデータ（この README，`docs/`，`templates/`，`site/` の文面，ノートブックの説明文，`metadata/`・`config/`・`logs/` の表，本文に加えた XML の符号化・復元した外字・注記） | CC BY 4.0（[`LICENSE-docs`](LICENSE-docs)） |
+| 作品の本文（`data/corpus_v1/` など） | 青空文庫による。著作権の保護期間が満了した作品で，ライセンスはかけていない。使うときは青空文庫を出典として示すこと |
+| UniDic・MALLET | このリポジトリには含めていない。それぞれのライセンスに従う |
+
+引用するときの例：田畑智司 (2026)「JLit Corpus 2026 — 近代日本文学コーパスの再構築と計量分析」 https://github.com/tomojitabata/JLit_Corpus_2026 （CC BY 4.0）
 
 ---
 

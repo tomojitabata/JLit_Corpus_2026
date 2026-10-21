@@ -44,7 +44,8 @@ KWIC コンコーダンサは手元で ``16_kwic_server.py`` を動かして使�
     python3 -m http.server 8000 --directory site_build   # 手元で確かめる
     # → http://127.0.0.1:8000/jlit/
 
-公開（sftp）は ``scripts/publish_site.sh`` を見ること。
+公開は Cyberduck で ``site_build/`` の ``jlit`` と ``teaching`` をサーバの
+``public_html`` に置く（README の「5. Web で公開する」）。
 """
 from __future__ import annotations
 
@@ -344,10 +345,17 @@ def main() -> int:
     if vinfo is None:
         print('[warn] トピックビューアを入れていない。紹介ページのリンクは切れる。')
 
+    # Web サーバが読めるように：ファイルは 644，フォルダは 755
+    for p in out.rglob('*'):
+        p.chmod(0o755 if p.is_dir() else 0o644)
+    out.chmod(0o755)
+
     total = sum(p.stat().st_size for p in out.rglob('*') if p.is_file())
     print(f'[out ] {out}（{total / 1048576:.1f} MB）')
     print('       手元で確かめる: python3 -m http.server 8000 --directory ' + str(out))
     print('       → http://127.0.0.1:8000/jlit/')
+    print('[next] Cyberduck でサーバの public_html を開き，site_build/ の jlit と teaching を'
+          'ドラッグして置く（2回目からは「上書き」）。')
     return 0
 
 
