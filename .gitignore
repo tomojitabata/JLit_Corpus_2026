@@ -6,6 +6,8 @@ data/tokens/
 data/datasets/
 data/datasets_*/
 data/kwic/
+# Web 公開用に組み立てたもの（scripts/20_build_site.py が作る）
+site_build/
 # 受講生が Step 3 で作るメタデータ（配布版 corpus_metadata_v3.csv は上書きしない）
 metadata/*_local*.csv
 results/*/

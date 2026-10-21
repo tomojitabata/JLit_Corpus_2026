@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>デジタルヒューマニティーズ（テクスト分析論）A/B</title>
+<meta name="description" content="大阪大学大学院人文学研究科 博士前期課程 講義科目「デジタルヒューマニティーズ（テクスト分析論）A/B」の教材と道具。">
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<!-- このページは scripts/20_build_site.py が site/teaching/dh-text-analytics/index.html から作る。 -->
+<header class="top"><div class="wrap">
+  <div class="crumb"><a href="../../">田畑智司 Tomoji Tabata</a> ／ 授業 Teaching</div>
+  <nav><a href="#steps">内容 Contents</a><a href="#materials">教材 Materials</a><a href="#tools">道具 Tools</a><a href="../../jlit/">JLit Corpus 2026</a></nav>
+</div></header>
+
+<main class="wrap">
+<section class="hero">
+  <p class="kicker">博士前期課程 講義科目 ／ Master's course, Graduate School of Humanities</p>
+  <h1>デジタルヒューマニティーズ（テクスト分析論）A/B<span class="en">Digital Humanities (Text Analytics) A/B</span></h1>
+  <p class="lead">近代日本文学のコーパスを自分の手で作り直し，そのコーパスで文体・語の意味・主題の変化を計量的に記述する授業です。コーパスの設計から XML による符号化，形態素解析，記述統計と文体計量，word2vec・doc2vec・トピックモデルまでを，8 つのステップで進めます。</p>
+  <p class="en">In this course students rebuild a corpus of modern Japanese literature themselves and use it to describe, quantitatively, change in style, word meaning and theme. Eight steps lead from corpus design, XML encoding and morphological analysis to descriptive statistics and stylometry, word2vec, doc2vec and topic modelling.</p>
+</section>
+
+<h2 id="steps">内容（全 8 ステップ）<span class="en">Contents: eight steps</span></h2>
+<p>各ステップは講義と実習からなり，実習は Jupyter のノートブックで行います。「第 1 回」ではなく「Step」と呼ぶのは，1 コマで終わるとは限らず，到達したところから次へ進むためです。</p>
+<p class="en">Each step combines a lecture with a practical session in a Jupyter notebook. The steps are not tied to single class meetings: students move on when they have reached each step's goals.</p>
+<div class="scroll"><table>
+<thead><tr><th>Step</th><th>内容 Topic</th><th>ノートブック Notebook</th></tr></thead>
+<tbody>
+<tr><td class="n">1</td><td>コーパスとは何か — 設計・代表性・元のコーパスの診断<br><span class="en">What is a corpus? Design, representativeness and diagnosis</span></td><td><a href="{{repo}}/blob/main/notebooks/01_corpus_design.ipynb">01</a></td></tr>
+<tr><td class="n">2</td><td>コーパスの再構築 — 書誌の典拠と XML マークアップ<br><span class="en">Rebuilding the corpus: bibliographic sources and XML markup</span></td><td><a href="{{repo}}/blob/main/notebooks/02_rebuild_xml.ipynb">02</a></td></tr>
+<tr><td class="n">3</td><td>再構築から KWIC へ — 踊り字の正規化・UniDic による解析・KWIC コンコーダンサ<br><span class="en">From the rebuilt texts to KWIC: normalisation, UniDic analysis and a concordancer</span></td><td><a href="{{repo}}/blob/main/notebooks/03_normalise_tokenise.ipynb">03</a></td></tr>
+<tr><td class="n">4</td><td>記述統計と文体計量 — MFW・Delta・PCA・キーワード<br><span class="en">Descriptive statistics and stylometry: MFW, Delta, PCA and keywords</span></td><td><a href="{{repo}}/blob/main/notebooks/04_descriptive_stylometry.ipynb">04</a></td></tr>
+<tr><td class="n">5</td><td>word2vec の原理 — 分布仮説から word embedding へ<br><span class="en">How word2vec works: from the distributional hypothesis to word embeddings</span></td><td><a href="{{repo}}/blob/main/notebooks/05_word2vec_basics.ipynb">05</a></td></tr>
+<tr><td class="n">6</td><td>通時的 word2vec — 時代スライスと Procrustes アラインメント<br><span class="en">Diachronic word2vec: time slices and Procrustes alignment</span></td><td><a href="{{repo}}/blob/main/notebooks/06_diachronic_word2vec.ipynb">06</a></td></tr>
+<tr><td class="n">7</td><td>doc2vec — 文書ベクトル表現と交絡の分離<br><span class="en">doc2vec: document vectors and disentangling confounds</span></td><td><a href="{{repo}}/blob/main/notebooks/07_doc2vec.ipynb">07</a></td></tr>
+<tr><td class="n">8</td><td>トピックモデル（MALLET） — 主題の多様化と総合<br><span class="en">Topic modelling with MALLET: thematic diversification and synthesis</span></td><td><a href="{{repo}}/blob/main/notebooks/08_topic_modelling.ipynb">08</a></td></tr>
+</tbody></table></div>
+
+<h2 id="materials">教材<span class="en">Materials</span></h2>
+<p>教材はすべて GitHub のリポジトリにあります。受講生は自分のマシンにリポジトリを複製（clone）して使います。</p>
+<p class="en">All materials are in the GitHub repository, which students clone to their own machines.</p>
+<ul>
+  <li><a href="{{repo}}">リポジトリ JLit_Corpus_2026</a> <span class="en">— the course repository</span></li>
+  <li><a href="{{repo}}/blob/main/docs/00_setup_students.md">環境構築の手順（Step 1）</a> <span class="en">— setting up the environment (macOS and Windows)</span></li>
+  <li><a href="{{repo}}/blob/main/docs/glossary.md">用語集（Step ごとのキーワード・解説・確認問題）</a> <span class="en">— glossary with keywords, explanations and review questions for each step</span></li>
+</ul>
+<p class="note">連絡と課題の提出は，受講登録者だけが参加する授業用の Zulip で行います。<br>Announcements and assignments are handled on the course's Zulip channel, open to enrolled students only.</p>
+
+<h2 id="tools">授業で作る道具<span class="en">Tools built in the course</span></h2>
+<p>Step 3 で作る KWIC コンコーダンサと Step 8 で作るトピックビューアを，ブラウザで使える形で公開しています。</p>
+<p class="en">The KWIC concordancer built in Step 3 and the topic viewer built in Step 8 are available to use in the browser.</p>
+<div class="cards">
+  <div class="card">
+    <h3>JLit KWIC コンコーダンサ<span class="en">JLit KWIC concordancer</span> <span class="tag">Step 3</span></h3>
+    <p>{{works}} 作品・{{tokens}} 形態素から用例と共起語を引けます。</p>
+    <p class="en">Concordance lines and collocates from {{works}} works ({{tokens}} tokens).</p>
+    <div class="go"><a class="btn" href="../../jlit/kwic/">開く Open</a><a class="btn ghost" href="../../jlit/kwic/manual.html">マニュアル Manual</a></div>
+  </div>
+  <div class="card">
+    <h3>JLit トピックビューア<span class="en">JLit topic viewer</span> <span class="tag">Step 8</span></h3>
+    <p>トピックの上位キーワード・作品・時代区分による変化・ネットワークグラフ。</p>
+    <p class="en">Top keywords, works, change across periods and network graphs.</p>
+    <div class="go"><a class="btn" href="../../jlit/topics/">開く Open</a><a class="btn ghost" href="../../jlit/topics/topic_viewer_manual.html">マニュアル Manual</a></div>
+  </div>
+</div>
+<p>コーパスそのものについては <a href="../../jlit/">JLit Corpus 2026</a> のページを見てください。</p>
+<p class="en">For the corpus itself, see the <a href="../../jlit/">JLit Corpus 2026</a> page.</p>
+</main>
+
+<footer><div class="wrap">
+  担当 Instructor: 田畑智司 Tomoji Tabata（大阪大学大学院人文学研究科 Graduate School of Humanities, The University of Osaka）／ ページの更新 Page updated: {{web_build}}
+</div></footer>
+</body>
+</html>

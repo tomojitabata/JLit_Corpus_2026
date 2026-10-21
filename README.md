@@ -98,6 +98,7 @@ JLit_Corpus_2026/
 │   ├── expansion_candidates.csv 増補候補72件（優先度つき）
 │   └── diagnostics_v1.csv       v1 全64ファイルの実測値
 ├── notebooks/                   全8ステップの講義ノートブック（配布版。受講生は直接開かない）
+├── site/                        Web 公開用のページの元（20_build_site.py が埋めて site_build/ に書く）
 ├── templates/                   課題のテンプレート（StepN_report.md・final_report.md。make_notebooks.py が生成）
 ├── my_work/                     受講生の作業フォルダ（独立した git。受講生自身の GitHub にバックアップする）
 ├── scripts/
@@ -122,6 +123,10 @@ JLit_Corpus_2026/
 │   ├── 18_pos_select.py         品詞・集中度・dp_in で語を選び直す（Step 8）
 │   ├── 19_topic_viewer.py       トピックビューア（品詞・頻度帯で絞り込む HTML）
 │   ├── topic_viewer_manual.html トピックビューアの操作マニュアル（ビューアと同じフォルダに書き出す）
+│   ├── 20_build_site.py         KWIC とトピックビューアをサーバの要らない Web ページにまとめる（教員用）
+│   ├── publish_site.sh          組み立てた Web ページを sftp でサーバに置く（教員用）
+│   ├── kwic_web/                KWIC の Web 版（engine.js＝kwic_core.py の JavaScript 版，shim.js）
+│   ├── check_kwic_web.py        Web 版とサーバ版の検索結果を突き合わせる（Node.js が要る）
 │   ├── check_script_calls.py    ノートブックの呼び出しとスクリプトの引数を突き合わせる
 │   ├── check_units.py           列名（_prop は 0–1／_pct は 0–100）と中身の尺度の照合
 │   ├── check_balance.py         コーパスの構成を config/design_targets.yaml と突き合わせる
@@ -353,6 +358,37 @@ python scripts/16_kwic_server.py --query 汽車 --stream lemma \
 品詞（`/動詞`）・連なり（`汽車 に 乗る`，文境界は越えない）・ワイルドカード・
 正規表現が使える。用例には**時代区分・著者・作品名**が付き，行をクリックすると
 前後の本文が表示される。詳細は `docs/glossary.md` の「KWIC コンコーダンサ」。
+
+### 5. Web で公開する（教員用）
+
+KWIC コンコーダンサとトピックビューアを，**静的なファイルだけで動く Web ページ**に
+まとめて公開する。KWIC は検索の中身を JavaScript に移した版（`scripts/kwic_web/engine.js`）が
+ブラウザの中で動き，索引は圧縮して一緒に置く（最初に約 23 MB を読む）。
+画面はサーバ版と同じ `kwic_app.html` を使う。
+
+| ページ | 置き場所（公開ディレクトリからの相対） |
+|---|---|
+| JLit Corpus 2026（コーパスと道具の紹介） | `jlit/` |
+| KWIC コンコーダンサ | `jlit/kwic/` |
+| トピックビューア | `jlit/topics/` |
+| 授業「デジタルヒューマニティーズ（テクスト分析論）A/B」 | `teaching/dh-text-analytics/` |
+
+ページの文面は `site/` にある（数値は索引から自動で入る）。
+**索引とトピックビューアのある作業用クローン**で組み立て，sftp で置く。
+
+```bash
+# 作業用クローン（索引 data/kwic と my_work/results/topic_viewer.html があるところ）で
+cd /Users/tabata/Documents/dh_project/JLit_Corpus_2026
+python3 scripts/20_build_site.py                       # → site_build/
+python3 -m http.server 8000 --directory site_build     # 手元で確かめる → http://127.0.0.1:8000/jlit/
+bash scripts/publish_site.sh <ユーザー名@サーバ名> <公開ディレクトリ>
+```
+
+⚠ `kwic_core.py` の検索を直したら `scripts/kwic_web/engine.js` も同じように直し，
+`python3 scripts/check_kwic_web.py --index data/kwic` で両者の結果が一致することを
+確かめてから組み立てること（Node.js が要る）。
+⚠ 公開するページには手元の絶対パスを残さない（`20_build_site.py` がリポジトリからの
+相対パスに書き換える）。
 
 ---
 
